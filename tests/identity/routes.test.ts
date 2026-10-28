@@ -56,4 +56,23 @@ describe('identity route files', () => {
       }
     }
   });
+
+  it('openapi_documents_503_everywhere_and_idempotency_conflicts_where_a_key_is_used', () => {
+    const doc = buildOpenApi();
+    for (const [path, methods] of Object.entries(ROUTES)) {
+      const p = doc.paths?.[`/api/v1/${path.replace('[id]', '{id}')}`] as Record<string, { responses: Record<string, unknown> }>;
+      for (const m of methods) {
+        const r = p[m.toLowerCase()]?.responses ?? {};
+        expect(JSON.stringify(r['503']), `${m} ${path}`).toContain('EMAIL_TRANSPORT_UNAVAILABLE');
+        if (m !== 'GET' && m !== 'DELETE' && !path.startsWith('auth/logout')) {
+          expect(JSON.stringify(r['413']), `${m} ${path}`).toContain('PAYLOAD_TOO_LARGE');
+        }
+      }
+    }
+    for (const path of ['auth/register', 'auth/password/forgot', 'auth/password/reset']) {
+      const r = (doc.paths?.[`/api/v1/${path}`] as Record<string, { responses: Record<string, unknown> }>).post?.responses ?? {};
+      expect(JSON.stringify(r['409']), path).toContain('IDEMPOTENCY_IN_PROGRESS');
+      expect(JSON.stringify(r['422']), path).toContain('IDEMPOTENCY_KEY_REUSED');
+    }
+  });
 });

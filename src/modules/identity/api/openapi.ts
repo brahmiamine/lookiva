@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { problemSchema } from '@/platform/http/errors';
-import { registry, registerRoute } from '@/platform/openapi/registry';
+import { registry, registerRoute, type RouteDoc } from '@/platform/openapi/registry';
 import { SESSION_COOKIE } from './cookie';
 import * as s from './schemas';
 
@@ -20,30 +20,47 @@ const common = {
   403: problem('CSRF_REJECTED (missing X-Requested-With: lookiva or foreign Origin)'),
   429: problem('RATE_LIMITED (Retry-After header)'),
 };
+/** Adds what every identity route can answer: 503, 413 when it has a body, idempotency conflicts when keyed. */
+const route = ({ idempotent, ...r }: RouteDoc & { idempotent?: boolean }) =>
+  registerRoute({
+    ...r,
+    responses: {
+      ...r.responses,
+      ...((r.request as { body?: unknown } | undefined)?.body ? { 413: problem('PAYLOAD_TOO_LARGE (body over 16 KiB)') } : {}),
+      ...(idempotent
+        ? {
+            409: problem('IDEMPOTENCY_IN_PROGRESS (same Idempotency-Key still running)'),
+            422: problem('IDEMPOTENCY_KEY_REUSED (same Idempotency-Key, different request)'),
+          }
+        : {}),
+      503: problem('EMAIL_TRANSPORT_UNAVAILABLE (no email transport configured) or RATE_LIMITER_UNAVAILABLE'),
+    },
+  });
+
 const authed = {
   401: problem('UNAUTHENTICATED (no, unknown, revoked or expired session)'),
   403: problem('CSRF_REJECTED on unsafe methods'),
 };
 
-registerRoute({
-  method: 'post', path: '/api/v1/auth/register', tags,
+route({
+  method: 'post', path: '/api/v1/auth/register', tags, idempotent: true,
   summary: 'Create an account (same answer whether or not the email exists); mails a verification link',
   request: { headers: idempotency, body: body(s.registerBody) },
-  responses: { 202: json('Accepted', s.acceptedResponse), ...common, 503: problem('EMAIL_TRANSPORT_UNAVAILABLE') },
+  responses: { 202: json('Accepted', s.acceptedResponse), ...common },
 });
-registerRoute({
+route({
   method: 'post', path: '/api/v1/auth/email/verify', tags,
   summary: 'Consume a one-time email verification token',
   request: { headers: csrf, body: body(s.tokenBody) },
   responses: { 200: json('Email verified', s.verifiedResponse), ...common, 400: problem('INVALID_TOKEN (unknown, used or expired) or VALIDATION_ERROR') },
 });
-registerRoute({
+route({
   method: 'post', path: '/api/v1/auth/email/resend', tags,
   summary: 'Resend the verification link (60 s cooldown; same answer for unknown emails)',
   request: { headers: csrf, body: body(s.emailBody) },
   responses: { 202: json('Accepted', s.acceptedResponse), ...common },
 });
-registerRoute({
+route({
   method: 'post', path: '/api/v1/auth/login', tags,
   summary: 'Open a session (sets the lookiva_session cookie)',
   request: { headers: csrf, body: body(s.loginBody) },
@@ -54,53 +71,53 @@ registerRoute({
     403: problem('EMAIL_NOT_VERIFIED (only after a correct password) or CSRF_REJECTED'),
   },
 });
-registerRoute({
+route({
   method: 'post', path: '/api/v1/auth/logout', tags, security: session,
   summary: 'Revoke the current session',
   request: { headers: csrf },
   responses: { 204: { description: 'Signed out; cookie cleared' }, ...authed },
 });
-registerRoute({
+route({
   method: 'post', path: '/api/v1/auth/logout-all', tags, security: session,
   summary: 'Revoke every session of the user',
   request: { headers: csrf },
   responses: { 204: { description: 'All sessions revoked; cookie cleared' }, ...authed },
 });
-registerRoute({
-  method: 'post', path: '/api/v1/auth/password/forgot', tags,
+route({
+  method: 'post', path: '/api/v1/auth/password/forgot', tags, idempotent: true,
   summary: 'Mail a password reset link (same answer for unknown emails)',
   request: { headers: idempotency, body: body(s.emailBody) },
   responses: { 202: json('Accepted', s.acceptedResponse), ...common },
 });
-registerRoute({
-  method: 'post', path: '/api/v1/auth/password/reset', tags,
+route({
+  method: 'post', path: '/api/v1/auth/password/reset', tags, idempotent: true,
   summary: 'Set a new password with a reset token; revokes every session',
   request: { headers: idempotency, body: body(s.resetBody) },
   responses: { 200: json('Password changed', s.passwordResetResponse), ...common, 400: problem('INVALID_TOKEN or VALIDATION_ERROR') },
 });
-registerRoute({
+route({
   method: 'get', path: '/api/v1/me', tags, security: session,
   summary: 'Current account',
   responses: { 200: json('Account', s.meResponse), ...authed },
 });
-registerRoute({
+route({
   method: 'get', path: '/api/v1/me/sessions', tags, security: session,
   summary: 'Active sessions of the user (cursor pagination)',
   request: { query: z.object({ limit: z.number().int().min(1).max(100).optional(), cursor: z.string().optional() }) },
   responses: { 200: json('Sessions, newest first', s.sessionsResponse), 400: problem('VALIDATION_ERROR or INVALID_CURSOR'), ...authed },
 });
-registerRoute({
+route({
   method: 'delete', path: '/api/v1/me/sessions/{id}', tags, security: session,
   summary: 'Revoke one of the user\'s sessions',
   request: { headers: csrf, params: z.object({ id: z.uuid() }) },
   responses: { 204: { description: 'Revoked' }, ...authed, 404: problem('NOT_FOUND (unknown, revoked or another user\'s session)') },
 });
-registerRoute({
+route({
   method: 'get', path: '/api/v1/me/preferences', tags, security: session,
   summary: 'Preferences (ETag W/"v<version>")',
   responses: { 200: json('Preferences', s.preferencesResponse), ...authed },
 });
-registerRoute({
+route({
   method: 'patch', path: '/api/v1/me/preferences', tags, security: session,
   summary: 'Partial update guarded by If-Match',
   request: { headers: csrf.extend({ 'If-Match': z.string() }), body: body(s.preferencesPatchBody) },
@@ -112,7 +129,7 @@ registerRoute({
     428: problem('IF_MATCH_REQUIRED'),
   },
 });
-registerRoute({
+route({
   method: 'post', path: '/api/v1/me/onboarding', tags, security: session,
   summary: 'Onboarding: locale and city required; GPS and timezone optional (IANA, default UTC)',
   request: { headers: csrf, body: body(s.onboardingBody) },
