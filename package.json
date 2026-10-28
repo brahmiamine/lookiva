@@ -15,7 +15,9 @@
     "test": "vitest run",
     "test:int": "echo \"no integration tests yet\"",
     "test:e2e": "echo \"no e2e tests yet\"",
-    "verify": "pnpm lint && pnpm typecheck && pnpm test"
+    "verify": "pnpm lint && pnpm typecheck && pnpm test",
+    "infra:up": "docker compose --env-file .env.example -f compose.yaml -f compose.test.yaml up -d --wait",
+    "infra:down": "docker compose --env-file .env.example -f compose.yaml -f compose.test.yaml down -v"
   },
   "dependencies": {
     "next": "16.4.3",
