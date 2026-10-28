@@ -81,6 +81,7 @@ Limite connue : aucun module réel n'existe encore, et une règle pour `src/app`
 - Temps stockés en UTC.
 - Erreurs HTTP : `application/problem+json` (champs `type`, `title`, `status`, `code`, `detail`, `requestId`, `errors[]`), via `withApi`.
 - Pagination par curseur (`limit`, `cursor`).
+- Corps JSON : toujours `readJson(req, schema)` (`src/platform/http/body.ts`), jamais `req.json()` : 400 `INVALID_JSON` sans message du parseur, 400 `VALIDATION_ERROR` si le schéma échoue.
 - Concurrence : ETag faible `W/"v<n>"` et `If-Match` (428 si absent, 409 en conflit).
 - Idempotence : en-tête `Idempotency-Key` sur les POST critiques (`withIdempotency`, table `idempotency_records` unique `(userId, key)`).
 - Isolation des données : tout repository exige un `OwnerId` en paramètre (type `OwnerId`, oubli = erreur de compilation).

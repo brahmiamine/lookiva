@@ -90,7 +90,8 @@ Les placeholders `change-me` ne servent que le développement local : en product
 2. Ajouter les modèles Prisma du module dans `prisma/schema.prisma`, puis générer le SQL avec `prisma migrate diff` (voir §4), relire, committer le dossier de migration. Pas de table vectorielle avant le choix des embeddings (phase 07).
 3. Les repositories exigent un `OwnerId` ; les routes passent par `withApi` ; les POST critiques par `withIdempotency` ; les schémas Zod enrichissent `openapi.json` (`pnpm openapi:gen`, puis `pnpm openapi:check`).
 4. **Production** : `prisma` est une `devDependency` ; l'installation `--prod` est faite par l'image `worker` seulement, l'image `web` copie la sortie standalone de Next construite depuis une installation complète. Un `prisma migrate deploy` en production demande donc une étape dédiée (job ou image avec le CLI Prisma), non définie en phase 02. Aucun déploiement n'est prévu avant la phase 12 et l'accord du propriétaire.
-5. Reprises connues à traiter en phase 03 : corps JSON invalide renvoie encore 500 (les modules doivent le convertir en erreur 400) ; `READY_TOKEN` placeholder à refuser en production ; `generateMetadata` localisé pour les pages hors `dev/ui` (règle axe `document-title`).
+5. Corps JSON : les modules lisent toujours le corps avec `readJson(req, schema)` (`src/platform/http/body.ts`), jamais `req.json()` directement. Un corps invalide ou vide donne 400 `INVALID_JSON` sans message du parseur (qui citerait un fragment du corps, donc possiblement un mot de passe, et le ferait arriver dans les logs) ; une violation du schéma donne 400 `VALIDATION_ERROR`.
+6. Reprises connues à traiter en phase 03 : `READY_TOKEN` placeholder à refuser en production ; `generateMetadata` localisé pour les pages hors `dev/ui` (règle axe `document-title`).
 
 ## 7. Documents produit absents
 

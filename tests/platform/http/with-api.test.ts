@@ -2,6 +2,7 @@ import { Writable } from 'node:stream';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { AppError } from '@/platform/http/errors';
+import { readJson } from '@/platform/http/body';
 import { withApi } from '@/platform/http/with-api';
 import { createLogger } from '@/platform/logger';
 
@@ -89,5 +90,18 @@ describe('withApi', () => {
     const { logger } = memory();
     const res = await withApi(async () => new Response('ok'), { logger })(req({ 'x-request-id': 'abc-12345678' }));
     expect(res.headers.get('x-request-id')).toBe('abc-12345678');
+  });
+
+  it('malformed_json_body_never_reaches_logs', async () => {
+    const { logger, read } = memory();
+    const res = await withApi(async (r) => {
+      await readJson(r, z.object({ password: z.string() }));
+      return new Response('ok');
+    }, { logger })(new Request('http://localhost/x', { method: 'POST', body: '{"password":hunter2}' }));
+    expect(res.status).toBe(400);
+    const text = await res.text();
+    expect(JSON.parse(text)).toMatchObject({ code: 'INVALID_JSON' });
+    expect(text).not.toContain('hunter2');
+    expect(read()).not.toContain('hunter2');
   });
 });
