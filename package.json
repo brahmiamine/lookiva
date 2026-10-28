@@ -9,7 +9,7 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "pnpm db:generate && next build",
     "lint": "pnpm db:generate && eslint .",
     "typecheck": "pnpm db:generate && tsc --noEmit",
     "test": "vitest run",
@@ -21,9 +21,13 @@
     "boundaries": "depcruise src --config .dependency-cruiser.cjs --ts-config tsconfig.json",
     "build:worker": "esbuild src/worker/main.ts --bundle --packages=external --platform=node --format=esm --target=node24 --outfile=dist/worker.js",
     "db:generate": "prisma generate",
-    "db:migrate:deploy": "prisma migrate deploy"
+    "db:migrate:deploy": "prisma migrate deploy",
+    "openapi:bundle": "esbuild scripts/gen-openapi.ts --bundle --packages=external --platform=node --format=esm --target=node24 --log-level=warning --outfile=dist/gen-openapi.mjs",
+    "openapi:gen": "pnpm openapi:bundle && node dist/gen-openapi.mjs",
+    "openapi:check": "pnpm openapi:bundle && node dist/gen-openapi.mjs --check"
   },
   "dependencies": {
+    "@asteasolutions/zod-to-openapi": "9.1.0",
     "@prisma/adapter-mariadb": "7.10.1",
     "@prisma/client": "7.10.1",
     "bullmq": "6.5.0",
