@@ -1,3 +1,5 @@
+import { isIPv4, isIPv6 } from 'node:net';
+
 /** Shared bucket for every client when the peer address cannot be trusted (TRUST_PROXY=false). */
 export const UNTRUSTED_CLIENT = 'untrusted';
 
@@ -13,7 +15,24 @@ export function clientIp(req: Request, trustProxy: boolean): string {
     .split(',')
     .map((h) => h.trim())
     .filter(Boolean);
-  return hops.at(-1) ?? UNTRUSTED_CLIENT;
+  const last = hops.at(-1);
+  return last === undefined ? UNTRUSTED_CLIENT : bucketOf(last);
+}
+
+/**
+ * IPv6 clients usually own a whole /64: keying on the full address would hand them 2^64 buckets. IPv6 addresses
+ * map to their /64 prefix, IPv4-mapped IPv6 to the IPv4 address; anything else is used as is.
+ */
+function bucketOf(addr: string): string {
+  if (isIPv4(addr)) return addr;
+  if (!isIPv6(addr)) return addr;
+  const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/i.exec(addr);
+  if (mapped?.[1]) return mapped[1];
+  const [head = '', tail = ''] = addr.toLowerCase().split('::');
+  const left = head ? head.split(':') : [];
+  const right = addr.includes('::') ? (tail ? tail.split(':') : []) : [];
+  const groups = [...left, ...Array<string>(8 - left.length - right.length).fill('0'), ...right];
+  return `${groups.slice(0, 4).map((g) => parseInt(g, 16).toString(16)).join(':')}::/64`;
 }
 
 /**

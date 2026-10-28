@@ -17,6 +17,16 @@ describe('clientIp', () => {
     expect(clientIp(req({ 'x-forwarded-for': ' 10.0.0.8 ' }), true)).toBe('10.0.0.8');
   });
 
+  it('ipv6_clients_are_grouped_by_their_64_prefix', () => {
+    const ip = (xff: string) => clientIp(req({ 'x-forwarded-for': xff }), true);
+    expect(ip('2001:db8:1:2:3:4:5:6')).toBe('2001:db8:1:2::/64');
+    expect(ip('2001:0DB8:0001:0002:ffff::1')).toBe('2001:db8:1:2::/64');
+    expect(ip('2001:db8::1')).toBe('2001:db8:0:0::/64');
+    expect(ip('::1')).toBe('0:0:0:0::/64');
+    expect(ip('::ffff:192.0.2.7')).toBe('192.0.2.7');
+    expect(ip('192.0.2.7')).toBe('192.0.2.7');
+  });
+
   it('missing_or_empty_header_falls_back_even_when_trusted', () => {
     expect(clientIp(req({}), true)).toBe(UNTRUSTED_CLIENT);
     expect(clientIp(req({ 'x-forwarded-for': ' , ' }), true)).toBe(UNTRUSTED_CLIENT);
