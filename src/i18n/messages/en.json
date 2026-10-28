@@ -1,7 +1,67 @@
 {
-  "app": { "name": "Lookiva" },
+  "app": {
+    "name": "Lookiva"
+  },
   "home": {
     "title": "Your wardrobe, simplified",
     "subtitle": "Put outfits together and keep your wardrobe at your fingertips."
+  },
+  "error": {
+    "title": "Something went wrong",
+    "description": "An unexpected problem occurred. You can try again.",
+    "retry": "Try again"
+  },
+  "dev": {
+    "ui": {
+      "title": "Base components",
+      "intro": "Internal page, only available in development.",
+      "sections": {
+        "buttons": "Buttons",
+        "fields": "Fields",
+        "badges": "Status badges",
+        "bdi": "User-entered text",
+        "states": "States",
+        "gallery": "Garment gallery",
+        "outfits": "Outfits",
+        "calendar": "Calendar",
+        "dialog": "Dialog"
+      },
+      "buttons": {
+        "primary": "Primary",
+        "secondary": "Secondary",
+        "disabled": "Disabled"
+      },
+      "fields": {
+        "label": "Garment name",
+        "errorLabel": "Email address",
+        "error": "This field is required."
+      },
+      "status": {
+        "clean": "Clean",
+        "dirty": "To wash",
+        "lost": "Lost",
+        "lent": "Lent",
+        "archived": "Archived"
+      },
+      "states": {
+        "emptyTitle": "Nothing to show",
+        "emptyDescription": "Add your first garment to get started.",
+        "errorTitle": "Could not load",
+        "errorDescription": "Check your connection and try again.",
+        "loadingTitle": "Loading",
+        "loadingDescription": "One moment, we are preparing your wardrobe."
+      },
+      "pieces": "{count, plural, one {{n} piece} other {{n} pieces}}",
+      "calendar": {
+        "none": "No day selected",
+        "selectedPrefix": "Selected day:"
+      },
+      "dialog": {
+        "open": "Open the dialog",
+        "title": "Dialog",
+        "body": "Focus stays trapped here until it is closed.",
+        "close": "Close"
+      }
+    }
   }
 }

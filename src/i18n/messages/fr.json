@@ -1,7 +1,67 @@
 {
-  "app": { "name": "Lookiva" },
+  "app": {
+    "name": "Lookiva"
+  },
   "home": {
     "title": "Votre dressing, simplifié",
     "subtitle": "Composez vos tenues et gardez votre garde-robe sous la main."
+  },
+  "error": {
+    "title": "Une erreur est survenue",
+    "description": "Quelque chose s'est mal passé. Vous pouvez réessayer.",
+    "retry": "Réessayer"
+  },
+  "dev": {
+    "ui": {
+      "title": "Composants de base",
+      "intro": "Page interne, visible uniquement en développement.",
+      "sections": {
+        "buttons": "Boutons",
+        "fields": "Champs",
+        "badges": "Pastilles de statut",
+        "bdi": "Texte saisi par l’utilisateur",
+        "states": "États",
+        "gallery": "Galerie de pièces",
+        "outfits": "Tenues",
+        "calendar": "Calendrier",
+        "dialog": "Boîte de dialogue"
+      },
+      "buttons": {
+        "primary": "Principal",
+        "secondary": "Secondaire",
+        "disabled": "Désactivé"
+      },
+      "fields": {
+        "label": "Nom de la pièce",
+        "errorLabel": "Adresse e-mail",
+        "error": "Ce champ est obligatoire."
+      },
+      "status": {
+        "clean": "Propre",
+        "dirty": "À laver",
+        "lost": "Perdu",
+        "lent": "Prêté",
+        "archived": "Archivé"
+      },
+      "states": {
+        "emptyTitle": "Rien à afficher",
+        "emptyDescription": "Ajoutez votre première pièce pour commencer.",
+        "errorTitle": "Chargement impossible",
+        "errorDescription": "Vérifiez votre connexion puis réessayez.",
+        "loadingTitle": "Chargement",
+        "loadingDescription": "Un instant, nous préparons votre dressing."
+      },
+      "pieces": "{count, plural, one {{n} pièce} other {{n} pièces}}",
+      "calendar": {
+        "none": "Aucun jour sélectionné",
+        "selectedPrefix": "Jour sélectionné :"
+      },
+      "dialog": {
+        "open": "Ouvrir la boîte de dialogue",
+        "title": "Boîte de dialogue",
+        "body": "Le focus reste piégé ici jusqu’à la fermeture.",
+        "close": "Fermer"
+      }
+    }
   }
 }
