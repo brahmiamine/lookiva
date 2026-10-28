@@ -1,5 +1,5 @@
 import { Writable } from 'node:stream';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { AppError } from '@/platform/http/errors';
 import { readJson } from '@/platform/http/body';
@@ -103,5 +103,40 @@ describe('withApi', () => {
     expect(JSON.parse(text)).toMatchObject({ code: 'INVALID_JSON' });
     expect(text).not.toContain('hunter2');
     expect(read()).not.toContain('hunter2');
+  });
+
+  describe('with an invalid environment', () => {
+    afterEach(() => {
+      vi.unstubAllEnvs();
+      vi.restoreAllMocks();
+    });
+
+    it('bad_env_still_yields_problem_json_500_with_request_id', async () => {
+      const secrets = ['not-a-url-s3cretdb', 'not-a-url-s3cretredis'];
+      vi.stubEnv('DATABASE_URL', secrets[0] as string);
+      vi.stubEnv('REDIS_URL', secrets[1] as string);
+      vi.stubEnv('READY_TOKEN', '');
+      let logged = '';
+      vi.spyOn(process.stdout, 'write').mockImplementation(((chunk: string | Uint8Array) => {
+        logged += chunk.toString();
+        return true;
+      }) as typeof process.stdout.write);
+      vi.resetModules(); // fresh memoised getEnv + default logger
+      const { withApi: freshWithApi } = await import('@/platform/http/with-api');
+      const res = await freshWithApi(async () => {
+        const { getEnv } = await import('@/platform/env'); // handler that itself needs env, like /ready
+        getEnv();
+        return new Response('ok');
+      })(req());
+      expect(res.status).toBe(500);
+      expect(res.headers.get('content-type')).toContain('application/problem+json');
+      expect(res.headers.get('x-request-id') ?? '').toMatch(ID_RE);
+      const text = await res.text();
+      expect(JSON.parse(text)).toMatchObject({ code: 'INTERNAL_ERROR', status: 500 });
+      for (const v of secrets) {
+        expect(text).not.toContain(v);
+        expect(logged).not.toContain(v);
+      }
+    });
   });
 });

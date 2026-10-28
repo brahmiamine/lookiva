@@ -9,7 +9,15 @@ type Handler = (req: Request, ctx: Ctx) => Promise<Response>;
 const REQUEST_ID_RE = /^[A-Za-z0-9-]{8,64}$/;
 
 let defaultLogger: Logger | undefined;
-const lazyLogger = (): Logger => (defaultLogger ??= createLogger({ level: getEnv().LOG_LEVEL }));
+// A bad env must not take withApi down (startup validation lives in instrumentation.ts): fall back to the default level.
+const lazyLogger = (): Logger => {
+  if (defaultLogger) return defaultLogger;
+  try {
+    return (defaultLogger = createLogger({ level: getEnv().LOG_LEVEL }));
+  } catch {
+    return createLogger();
+  }
+};
 
 export function withApi(handler: Handler, deps: { logger?: Logger } = {}): (req: Request) => Promise<Response> {
   return async (req) => {

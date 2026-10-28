@@ -42,7 +42,7 @@ Tous les ports publiés sont liés à `127.0.0.1` : rien n'est joignable depuis 
 
 ## 3. Variables d'environnement
 
-Copier `.env.example` vers `.env` (ignoré par git). Validation Zod au démarrage (`src/platform/env.ts`) : un message d'erreur nomme la variable, jamais sa valeur.
+Copier `.env.example` vers `.env` (ignoré par git). Validation Zod au démarrage (`src/platform/env.ts`) : un message d'erreur nomme la variable, jamais sa valeur. Le serveur web la déclenche via `src/instrumentation.ts` (en production le process sort avec le code 1 ; en développement `next dev` journalise l'erreur) et le worker dans `src/worker/main.ts`. Hors démarrage, `withApi` répond quand même une 500 `application/problem+json` si l'environnement est invalide.
 
 | Variable | Sens | Placeholder dans `.env.example` |
 |---|---|---|
