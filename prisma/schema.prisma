@@ -19,3 +19,128 @@ model IdempotencyRecord {
   @@unique([userId, key])
   @@map("idempotency_records")
 }
+
+// ---------------------------------------------------------------- identity (phase 03)
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+  DELETION_REQUESTED
+}
+
+enum EmailTokenPurpose {
+  VERIFY_EMAIL
+  RESET_PASSWORD
+}
+
+enum Locale {
+  fr
+  en
+  ar
+}
+
+enum ThermalSensitivity {
+  COLD
+  NEUTRAL
+  WARM
+}
+
+model User {
+  id              String     @id @db.Char(36)
+  email           String     @db.VarChar(254)
+  /// NFKC + trim + lowercase; the only column used for lookups and uniqueness.
+  emailNormalized String     @unique @db.VarChar(254)
+  emailVerifiedAt DateTime?  @db.DateTime(3)
+  status          UserStatus @default(ACTIVE)
+  createdAt       DateTime   @db.DateTime(3)
+  updatedAt       DateTime   @updatedAt @db.DateTime(3)
+  version         Int        @default(1)
+
+  credential  Credential?
+  tokens      EmailToken[]
+  sessions    SessionRegistry[]
+  preferences UserPreferences?
+  consents    ConsentRecord[]
+
+  @@map("users")
+}
+
+model Credential {
+  userId       String   @id @db.Char(36)
+  passwordHash String   @db.VarChar(255)
+  updatedAt    DateTime @db.DateTime(3)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("credentials")
+}
+
+model EmailToken {
+  id        String            @id @db.Char(36)
+  userId    String            @db.Char(36)
+  purpose   EmailTokenPurpose
+  tokenHash String            @unique @db.Char(64)
+  createdAt DateTime          @db.DateTime(3)
+  expiresAt DateTime          @db.DateTime(3)
+  usedAt    DateTime?         @db.DateTime(3)
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose, createdAt])
+  @@map("email_tokens")
+}
+
+model SessionRegistry {
+  id         String    @id @db.Char(36)
+  userId     String    @db.Char(36)
+  tokenHash  String    @unique @db.Char(64)
+  userAgent  String    @db.VarChar(255)
+  createdAt  DateTime  @db.DateTime(3)
+  lastSeenAt DateTime  @db.DateTime(3)
+  expiresAt  DateTime  @db.DateTime(3)
+  revokedAt  DateTime? @db.DateTime(3)
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+  @@map("session_registry")
+}
+
+model UserPreferences {
+  userId                String             @id @db.Char(36)
+  locale                Locale             @default(fr)
+  cityName              String?            @db.VarChar(120)
+  countryCode           String?            @db.Char(2)
+  latitude              Decimal?           @db.Decimal(9, 6)
+  longitude             Decimal?           @db.Decimal(9, 6)
+  timezone              String?            @db.VarChar(64)
+  aiEnabled             Boolean            @default(false)
+  learningEnabled       Boolean            @default(false)
+  thermalSensitivity    ThermalSensitivity @default(NEUTRAL)
+  onboardingCompletedAt DateTime?          @db.DateTime(3)
+  version               Int                @default(1)
+  user                  User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_preferences")
+}
+
+model ConsentRecord {
+  id        String   @id @db.Char(36)
+  userId    String   @db.Char(36)
+  kind      String   @db.VarChar(32)
+  granted   Boolean
+  createdAt DateTime @db.DateTime(3)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("consent_records")
+}
+
+/// Dev/test email transport (EMAIL_TRANSPORT=outbox). Holds plaintext links: never enabled in production.
+model OutboxMessage {
+  id        String   @id @db.Char(36)
+  to        String   @db.VarChar(254)
+  subject   String   @db.VarChar(255)
+  text      String   @db.Text
+  createdAt DateTime @db.DateTime(3)
+
+  @@index([to, createdAt])
+  @@map("outbox_messages")
+}
