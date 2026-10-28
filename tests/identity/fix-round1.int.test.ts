@@ -64,3 +64,46 @@ describe('input bounds', () => {
     expect(Number(res.headers.get('retry-after'))).toBeGreaterThan(0);
   });
 });
+
+describe('pre-registration hijack (I2)', () => {
+  it('attacker_first_victim_second_victim_password_wins_after_verification', async () => {
+    const attacker = harness();
+    const victim = harness();
+    const email = attacker.newEmail('victim');
+    await attacker.api.register({ email, password: 'attacker chosen phrase' });
+    await victim.api.register({ email, password: 'victim own passphrase' }); // immediately, inside the resend cooldown
+    // the victim opens the newest mail in their mailbox
+    expect((await victim.api.verify(await victim.lastToken(email))).status).toBe(200);
+    expect((await victim.api.login(email, 'victim own passphrase')).status).toBe(200);
+    expect((await attacker.api.login(email, 'attacker chosen phrase')).body).toMatchObject({ status: 401, code: 'INVALID_CREDENTIALS' });
+  });
+
+  it('pending_password_hash_is_stored_on_the_verify_token_only_as_scrypt', async () => {
+    const h = harness();
+    const email = h.newEmail();
+    await h.api.register({ email, password: 'violet sunset harbour' });
+    const user = await db.user.findUniqueOrThrow({ where: { emailNormalized: email } });
+    const [token] = await db.emailToken.findMany({ where: { userId: user.id } });
+    expect(token?.pendingPasswordHash?.startsWith('scrypt$')).toBe(true);
+  });
+
+  it('resent_verification_link_keeps_the_current_password', async () => {
+    const h = harness();
+    const email = h.newEmail();
+    await h.api.register({ email, password: 'violet sunset harbour' });
+    h.clock.advance(60_000);
+    await h.api.resend(email);
+    expect((await h.api.verify(await h.lastToken(email))).status).toBe(200);
+    expect((await h.api.login(email, 'violet sunset harbour')).status).toBe(200);
+  });
+
+  it('registering_again_on_a_verified_account_changes_nothing', async () => {
+    const h = harness();
+    const { email } = await h.signedIn();
+    const before = await h.outbox(email);
+    await h.api.register({ email, password: 'another long password' });
+    expect(await h.outbox(email)).toHaveLength(before.length);
+    expect((await h.api.login(email, 'another long password')).status).toBe(401);
+    expect((await h.api.login(email, 'violet sunset harbour')).status).toBe(200);
+  });
+});

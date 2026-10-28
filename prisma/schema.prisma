@@ -75,14 +75,17 @@ model Credential {
 }
 
 model EmailToken {
-  id        String            @id @db.Char(36)
-  userId    String            @db.Char(36)
-  purpose   EmailTokenPurpose
-  tokenHash String            @unique @db.Char(64)
-  createdAt DateTime          @db.DateTime(3)
-  expiresAt DateTime          @db.DateTime(3)
-  usedAt    DateTime?         @db.DateTime(3)
-  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                  String            @id @db.Char(36)
+  userId              String            @db.Char(36)
+  purpose             EmailTokenPurpose
+  tokenHash           String            @unique @db.Char(64)
+  createdAt           DateTime          @db.DateTime(3)
+  expiresAt           DateTime          @db.DateTime(3)
+  usedAt              DateTime?         @db.DateTime(3)
+  /// VERIFY_EMAIL from a registration only: scrypt hash of the password typed at that registration, applied to the
+  /// credential when THIS link is used (so whoever controls the mailbox decides the password). Cleared on use.
+  pendingPasswordHash String?           @db.VarChar(255)
+  user                User              @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, purpose, createdAt])
   @@map("email_tokens")

@@ -62,7 +62,15 @@ export function createPrismaIdentityStore(db: PrismaClient): IdentityStore {
       await db.$transaction([
         db.emailToken.updateMany({ where: { userId: t.userId, purpose: t.purpose, usedAt: null }, data: { usedAt: t.now } }),
         db.emailToken.create({
-          data: { id: newId(), userId: t.userId, purpose: t.purpose, tokenHash: t.tokenHash, createdAt: t.now, expiresAt: t.expiresAt },
+          data: {
+            id: newId(),
+            userId: t.userId,
+            purpose: t.purpose,
+            tokenHash: t.tokenHash,
+            createdAt: t.now,
+            expiresAt: t.expiresAt,
+            pendingPasswordHash: t.pendingPasswordHash ?? null,
+          },
         }),
       ], TX);
     },
@@ -77,7 +85,15 @@ export function createPrismaIdentityStore(db: PrismaClient): IdentityStore {
           data: { usedAt: now },
         });
         if (count !== 1) return null;
-        const { userId } = await tx.emailToken.findUniqueOrThrow({ where: { tokenHash }, select: { userId: true } });
+        const { userId, pendingPasswordHash } = await tx.emailToken.findUniqueOrThrow({
+          where: { tokenHash },
+          select: { userId: true, pendingPasswordHash: true },
+        });
+        if (pendingPasswordHash !== null) {
+          // The registration whose link was opened from the mailbox sets the password (pre-registration hijack fix).
+          await tx.credential.update({ where: { userId }, data: { passwordHash: pendingPasswordHash, updatedAt: now } });
+          await tx.emailToken.update({ where: { tokenHash }, data: { pendingPasswordHash: null } });
+        }
         await tx.user.updateMany({ where: { id: userId, emailVerifiedAt: null }, data: { emailVerifiedAt: now } });
         return userId;
       }, TX),

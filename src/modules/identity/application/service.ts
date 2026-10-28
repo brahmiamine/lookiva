@@ -75,15 +75,29 @@ export function createIdentityService(d: IdentityServiceDeps) {
     return (await d.store.getPreferences(userId as OwnerId))?.locale ?? 'fr';
   }
 
-  /** Issues a token and mails it, unless one of the same purpose was sent less than RESEND_COOLDOWN_MS ago. */
-  async function issueAndSend(user: UserRecord, purpose: TokenPurpose, locale?: Locale): Promise<boolean> {
+  /**
+   * Issues a token and mails it, unless one of the same purpose was sent less than RESEND_COOLDOWN_MS ago.
+   * A registration (`pendingPasswordHash`) always issues: its link must carry the password just typed.
+   */
+  async function issueAndSend(
+    user: UserRecord,
+    purpose: TokenPurpose,
+    opts: { locale?: Locale; pendingPasswordHash?: string } = {},
+  ): Promise<boolean> {
     const t = now();
-    if (cooldownLeftMs(await d.store.lastTokenAt(user.id, purpose), t) > 0) return false;
+    if (!opts.pendingPasswordHash && cooldownLeftMs(await d.store.lastTokenAt(user.id, purpose), t) > 0) return false;
     const { token, hash } = d.tokens.generate();
-    await d.store.issueToken({ userId: user.id, purpose, tokenHash: hash, now: t, expiresAt: new Date(t.getTime() + TOKEN_TTL_MS[purpose]) });
+    await d.store.issueToken({
+      userId: user.id,
+      purpose,
+      tokenHash: hash,
+      now: t,
+      expiresAt: new Date(t.getTime() + TOKEN_TTL_MS[purpose]),
+      pendingPasswordHash: opts.pendingPasswordHash,
+    });
     // Sent after the token is committed, never inside a transaction.
     const kind = purpose === 'VERIFY_EMAIL' ? 'verify' : 'reset';
-    await d.mailer.send(buildMail(kind, locale ?? (await localeOf(user.id)), user.email, d.appOrigin, token));
+    await d.mailer.send(buildMail(kind, opts.locale ?? (await localeOf(user.id)), user.email, d.appOrigin, token));
     return true;
   }
 
@@ -93,7 +107,10 @@ export function createIdentityService(d: IdentityServiceDeps) {
   }
 
   return {
-    /** Same answer and the same expensive work (one scrypt) whether or not the email is already registered. */
+    /**
+     * Same answer and the same expensive work (one scrypt) whether or not the email is already registered.
+     * The password becomes effective only through the verification link of this registration (pendingPasswordHash).
+     */
     async register(input: { email: string; password: string; locale: Locale }): Promise<void> {
       const emailNormalized = normalized(input.email);
       assertPolicy(input.password, emailNormalized);
@@ -112,13 +129,15 @@ export function createIdentityService(d: IdentityServiceDeps) {
         if (created) {
           await d.audit.record({ actorId: id, action: 'identity.registered' });
           user = await d.store.findUserById(id);
-          if (user) await issueAndSend(user, 'VERIFY_EMAIL', input.locale);
+          if (user) await issueAndSend(user, 'VERIFY_EMAIL', { locale: input.locale, pendingPasswordHash: passwordHash });
           return;
         }
         user = await d.store.findUserByEmail(emailNormalized); // lost a concurrent race: behave as "exists"
       }
       if (user && user.status === 'ACTIVE' && user.emailVerifiedAt === null) {
-        await issueAndSend(user, 'VERIFY_EMAIL');
+        // Unverified: nobody proved the mailbox yet, so this registration's password rides on its own link
+        // (the newest link wins; older ones are voided). A verified account is never touched.
+        await issueAndSend(user, 'VERIFY_EMAIL', { pendingPasswordHash: passwordHash });
       }
     },
 

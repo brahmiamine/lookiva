@@ -63,9 +63,17 @@ export interface IdentityStore {
 
   lastTokenAt(userId: string, purpose: TokenPurpose): Promise<Date | null>;
   /** Stores a new token and voids the user's older unused tokens of the same purpose. */
-  issueToken(t: { userId: string; purpose: TokenPurpose; tokenHash: string; now: Date; expiresAt: Date }): Promise<void>;
+  issueToken(t: {
+    userId: string;
+    purpose: TokenPurpose;
+    tokenHash: string;
+    now: Date;
+    expiresAt: Date;
+    /** Registration only: password applied when this very link is used. */
+    pendingPasswordHash?: string;
+  }): Promise<void>;
   findLiveToken(tokenHash: string, purpose: TokenPurpose, now: Date): Promise<{ userId: string } | null>;
-  /** Atomic single use (`usedAt IS NULL` guard) + marks the email verified. Returns the user id, or null. */
+  /** Atomic single use (`usedAt IS NULL` guard) + marks the email verified + applies the token's pending password, if any. */
   consumeVerifyToken(tokenHash: string, now: Date): Promise<string | null>;
   /** Atomic single use + new password + every session revoked + email verified, in one transaction. */
   consumeResetToken(tokenHash: string, now: Date, passwordHash: string): Promise<string | null>;
