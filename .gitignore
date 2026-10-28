@@ -9,3 +9,5 @@ test-results/
 !.env.example
 .superpowers/
 .DS_Store
+next-env.d.ts
+*.tsbuildinfo
