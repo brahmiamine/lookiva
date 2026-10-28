@@ -84,7 +84,8 @@ Le noyau partagé `src/platform/kernel/` (`OwnerId`, `asOwnerId`, `OwnerScopedRe
 - Pagination par curseur (`limit`, `cursor`).
 - Corps JSON : toujours `readJson(req, schema)` (`src/platform/http/body.ts`), jamais `req.json()` : 400 `INVALID_JSON` sans message du parseur, 400 `VALIDATION_ERROR` si le schéma échoue.
 - Concurrence : ETag faible `W/"v<n>"` et `If-Match` (428 si absent, 409 en conflit).
-- Idempotence : en-tête `Idempotency-Key` sur les POST critiques (`withIdempotency`, table `idempotency_records` unique `(userId, key)`).
+- Idempotence : en-tête `Idempotency-Key` sur les POST critiques. Le handler lit la clé avec `readIdempotencyKey(req)` (`^[A-Za-z0-9_-]{8,128}$`, sinon 400 `IDEMPOTENCY_KEY_REQUIRED` / `IDEMPOTENCY_KEY_INVALID`), calcule `requestHash(method, path, canonicalJson(body))` (`src/platform/http/idempotency-key.ts`) puis appelle `withIdempotency` (table `idempotency_records` unique `(userId, key)`, `userId` de type `OwnerId`). `onPersistError` est obligatoire (journaliser la perte), le statut retourné doit être un entier 100-599 et le corps un JSON Prisma valide. Les enregistrements terminés sont purgés par `purgeIdempotencyRecords(db, olderThan)` (ex. 24 h) ; les enregistrements en cours ne le sont jamais.
+- Journaux : toujours passer l'erreur sous la clé `err` (`log.error({ err }, ...)`) ; le sérialiseur (`serializeError`) tronque le message, retire `input`/`query`/`params`/`headers`/`body`/`request`/`config` et réduit les erreurs Prisma à `code` et `meta.target`. L'expurgation par jokers (`*.password`) ne couvre qu'un niveau.
 - Jamais de push (file, notification, webhook) ni de suppression d'objet (stockage) à l'intérieur d'une transaction SQL.
 - SQL brut uniquement dans `infrastructure`, toujours paramétré (spec §5).
 - Isolation des données : tout repository exige un `OwnerId` en paramètre (type `OwnerId` de `src/platform/kernel`, oubli = erreur de compilation).

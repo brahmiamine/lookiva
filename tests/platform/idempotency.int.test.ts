@@ -2,17 +2,20 @@ import { randomUUID } from 'node:crypto';
 import { afterAll, describe, expect, it } from 'vitest';
 import { createDb } from '@/platform/db';
 import { AppError } from '@/platform/http/errors';
-import { withIdempotency } from '@/platform/http/idempotency';
+import { purgeIdempotencyRecords, withIdempotency } from '@/platform/http/idempotency';
 import { newId } from '@/platform/http/ids';
+import { asOwnerId, type OwnerId } from '@/platform/kernel';
 import { testDatabaseUrl } from '../setup/db-url';
 
 const db = createDb(testDatabaseUrl());
 const users: string[] = [];
-const newUser = () => {
+const newUser = (): OwnerId => {
   const u = `test-${randomUUID()}`;
   users.push(u);
-  return u;
+  return asOwnerId(u);
 };
+const noop = () => undefined;
+const opts = { onPersistError: noop };
 const hash = (c: string) => c.repeat(64).slice(0, 64);
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -34,7 +37,7 @@ describe('withIdempotency (real mariadb)', () => {
   it('first_call_runs_and_stores', async () => {
     const userId = newUser();
     const ctx = { userId, key: 'k1', requestHash: hash('a') };
-    const res = await withIdempotency(db, ctx, async () => ({ status: 201, body: { id: 'x' } }));
+    const res = await withIdempotency(db, ctx, async () => ({ status: 201, body: { id: 'x' } }), opts);
     expect(res).toEqual({ status: 201, body: { id: 'x' }, replayed: false });
     const row = await db.idempotencyRecord.findUniqueOrThrow({ where: { userId_key: { userId, key: 'k1' } } });
     expect(row).toMatchObject({ status: 201, responseBody: { id: 'x' }, requestHash: ctx.requestHash });
@@ -44,8 +47,8 @@ describe('withIdempotency (real mariadb)', () => {
     const ctx = { userId: newUser(), key: 'k1', requestHash: hash('a') };
     let calls = 0;
     const run = async () => ({ status: 201, body: { n: ++calls } });
-    const first = await withIdempotency(db, ctx, run);
-    const second = await withIdempotency(db, ctx, run);
+    const first = await withIdempotency(db, ctx, run, opts);
+    const second = await withIdempotency(db, ctx, run, opts);
     expect(calls).toBe(1);
     expect(first.replayed).toBe(false);
     expect(second).toEqual({ status: 201, body: { n: 1 }, replayed: true });
@@ -53,16 +56,18 @@ describe('withIdempotency (real mariadb)', () => {
 
   it('same_key_different_hash_is_422_IDEMPOTENCY_KEY_REUSED', async () => {
     const userId = newUser();
-    await withIdempotency(db, { userId, key: 'k1', requestHash: hash('a') }, async () => ({
-      status: 201,
-      body: { secret: 'first-response' },
-    }));
+    await withIdempotency(
+      db,
+      { userId, key: 'k1', requestHash: hash('a') },
+      async () => ({ status: 201, body: { secret: 'first-response' } }),
+      opts,
+    );
     let ran = false;
     const err = await rejection(
       withIdempotency(db, { userId, key: 'k1', requestHash: hash('b') }, async () => {
         ran = true;
         return { status: 201, body: {} };
-      }),
+      }, opts),
     );
     expect(ran).toBe(false);
     expect(err.status).toBe(422);
@@ -78,7 +83,7 @@ describe('withIdempotency (real mariadb)', () => {
       await sleep(200);
       return { status: 201, body: { ok: true } };
     };
-    const results = await Promise.allSettled([withIdempotency(db, ctx, run), withIdempotency(db, ctx, run)]);
+    const results = await Promise.allSettled([withIdempotency(db, ctx, run, opts), withIdempotency(db, ctx, run, opts)]);
     expect(calls).toBe(1);
     const ok = results.filter((r) => r.status === 'fulfilled');
     const ko = results.filter((r) => r.status === 'rejected');
@@ -95,8 +100,8 @@ describe('withIdempotency (real mariadb)', () => {
     const key = 'shared-key';
     let calls = 0;
     const run = async () => ({ status: 200, body: { n: ++calls } });
-    const a = await withIdempotency(db, { userId: newUser(), key, requestHash: hash('a') }, run);
-    const b = await withIdempotency(db, { userId: newUser(), key, requestHash: hash('a') }, run);
+    const a = await withIdempotency(db, { userId: newUser(), key, requestHash: hash('a') }, run, opts);
+    const b = await withIdempotency(db, { userId: newUser(), key, requestHash: hash('a') }, run, opts);
     expect(calls).toBe(2);
     expect([a.replayed, b.replayed]).toEqual([false, false]);
   });
@@ -107,10 +112,10 @@ describe('withIdempotency (real mariadb)', () => {
     await expect(
       withIdempotency(db, ctx, async () => {
         throw boom;
-      }),
+      }, opts),
     ).rejects.toBe(boom);
     expect(await db.idempotencyRecord.count({ where: { userId: ctx.userId } })).toBe(0);
-    const res = await withIdempotency(db, ctx, async () => ({ status: 200, body: 'ok' }));
+    const res = await withIdempotency(db, ctx, async () => ({ status: 200, body: 'ok' }), opts);
     expect(res).toEqual({ status: 200, body: 'ok', replayed: false });
   });
 
@@ -119,12 +124,12 @@ describe('withIdempotency (real mariadb)', () => {
     const ctx = { userId, key: 'k1', requestHash: hash('a') };
     await db.idempotencyRecord.create({ data: { id: newId(), ...ctx, status: 0 } });
     // fresh pending record: still in progress
-    expect(await rejection(withIdempotency(db, ctx, async () => ({ status: 200, body: 1 })))).toMatchObject({
+    expect(await rejection(withIdempotency(db, ctx, async () => ({ status: 200, body: 1 }), opts))).toMatchObject({
       status: 409,
       code: 'IDEMPOTENCY_IN_PROGRESS',
     });
     const now = () => new Date(Date.now() + 10 * 60_000);
-    const res = await withIdempotency(db, ctx, async () => ({ status: 200, body: 2 }), { now });
+    const res = await withIdempotency(db, ctx, async () => ({ status: 200, body: 2 }), { ...opts, now });
     expect(res).toEqual({ status: 200, body: 2, replayed: false });
   });
 
@@ -144,12 +149,42 @@ describe('withIdempotency (real mariadb)', () => {
     });
     expect(Math.abs(k2.createdAt.getTime() - Date.now())).toBeLessThan(60_000);
   });
+  it('non_integer_or_out_of_range_status_is_rejected_and_key_released', async () => {
+    const ctx = { userId: newUser(), key: 'k1', requestHash: hash('a') };
+    for (const status of [0, 99, 600, 200.5, Number.NaN, Number.POSITIVE_INFINITY]) {
+      let ran = 0;
+      const err = await rejection(
+        withIdempotency(db, ctx, async () => (ran++, { status, body: { leaked: true } }), opts),
+      );
+      expect(err, String(status)).toMatchObject({ status: 500, code: 'INVALID_RESPONSE_STATUS' });
+      expect(ran).toBe(1);
+      // nothing persisted and the key is free again
+      expect(await db.idempotencyRecord.count({ where: { userId: ctx.userId } })).toBe(0);
+    }
+    const res = await withIdempotency(db, ctx, async () => ({ status: 200, body: 'fine' }), opts);
+    expect(res).toEqual({ status: 200, body: 'fine', replayed: false });
+  });
+
+  it('purge_deletes_only_completed_records_older_than_cutoff', async () => {
+    const userId = newUser();
+    const old = new Date('2020-01-01T00:00:00.000Z');
+    const cutoff = new Date('2021-01-01T00:00:00.000Z');
+    const row = (key: string, status: number, createdAt: Date) =>
+      db.idempotencyRecord.create({ data: { id: newId(), userId, key, requestHash: hash('a'), status, createdAt } });
+    await row('old-done', 201, old);
+    await row('old-pending', 0, old);
+    await row('new-done', 201, new Date());
+    expect(await purgeIdempotencyRecords(db, cutoff)).toBeGreaterThanOrEqual(1);
+    const left = await db.idempotencyRecord.findMany({ where: { userId }, orderBy: { key: 'asc' } });
+    expect(left.map((r) => r.key)).toEqual(['new-done', 'old-pending']);
+  });
+
   describe('exact key and user matching', () => {
-    const runTwice = async (a: { userId: string; key: string }, b: { userId: string; key: string }) => {
+    const runTwice = async (a: { userId: OwnerId; key: string }, b: { userId: OwnerId; key: string }) => {
       let calls = 0;
       const run = async () => ({ status: 201, body: { n: ++calls } });
-      const ra = await withIdempotency(db, { ...a, requestHash: hash('a') }, run);
-      const rb = await withIdempotency(db, { ...b, requestHash: hash('a') }, run);
+      const ra = await withIdempotency(db, { ...a, requestHash: hash('a') }, run, opts);
+      const rb = await withIdempotency(db, { ...b, requestHash: hash('a') }, run, opts);
       expect(calls).toBe(2);
       expect([ra.replayed, rb.replayed]).toEqual([false, false]);
     };
@@ -167,7 +202,7 @@ describe('withIdempotency (real mariadb)', () => {
     it('userIds_differing_only_by_case_are_independent', async () => {
       const base = `test-${randomUUID()}`;
       users.push(base, base.toUpperCase());
-      await runTwice({ userId: base, key: 'k1' }, { userId: base.toUpperCase(), key: 'k1' });
+      await runTwice({ userId: asOwnerId(base), key: 'k1' }, { userId: asOwnerId(base.toUpperCase()), key: 'k1' });
     });
   });
 
@@ -186,7 +221,7 @@ describe('withIdempotency (real mariadb)', () => {
           await db.idempotencyRecord.create({ data: { id: newRowId, ...ctx, status: 0 } });
           return { status: 201, body: { mine: true } };
         },
-        { onPersistError: (e) => reported.push(e) },
+        { onPersistError: (e) => void reported.push(e) },
       );
       expect(res).toEqual({ status: 201, body: { mine: true }, replayed: false });
       expect(reported).toHaveLength(1);
