@@ -17,11 +17,13 @@ import {
   sessionNeedsTouch,
   type TokenPurpose,
 } from '../domain/policy';
+import { CONSENT_KINDS, type ConsentKind as Kind } from '../domain/consents';
 import type { Locale } from '../domain/preferences';
 import { summariseUserAgent } from '../domain/user-agent';
 import { buildMail } from './mail';
 import type {
   ConsentKind,
+  ConsentState,
   ExportRequestRecord,
   IdentityStore,
   PasswordHasher,
@@ -315,7 +317,7 @@ export function createIdentityService(d: IdentityServiceDeps) {
       const current = await this.getPreferences(ownerId);
       assertIfMatch(ifMatch, current.version);
       const consents: { kind: ConsentKind; granted: boolean }[] = [];
-      if (patch.aiEnabled !== undefined && patch.aiEnabled !== current.aiEnabled) consents.push({ kind: 'AI', granted: patch.aiEnabled });
+      if (patch.aiEnabled !== undefined && patch.aiEnabled !== current.aiEnabled) consents.push({ kind: 'AI_RECOMMENDATIONS', granted: patch.aiEnabled });
       if (patch.learningEnabled !== undefined && patch.learningEnabled !== current.learningEnabled) {
         consents.push({ kind: 'LEARNING', granted: patch.learningEnabled });
       }
@@ -323,6 +325,18 @@ export function createIdentityService(d: IdentityServiceDeps) {
       if (!updated) throw new AppError('VERSION_CONFLICT', 409, 'Resource version does not match If-Match');
       await d.audit.record({ actorId: ownerId, action: 'identity.preferences_updated' });
       return updated;
+    },
+
+    async setConsent(ownerId: OwnerId, kind: Kind, granted: boolean): Promise<ConsentState> {
+      const state = await d.store.recordConsent(ownerId, kind, granted, now());
+      await d.audit.record({ actorId: ownerId, action: 'identity.consent_recorded', target: `${kind}:${granted ? 'granted' : 'revoked'}` });
+      return state;
+    },
+
+    /** One entry per kind, in CONSENT_KINDS order; a kind never answered is `granted: false, updatedAt: null`. */
+    async listConsents(ownerId: OwnerId): Promise<ConsentState[]> {
+      const latest = new Map((await d.store.latestConsents(ownerId)).map((c) => [c.kind, c]));
+      return CONSENT_KINDS.map((kind) => latest.get(kind) ?? { kind, granted: false, updatedAt: null });
     },
 
     /** Only locale + city are required; GPS is optional; timezone defaults to UTC until the client or geocoding sets it. */

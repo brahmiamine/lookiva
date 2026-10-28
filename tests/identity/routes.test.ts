@@ -23,6 +23,8 @@ const ROUTES: Record<string, string[]> = {
   'me/deactivate': ['POST'],
   'me/deletion-request': ['POST', 'DELETE'],
   'me/export-requests': ['POST', 'GET'],
+  'me/consents': ['GET'],
+  'me/consents/[kind]': ['PUT'],
 };
 
 describe('identity route files', () => {
@@ -48,7 +50,7 @@ describe('identity route files', () => {
     const doc = buildOpenApi();
     expect(doc.components?.securitySchemes?.sessionCookie).toEqual({ type: 'apiKey', in: 'cookie', name: 'lookiva_session' });
     for (const [path, methods] of Object.entries(ROUTES)) {
-      const p = doc.paths?.[`/api/v1/${path.replace('[id]', '{id}')}`] as Record<string, { responses: Record<string, unknown>; security?: unknown }>;
+      const p = doc.paths?.[`/api/v1/${path.replace(/\[(\w+)\]/, '{$1}')}`] as Record<string, { responses: Record<string, unknown>; security?: unknown }>;
       expect(p, path).toBeDefined();
       for (const m of methods) {
         const op = p[m.toLowerCase()];
@@ -66,7 +68,7 @@ describe('identity route files', () => {
   it('openapi_documents_503_everywhere_and_idempotency_conflicts_where_a_key_is_used', () => {
     const doc = buildOpenApi();
     for (const [path, methods] of Object.entries(ROUTES)) {
-      const p = doc.paths?.[`/api/v1/${path.replace('[id]', '{id}')}`] as Record<string, { responses: Record<string, unknown> }>;
+      const p = doc.paths?.[`/api/v1/${path.replace(/\[(\w+)\]/, '{$1}')}`] as Record<string, { responses: Record<string, unknown> }>;
       for (const m of methods) {
         const r = p[m.toLowerCase()]?.responses ?? {};
         expect(JSON.stringify(r['503']), `${m} ${path}`).toContain('EMAIL_TRANSPORT_UNAVAILABLE');

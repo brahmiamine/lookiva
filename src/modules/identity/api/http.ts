@@ -17,6 +17,7 @@ import type { Logger } from '@/platform/logger';
 import { createRateLimiter, type Limit } from '@/platform/rate-limit';
 import { createIdentityService } from '../application/service';
 import type { Preferences } from '../application/ports';
+import { isConsentKind } from '../domain/consents';
 import { normalizeEmail } from '../domain/email';
 import { createPrismaIdentityStore } from '../infrastructure/prisma-store';
 import { scryptHasher, sessionTokens } from '../infrastructure/crypto';
@@ -226,6 +227,15 @@ export function createIdentityHttp(deps: IdentityHttpDeps) {
       const page = parsePage(new URL(req.url).searchParams);
       return Response.json(await svcOf().listExportRequests(ctx.userId, page));
     }),
+
+    listConsents: withSession(async (_req, ctx) => Response.json({ items: await svcOf().listConsents(ctx.userId) })),
+
+    setConsent: (req: Request, kind: string) =>
+      withSession(async (_req, ctx) => {
+        if (!isConsentKind(kind)) throw new AppError('NOT_FOUND', 404, 'Unknown consent kind');
+        const { granted } = await readJson(req, s.consentBody);
+        return Response.json(await svcOf().setConsent(ctx.userId, kind, granted));
+      })(req),
 
     me: withSession(async (_req, ctx) => Response.json(await svcOf().getMe(ctx.userId))),
 

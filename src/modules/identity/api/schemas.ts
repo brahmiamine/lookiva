@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { CONSENT_KINDS } from '../domain/consents';
 import { LOCALES, THERMAL_SENSITIVITIES, isIanaTimeZone } from '../domain/preferences';
 
 // Format is checked after NFKC normalisation in the application (so fullwidth or decomposed input is accepted).
@@ -92,6 +93,9 @@ export const deletionRequestResponse = z.object({
 export const deletionCancelledResponse = z.object({ status: z.literal('cancelled') });
 export const exportRequestView = z.object({ id: z.uuid(), status: z.literal('PENDING'), requestedAt: z.iso.datetime() });
 export const exportRequestsResponse = z.object({ items: z.array(exportRequestView), nextCursor: z.string().optional() });
+export const consentView = z.object({ kind: z.enum(CONSENT_KINDS), granted: z.boolean(), updatedAt: z.iso.datetime().nullable() });
+export const consentsResponse = z.object({ items: z.array(consentView) });
+export const consentBody = z.strictObject({ granted: z.boolean() });
 export const preferencesResponse = z.object({
   locale: z.enum(LOCALES),
   cityName: z.string().nullable(),

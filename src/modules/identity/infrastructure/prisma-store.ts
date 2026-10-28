@@ -1,7 +1,8 @@
 import { Prisma, type PrismaClient } from '@/generated/prisma/client';
 import { newId } from '@/platform/http/ids';
 import { encodeCursor } from '@/platform/http/pagination';
-import type { IdentityStore, Preferences } from '../application/ports';
+import type { ConsentState, IdentityStore, Preferences } from '../application/ports';
+import { CONSENT_KINDS, CONSENT_PREFERENCE, isConsentKind, type ConsentKind } from '../domain/consents';
 
 // READ COMMITTED: no gap locks, so concurrent sign-ups/token issues on the same secondary indexes cannot deadlock
 // (seen under REPEATABLE READ as P2034). Every guard below is an UPDATE ... WHERE on the current row, which reads the
@@ -241,6 +242,23 @@ export function createPrismaIdentityStore(db: PrismaClient, hooks: { whileCreden
       const items = rows.slice(0, q.limit);
       const last = items.at(-1);
       return rows.length > q.limit && last ? { items, nextCursor: encodeCursor({ id: last.id }) } : { items };
+    },
+
+    recordConsent: (ownerId, kind, granted, now) =>
+      db.$transaction(async (tx) => {
+        await tx.consentRecord.create({ data: { id: newId(), userId: ownerId, kind, granted, createdAt: now } });
+        const flag = kind === 'AI_RECOMMENDATIONS' || kind === 'LEARNING' ? CONSENT_PREFERENCE[kind] : null;
+        // Only a real change bumps the version (the ETag of the preferences stays stable on a repeated PUT).
+        if (flag) await tx.userPreferences.updateMany({ where: { userId: ownerId, [flag]: { not: granted } }, data: { [flag]: granted, version: { increment: 1 } } });
+        return { kind, granted, updatedAt: now };
+      }, TX),
+    async latestConsents(ownerId) {
+      const rows = await db.consentRecord.findMany({ where: { userId: ownerId }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] });
+      const seen = new Map<ConsentKind, ConsentState>();
+      for (const r of rows) {
+        if (isConsentKind(r.kind) && !seen.has(r.kind)) seen.set(r.kind, { kind: r.kind, granted: r.granted, updatedAt: r.createdAt });
+      }
+      return CONSENT_KINDS.flatMap((k) => seen.get(k) ?? []);
     },
 
     async getPreferences(ownerId) {

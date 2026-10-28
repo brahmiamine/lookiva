@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { problemSchema } from '@/platform/http/errors';
 import { registry, registerRoute, type RouteDoc } from '@/platform/openapi/registry';
 import { SESSION_COOKIE } from './cookie';
+import { CONSENT_KINDS } from '../domain/consents';
 import * as s from './schemas';
 
 registry.registerComponent('securitySchemes', 'sessionCookie', { type: 'apiKey', in: 'cookie', name: SESSION_COOKIE });
@@ -175,4 +176,15 @@ route({
   summary: 'Own export requests, newest first (cursor pagination)',
   request: { query: z.object({ limit: z.number().int().min(1).max(100).optional(), cursor: z.string().optional() }) },
   responses: { 200: json('Export requests', s.exportRequestsResponse), 400: problem('VALIDATION_ERROR or INVALID_CURSOR'), ...authed },
+});
+route({
+  method: 'get', path: '/api/v1/me/consents', tags, security: session,
+  summary: 'Latest consent per kind (AI_RECOMMENDATIONS, LEARNING, CLOUD_BACKGROUND_REMOVAL); never answered = granted false',
+  responses: { 200: json('One entry per kind', s.consentsResponse), ...authed },
+});
+route({
+  method: 'put', path: '/api/v1/me/consents/{kind}', tags, security: session,
+  summary: 'Grant or withdraw a consent: appends a record and keeps aiEnabled/learningEnabled equal in the same transaction. No kind covers photo recognition: photos never go to an AI',
+  request: { headers: csrf, params: z.object({ kind: z.enum(CONSENT_KINDS) }), body: body(s.consentBody) },
+  responses: { 200: json('Recorded consent', s.consentView), 400: problem('VALIDATION_ERROR'), ...authed, 404: problem('NOT_FOUND (unknown kind)') },
 });

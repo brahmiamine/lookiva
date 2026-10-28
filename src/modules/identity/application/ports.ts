@@ -1,5 +1,6 @@
 import type { OwnerId, Page } from '@/platform/kernel';
 import type { TokenPurpose } from '../domain/policy';
+import type { ConsentKind } from '../domain/consents';
 import type { Locale, ThermalSensitivity } from '../domain/preferences';
 
 export interface PasswordHasher {
@@ -48,7 +49,8 @@ export type Preferences = {
 };
 export type PreferencesPatch = Partial<Omit<Preferences, 'version'>>;
 export type ExportRequestRecord = { id: string; status: 'PENDING'; requestedAt: Date };
-export type ConsentKind = 'AI' | 'LEARNING';
+export type { ConsentKind };
+export type ConsentState = { kind: ConsentKind; granted: boolean; updatedAt: Date | null };
 
 /**
  * Persistence port of the identity module. Methods on a user's own data take the OwnerId first; the few lookups by
@@ -114,6 +116,11 @@ export interface IdentityStore {
   createExportRequest(ownerId: OwnerId, id: string, now: Date): Promise<ExportRequestRecord>;
   /** Own requests only, newest first, cursor on id (UUIDv7). */
   listExportRequests(ownerId: OwnerId, q: { limit: number; cursor?: { id: string } }): Promise<Page<ExportRequestRecord>>;
+
+  /** Appends a consent row; for AI_RECOMMENDATIONS / LEARNING the matching preferences flag follows in the same transaction. */
+  recordConsent(ownerId: OwnerId, kind: ConsentKind, granted: boolean, now: Date): Promise<ConsentState>;
+  /** Latest row per kind that has any (newest createdAt, then id). */
+  latestConsents(ownerId: OwnerId): Promise<ConsentState[]>;
 
   getPreferences(ownerId: OwnerId): Promise<Preferences | null>;
   /** Compare-and-set on `version` (+1), consent rows in the same transaction; null on a version conflict. */

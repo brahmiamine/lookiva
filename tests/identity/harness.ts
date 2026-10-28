@@ -99,6 +99,9 @@ export function harness(opts: Opts = {}) {
       send(http.cancelDeletion, request('/me/deletion-request', { method: 'DELETE', body: { email, password } })),
     requestExport: (cookie?: string) => send(http.requestExport, request('/me/export-requests', { method: 'POST', cookie })),
     exports: (cookie: string, query = '') => send(http.listExportRequests, request(`/me/export-requests${query}`, { cookie })),
+    consents: (cookie?: string) => send(http.listConsents, request('/me/consents', { cookie })),
+    setConsent: (cookie: string, kind: string, body: unknown) =>
+      send((r) => http.setConsent(r, kind), request(`/me/consents/${kind}`, { method: 'PUT', body, cookie })),
     cities: (cookie: string | undefined, q?: string) =>
       send(http.searchCities, request(`/geo/cities${q === undefined ? '' : `?q=${encodeURIComponent(q)}`}`, { cookie })),
     onboarding: (cookie: string, body: unknown) => send(http.completeOnboarding, request('/me/onboarding', { body, cookie })),

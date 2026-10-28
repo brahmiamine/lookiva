@@ -83,7 +83,7 @@ describe('preferences', () => {
     expect(stale.body).toMatchObject({ status: 409, code: 'VERSION_CONFLICT' });
     // only the AI toggle changed: one consent row
     const consents = await db.consentRecord.findMany({ where: { userId } });
-    expect(consents.map((c) => [c.kind, c.granted])).toEqual([['AI', true]]);
+    expect(consents.map((c) => [c.kind, c.granted])).toEqual([['AI_RECOMMENDATIONS', true]]);
   });
 
   it('concurrent_patches_with_the_same_etag_apply_once', async () => {
