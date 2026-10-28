@@ -117,7 +117,7 @@ Sessions opaques côté serveur (pas de JWT ni d'Auth.js). Détails, limites et 
 
 Toute requête POST/PUT/PATCH/DELETE vers ces routes exige `X-Requested-With: lookiva` (et un `Origin` égal à l'origine de l'application s'il est présent), sinon 403 `CSRF_REJECTED`.
 Toutes ces routes peuvent répondre 503 (`EMAIL_TRANSPORT_UNAVAILABLE`, `RATE_LIMITER_UNAVAILABLE`) et, avec un corps de plus de 16 Kio, 413 `PAYLOAD_TOO_LARGE`.
-Le mot de passe saisi à l'inscription ne devient effectif qu'à l'ouverture du lien de vérification de cette inscription (protection contre le détournement d'un compte pré-enregistré).
+Aucune connexion n'est possible avant la vérification de l'adresse. Tant que le compte n'est pas vérifié, chaque inscription envoie un lien qui porte le hash de SON mot de passe : à l'ouverture d'un lien, c'est ce mot de passe qui devient celui du compte (un « renvoyer » réutilise le mot de passe du dernier lien non utilisé). Une fois l'adresse vérifiée, ou après une réinitialisation, aucun ancien lien ne peut plus changer le mot de passe. Limite connue : un attaquant qui se réinscrit après le titulaire et avant son clic possède le lien le plus récent ; le titulaire récupère le compte par « mot de passe oublié ». Détails : [runbook §9](docs/foundation/runbook-local.md#9-identité--sessions-csrf-limites-e-mails).
 `APP_ORIGIN` est obligatoire dès que des e-mails peuvent partir (y compris en dev avec `EMAIL_TRANSPORT=outbox` : l'ajouter à un `.env` existant) et en production, où `TRUST_PROXY=true` est aussi exigé (sauf `TRUST_PROXY_ACK_SINGLE_BUCKET=true`).
 Les routes privées des autres modules utilisent `withSession(handler)` exporté par `@/modules/identity` : il reçoit `{ requestId, log, userId: OwnerId, sessionId }`.
 
