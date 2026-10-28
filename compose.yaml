@@ -1,4 +1,4 @@
-# Local dev infra. No ports are published here (see compose.test.yaml for host-run tests).
+# Local dev infra. Only `web` (profile app) publishes a port, on loopback; db/redis use compose.test.yaml for host-run tests.
 # Variables come from .env (copy .env.example) or `--env-file .env.example`.
 services:
   db:
@@ -49,6 +49,33 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
+      start_period: 15s
+
+  # Only service that publishes a port (loopback). Opt-in: `docker compose --profile app up` (pnpm stack:up).
+  web:
+    profiles: ["app"]
+    build:
+      context: .
+      target: web
+    environment:
+      NODE_ENV: production
+      REDIS_URL: redis://redis:6379
+      DATABASE_URL: mysql://${MARIADB_USER:?set in .env}:${MARIADB_PASSWORD:?set in .env}@db:3306/${MARIADB_DATABASE:?set in .env}
+      READY_TOKEN: ${READY_TOKEN:?set in .env}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "127.0.0.1:${WEB_HOST_PORT:-3000}:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/v1/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
       start_period: 15s
 
 networks:

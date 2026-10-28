@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-# Multi-stage build. Targets: worker (this task); web is added in a later task.
+# Multi-stage build. Targets: worker, web.
 ARG NODE_VERSION=24
 ARG PNPM_VERSION=12.15.0
 
@@ -29,3 +29,25 @@ COPY --from=prod-deps --chown=node:node /app/package.json ./package.json
 COPY --from=build --chown=node:node /app/dist/worker.js ./dist/worker.js
 USER node
 CMD ["node", "dist/worker.js"]
+
+# --- web: Next.js standalone server -------------------------------------------------
+FROM base AS web-build
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN pnpm install --frozen-lockfile
+COPY tsconfig.json next.config.ts postcss.config.mjs prisma.config.ts ./
+COPY prisma ./prisma
+COPY src ./src
+# `build` regenerates the Prisma client first (src/generated is not copied from the host in a clean clone).
+RUN pnpm run build
+
+FROM node:${NODE_VERSION}-slim AS web
+ENV NODE_ENV=production
+ENV HOSTNAME=0.0.0.0
+ENV PORT=3000
+WORKDIR /app
+# Standalone output carries its own minimal node_modules; no .env is baked in.
+COPY --from=web-build --chown=node:node /app/.next/standalone ./
+COPY --from=web-build --chown=node:node /app/.next/static ./.next/static
+USER node
+EXPOSE 3000
+CMD ["node", "server.js"]
