@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 # Multi-stage build. Targets: worker, web.
-ARG NODE_VERSION=24
+ARG NODE_VERSION=24.22.1
 ARG PNPM_VERSION=12.15.0
 
 FROM node:${NODE_VERSION}-slim AS base
