@@ -17,7 +17,8 @@
     "test:e2e": "echo \"no e2e tests yet\"",
     "verify": "pnpm lint && pnpm typecheck && pnpm test",
     "infra:up": "docker compose --env-file .env.example -f compose.yaml -f compose.test.yaml up -d --wait",
-    "infra:down": "docker compose --env-file .env.example -f compose.yaml -f compose.test.yaml down -v"
+    "infra:down": "docker compose --env-file .env.example -f compose.yaml -f compose.test.yaml down -v",
+    "boundaries": "depcruise src --config .dependency-cruiser.cjs --ts-config tsconfig.json"
   },
   "dependencies": {
     "next": "16.4.3",
@@ -29,6 +30,7 @@
     "@types/node": "24.19.2",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
+    "dependency-cruiser": "18.7.0",
     "eslint": "10.13.0",
     "eslint-config-next": "16.4.3",
     "typescript": "6.0.3",
