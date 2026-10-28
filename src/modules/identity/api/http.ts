@@ -4,6 +4,7 @@ import type { PrismaClient } from '@/generated/prisma/client';
 import type { Audit } from '@/platform/audit/port';
 import type { Clock } from '@/platform/clock/port';
 import type { Email } from '@/platform/email/port';
+import type { Geocoder } from '@/platform/geocoder/port';
 import { readJson } from '@/platform/http/body';
 import { etagFor } from '@/platform/http/etag';
 import { AppError } from '@/platform/http/errors';
@@ -33,6 +34,7 @@ export type IdentityHttpDeps = {
   audit: Audit;
   /** null = EMAIL_TRANSPORT=none: every identity route answers 503 (fail fast, no half-created accounts). */
   email: Email | null;
+  geocoder: Geocoder;
   config: IdentityConfig;
   logger?: Logger;
   rateLimitPrefix?: string;
@@ -172,6 +174,14 @@ export function createIdentityHttp(deps: IdentityHttpDeps) {
       const tokenHash = sessionTokens.hash(body.token);
       return idempotent(req, anonScope('reset', tokenHash), { tokenHash }, log,
         () => svc.resetPassword(body), 200, { status: 'password_reset' });
+    }),
+
+    /** The query string is the only place `q` lives: it is never logged, audited or stored. */
+    searchCities: withSession(async (req, ctx) => {
+      await limiter.consume(LIMITS.geoCitiesUser, `user:${ctx.userId}`, clock.now());
+      const { q } = s.citiesQuery.parse({ q: new URL(req.url).searchParams.get('q') ?? undefined });
+      const prefs = await svcOf().getPreferences(ctx.userId);
+      return Response.json({ items: await deps.geocoder.search(q, prefs.locale) });
     }),
 
     me: withSession(async (_req, ctx) => Response.json(await svcOf().getMe(ctx.userId))),

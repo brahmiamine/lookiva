@@ -24,6 +24,16 @@ export const loginBody = z.object({ email, password });
 export const tokenBody = z.object({ token });
 export const resetBody = z.object({ token, password });
 
+export const citiesQuery = z.object({ q: z.string().trim().min(2).max(80) });
+export const cityCandidate = z.object({
+  name: z.string(),
+  countryCode: z.string(),
+  latitude: z.number(),
+  longitude: z.number(),
+  timezone: z.string(),
+});
+export const citiesResponse = z.object({ items: z.array(cityCandidate).max(5) });
+
 export const preferencesPatchBody = z
   .strictObject({
     locale: z.enum(LOCALES).optional(),

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, describe, expect, it } from 'vitest';
-import { FakeAudit, FakeClock } from '@/platform';
+import { FakeAudit, FakeClock, FakeGeocoder } from '@/platform';
 import { OutboxEmail } from '@/platform/email/outbox';
 import { createIdentityHttp } from '@/modules/identity';
 import { closeAll, db, harness, redis } from './harness';
@@ -38,6 +38,7 @@ describe('email links never trust the request host (I1)', () => {
         redis,
         clock,
         audit: new FakeAudit(),
+        geocoder: new FakeGeocoder(),
         email: new OutboxEmail(db, clock),
         config: { production: false, trustProxy: true },
         rateLimitPrefix: `rl-${randomUUID()}`,

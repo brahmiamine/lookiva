@@ -135,3 +135,9 @@ route({
   request: { headers: csrf, body: body(s.onboardingBody) },
   responses: { 200: json('Preferences after onboarding', s.preferencesResponse), 400: problem('VALIDATION_ERROR'), ...authed, 409: problem('VERSION_CONFLICT') },
 });
+route({
+  method: 'get', path: '/api/v1/geo/cities', tags, security: session,
+  summary: 'City candidates for onboarding (max 5, names in the user\'s locale; 30 requests/min/user; q is never logged)',
+  request: { query: s.citiesQuery },
+  responses: { 200: json('Candidates, best first (timezone, latitude, longitude pre-filled)', s.citiesResponse), 400: problem('VALIDATION_ERROR (q is 2..80 characters)'), ...authed },
+});

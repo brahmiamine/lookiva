@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { Writable } from 'node:stream';
 import { Redis } from 'ioredis';
-import { FakeAudit, FakeClock } from '@/platform';
+import { FakeAudit, FakeClock, FakeGeocoder } from '@/platform';
 import { createDb } from '@/platform/db';
 import { OutboxEmail, readOutbox } from '@/platform/email/outbox';
 import { createLogger } from '@/platform/logger';
@@ -31,6 +31,7 @@ export function harness(opts: Opts = {}) {
     redis,
     clock,
     audit,
+    geocoder: new FakeGeocoder(),
     email: opts.withEmail === false ? null : new OutboxEmail(db, clock),
     logger: createLogger({ destination, level: 'debug' }),
     config: { production: opts.production ?? false, trustProxy: opts.trustProxy ?? true, appOrigin: opts.appOrigin ?? ORIGIN },
@@ -91,6 +92,8 @@ export function harness(opts: Opts = {}) {
         http.updatePreferences,
         request('/me/preferences', { method: 'PATCH', body, cookie, headers: ifMatch === undefined ? {} : { 'if-match': ifMatch } }),
       ),
+    cities: (cookie: string | undefined, q?: string) =>
+      send(http.searchCities, request(`/geo/cities${q === undefined ? '' : `?q=${encodeURIComponent(q)}`}`, { cookie })),
     onboarding: (cookie: string, body: unknown) => send(http.completeOnboarding, request('/me/onboarding', { body, cookie })),
   };
 

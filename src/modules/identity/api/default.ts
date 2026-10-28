@@ -2,6 +2,7 @@ import { Redis } from 'ioredis';
 import { LogAudit } from '@/platform/audit/log';
 import { systemClock } from '@/platform/clock/system';
 import { createDb } from '@/platform/db';
+import { FakeGeocoder } from '@/platform/geocoder/fake';
 import { OutboxEmail } from '@/platform/email/outbox';
 import { getEnv } from '@/platform/env';
 import { createLogger } from '@/platform/logger';
@@ -24,6 +25,8 @@ function identity(): IdentityHttp {
     clock: systemClock,
     audit: new LogAudit(logger),
     email: env.EMAIL_TRANSPORT === 'outbox' ? new OutboxEmail(db, systemClock) : null,
+    // ponytail: fake only; the real provider is a phase 06 decision (runbook §10)
+    geocoder: new FakeGeocoder(),
     logger,
     config: { production: env.NODE_ENV === 'production', trustProxy: env.TRUST_PROXY, appOrigin: env.APP_ORIGIN },
   }));
@@ -42,6 +45,7 @@ export const identityRoutes = {
   logoutAll: lazy((i) => i.logoutAll),
   forgotPassword: lazy((i) => i.forgotPassword),
   resetPassword: lazy((i) => i.resetPassword),
+  searchCities: lazy((i) => i.searchCities),
   me: lazy((i) => i.me),
   listSessions: lazy((i) => i.listSessions),
   revokeSession: (req: Request, id: string) => identity().revokeSession(req, id),

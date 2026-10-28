@@ -19,6 +19,7 @@ const ROUTES: Record<string, string[]> = {
   'me/sessions/[id]': ['DELETE'],
   'me/preferences': ['GET', 'PATCH'],
   'me/onboarding': ['POST'],
+  'geo/cities': ['GET'],
 };
 
 describe('identity route files', () => {
@@ -49,7 +50,7 @@ describe('identity route files', () => {
       for (const m of methods) {
         const op = p[m.toLowerCase()];
         expect(op, `${m} ${path}`).toBeDefined();
-        if (path.startsWith('me') || path.startsWith('auth/logout')) {
+        if (path.startsWith('me') || path.startsWith('geo') || path.startsWith('auth/logout')) {
           expect(op?.security, path).toEqual([{ sessionCookie: [] }]);
           expect(op?.responses['401'], path).toBeDefined();
         }
