@@ -4,3 +4,4 @@ export { createIdentityHttp, type IdentityConfig, type IdentityHttp, type Identi
 export { identityRoutes, withSession } from './api/default';
 export type { Me, SessionView } from './application/service';
 export type { Preferences } from './application/ports';
+export { purgeEmailTokens } from './infrastructure/prisma-store';

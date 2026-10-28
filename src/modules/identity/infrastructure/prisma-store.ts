@@ -61,10 +61,24 @@ export function createPrismaIdentityStore(db: PrismaClient): IdentityStore {
       const t = await db.emailToken.findFirst({ where: { userId, purpose }, orderBy: { createdAt: 'desc' }, select: { createdAt: true } });
       return t?.createdAt ?? null;
     },
-    async issueToken(t) {
-      await db.$transaction([
-        db.emailToken.updateMany({ where: { userId: t.userId, purpose: t.purpose, usedAt: null }, data: { usedAt: t.now } }),
-        db.emailToken.create({
+    issueToken: (t) =>
+      db.$transaction(async (tx) => {
+        let pendingPasswordHash = t.pendingPasswordHash ?? null;
+        if (pendingPasswordHash === null && t.purpose === 'VERIFY_EMAIL') {
+          // A plain resend inherits the password of the newest still-unused registration link it is about to void:
+          // otherwise anyone could resend and turn the owner's link into one that keeps the first registrant's password.
+          const latest = await tx.emailToken.findFirst({
+            where: { userId: t.userId, purpose: 'VERIFY_EMAIL', usedAt: null },
+            orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+            select: { pendingPasswordHash: true },
+          });
+          pendingPasswordHash = latest?.pendingPasswordHash ?? null;
+        }
+        await tx.emailToken.updateMany({
+          where: { userId: t.userId, purpose: t.purpose, usedAt: null },
+          data: { usedAt: t.now, pendingPasswordHash: null },
+        });
+        await tx.emailToken.create({
           data: {
             id: newId(),
             userId: t.userId,
@@ -72,11 +86,10 @@ export function createPrismaIdentityStore(db: PrismaClient): IdentityStore {
             tokenHash: t.tokenHash,
             createdAt: t.now,
             expiresAt: t.expiresAt,
-            pendingPasswordHash: t.pendingPasswordHash ?? null,
+            pendingPasswordHash,
           },
-        }),
-      ], TX);
-    },
+        });
+      }, TX),
     async findLiveToken(tokenHash, purpose, now) {
       return db.emailToken.findFirst({
         where: { tokenHash, purpose, usedAt: null, expiresAt: { gt: now }, user: { status: 'ACTIVE' } },
@@ -95,12 +108,13 @@ export function createPrismaIdentityStore(db: PrismaClient): IdentityStore {
           where: { tokenHash },
           select: { userId: true, pendingPasswordHash: true },
         });
-        if (pendingPasswordHash !== null) {
-          // The registration whose link was opened from the mailbox sets the password (pre-registration hijack fix).
+        if (pendingPasswordHash !== null) await tx.emailToken.update({ where: { tokenHash }, data: { pendingPasswordHash: null } });
+        const verified = await tx.user.updateMany({ where: { id: userId, emailVerifiedAt: null }, data: { emailVerifiedAt: now } });
+        // The pending password applies ONLY on the transition unverified -> verified: once the mailbox is proven (by
+        // this or a reset link), no stale registration link may change the password again.
+        if (verified.count === 1 && pendingPasswordHash !== null) {
           await tx.credential.update({ where: { userId }, data: { passwordHash: pendingPasswordHash, updatedAt: now } });
-          await tx.emailToken.update({ where: { tokenHash }, data: { pendingPasswordHash: null } });
         }
-        await tx.user.updateMany({ where: { id: userId, emailVerifiedAt: null }, data: { emailVerifiedAt: now } });
         return userId;
       }, TX),
     consumeResetToken: (tokenHash, now, passwordHash) =>
@@ -117,6 +131,11 @@ export function createPrismaIdentityStore(db: PrismaClient): IdentityStore {
         if (user.status !== 'ACTIVE') throw new InactiveUser(); // rolls the consumption back
         await tx.credential.update({ where: { userId }, data: { passwordHash, updatedAt: now } });
         await tx.sessionRegistry.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: now } });
+        // Pending registration links die with the reset: none of them may later overwrite this password.
+        await tx.emailToken.updateMany({
+          where: { userId, purpose: 'VERIFY_EMAIL', usedAt: null },
+          data: { usedAt: now, pendingPasswordHash: null },
+        });
         // The link proved control of the mailbox.
         await tx.user.updateMany({ where: { id: userId, emailVerifiedAt: null }, data: { emailVerifiedAt: now } });
         return userId;
@@ -191,4 +210,15 @@ export function createPrismaIdentityStore(db: PrismaClient): IdentityStore {
         return toPreferences(await tx.userPreferences.findUniqueOrThrow({ where: { userId: ownerId } }));
       }, TX),
   };
+}
+
+/**
+ * Retention job (to schedule in the worker): deletes tokens created before `olderThan` that can no longer be used
+ * (used, or expired at `now`). A live token is never deleted. Suggested cutoff: 7 days.
+ */
+export async function purgeEmailTokens(db: PrismaClient, olderThan: Date, now: Date): Promise<number> {
+  const { count } = await db.emailToken.deleteMany({
+    where: { createdAt: { lt: olderThan }, OR: [{ usedAt: { not: null } }, { expiresAt: { lte: now } }] },
+  });
+  return count;
 }
