@@ -1,6 +1,7 @@
 import '../globals.css';
 import { notFound } from 'next/navigation';
 import type { ReactNode } from 'react';
+import { DirectionRoot } from '@/ui/components/DirectionRoot';
 import { LOCALES, dirFor, isLocale } from '@/i18n/config';
 
 export const generateStaticParams = () => LOCALES.map((locale) => ({ locale }));
@@ -16,7 +17,9 @@ export default async function RootLayout({
   if (!isLocale(locale)) notFound();
   return (
     <html lang={locale} dir={dirFor(locale)}>
-      <body>{children}</body>
+      <body>
+        <DirectionRoot dir={dirFor(locale)}>{children}</DirectionRoot>
+      </body>
     </html>
   );
 }
