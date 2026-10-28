@@ -6,6 +6,7 @@ const valid = {
   DATABASE_URL: 'mysql://user:pass@localhost:3306/lookiva',
   REDIS_URL: 'redis://localhost:6379',
   READY_TOKEN: 'change-me',
+  APP_ORIGIN: 'http://localhost:3000',
 };
 
 describe('parseEnv', () => {
@@ -52,6 +53,8 @@ describe('parseEnv phase 03 rules', () => {
     NODE_ENV: 'production',
     READY_TOKEN: 'x'.repeat(32),
     EMAIL_TRANSPORT: 'none',
+    APP_ORIGIN: 'https://app.example.com',
+    TRUST_PROXY: 'true',
   };
   const fails = (raw: Record<string, string | undefined>, name: string) => {
     expect(() => parseEnv(raw)).toThrow(EnvError);
@@ -73,7 +76,7 @@ describe('parseEnv phase 03 rules', () => {
     const env = parseEnv(valid);
     expect(env.TRUST_PROXY).toBe(false);
     expect(env.EMAIL_TRANSPORT).toBe('outbox');
-    expect(env.APP_ORIGIN).toBeUndefined();
+    expect(env.APP_ORIGIN).toBe('http://localhost:3000');
   });
 
   it('trust_proxy_parses_true_and_rejects_garbage', () => {
@@ -107,5 +110,43 @@ describe('parseEnv phase 03 rules', () => {
 
   it('dev_accepts_change_me_ready_token', () => {
     expect(parseEnv({ ...valid, NODE_ENV: 'development' }).READY_TOKEN).toBe('change-me');
+  });
+});
+
+describe('parseEnv fix round 1 (APP_ORIGIN, TRUST_PROXY)', () => {
+  const prod = {
+    ...valid,
+    NODE_ENV: 'production',
+    READY_TOKEN: 'x'.repeat(32),
+    EMAIL_TRANSPORT: 'none',
+    APP_ORIGIN: 'https://app.example.com',
+    TRUST_PROXY: 'true',
+  };
+  const fails = (raw: Record<string, string | undefined>, name: string) => {
+    expect(() => parseEnv(raw)).toThrow(EnvError);
+    expect(() => parseEnv(raw)).toThrow(name);
+  };
+
+  it('app_origin_is_required_whenever_emails_can_be_sent', () => {
+    fails({ ...valid, APP_ORIGIN: undefined }, 'APP_ORIGIN'); // outbox is the dev/test default
+    fails({ ...valid, APP_ORIGIN: undefined, EMAIL_TRANSPORT: 'outbox' }, 'APP_ORIGIN');
+    expect(parseEnv({ ...valid, APP_ORIGIN: undefined, EMAIL_TRANSPORT: 'none' }).APP_ORIGIN).toBeUndefined();
+  });
+
+  it('app_origin_is_required_in_production_even_without_email', () => {
+    fails({ ...prod, APP_ORIGIN: undefined }, 'APP_ORIGIN');
+  });
+
+  it('production_requires_trust_proxy_unless_the_single_bucket_is_acknowledged', () => {
+    fails({ ...prod, TRUST_PROXY: 'false' }, 'TRUST_PROXY');
+    fails({ ...prod, TRUST_PROXY: undefined }, 'TRUST_PROXY');
+    fails({ ...prod, TRUST_PROXY: 'false', TRUST_PROXY_ACK_SINGLE_BUCKET: 'false' }, 'TRUST_PROXY');
+    const acked = parseEnv({ ...prod, TRUST_PROXY: 'false', TRUST_PROXY_ACK_SINGLE_BUCKET: 'true' });
+    expect([acked.TRUST_PROXY, acked.TRUST_PROXY_ACK_SINGLE_BUCKET]).toEqual([false, true]);
+    expect(parseEnv(prod).TRUST_PROXY).toBe(true);
+  });
+
+  it('dev_needs_no_trust_proxy_acknowledgement', () => {
+    expect(parseEnv(valid).TRUST_PROXY_ACK_SINGLE_BUCKET).toBe(false);
   });
 });

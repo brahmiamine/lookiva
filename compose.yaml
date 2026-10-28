@@ -40,6 +40,9 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       # No real email provider is chosen yet (ADR-10): identity routes answer 503 in containers.
       EMAIL_TRANSPORT: none
+      APP_ORIGIN: http://localhost:${WEB_HOST_PORT:-3000}
+      # Local stack only: no reverse proxy in front, so every client shares one rate-limit bucket (accepted here).
+      TRUST_PROXY_ACK_SINGLE_BUCKET: "true"
     depends_on:
       db:
         condition: service_healthy
@@ -69,6 +72,9 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       # No real email provider is chosen yet (ADR-10): identity routes answer 503 in containers.
       EMAIL_TRANSPORT: none
+      APP_ORIGIN: http://localhost:${WEB_HOST_PORT:-3000}
+      # Local stack only: no reverse proxy in front, so every client shares one rate-limit bucket (accepted here).
+      TRUST_PROXY_ACK_SINGLE_BUCKET: "true"
     ports:
       - "127.0.0.1:${WEB_HOST_PORT:-3000}:3000"
     depends_on:

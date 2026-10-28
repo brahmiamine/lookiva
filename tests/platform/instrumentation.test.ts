@@ -4,10 +4,11 @@ const VALID = {
   DATABASE_URL: 'mysql://user:pass@localhost:3306/lookiva',
   REDIS_URL: 'redis://localhost:6379',
   READY_TOKEN: 'change-me',
+  APP_ORIGIN: 'http://localhost:3000',
 };
 
 function stubEnv(vars: Record<string, string>) {
-  for (const k of ['DATABASE_URL', 'REDIS_URL', 'READY_TOKEN']) vi.stubEnv(k, '');
+  for (const k of ['DATABASE_URL', 'REDIS_URL', 'READY_TOKEN', 'APP_ORIGIN']) vi.stubEnv(k, '');
   for (const [k, v] of Object.entries(vars)) vi.stubEnv(k, v);
 }
 

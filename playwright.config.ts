@@ -5,9 +5,10 @@ import { defineConfig, devices } from '@playwright/test';
 const PORT = 3100;
 // Placeholder values from .env.example (no real secrets). The dev gallery needs none of them, but env parsing may.
 const example = parseEnv(readFileSync('.env.example', 'utf8'));
-const env = Object.fromEntries(
-  (['DATABASE_URL', 'REDIS_URL', 'READY_TOKEN', 'LOG_LEVEL'] as const).map((k) => [k, example[k] ?? '']),
-);
+const env = {
+  ...Object.fromEntries((['DATABASE_URL', 'REDIS_URL', 'READY_TOKEN', 'LOG_LEVEL'] as const).map((k) => [k, example[k] ?? ''])),
+  APP_ORIGIN: `http://localhost:${PORT}`,
+};
 
 const desktop = { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } };
 
