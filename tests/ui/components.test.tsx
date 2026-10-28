@@ -44,7 +44,25 @@ describe('base components', () => {
     expect(field.getAttribute('aria-describedby')).toBe(alert.id);
   });
 
+  it('textfield_keeps_label_association_when_id_is_passed', () => {
+    render(<TextField label="Email" id="email-field" />);
+    const input = screen.getByLabelText('Email');
+    expect(input.id).toBe('email-field');
+  });
+
+  it('textfield_merges_caller_aria_describedby_with_error', () => {
+    const { rerender } = render(<TextField label="Email" aria-describedby="hint-1" />);
+    expect(screen.getByLabelText('Email').getAttribute('aria-describedby')).toBe('hint-1');
+
+    rerender(<TextField label="Email" aria-describedby="hint-1" error="Required" />);
+    const alert = screen.getByRole('alert');
+    const ids = (screen.getByLabelText('Email').getAttribute('aria-describedby') ?? '').split(' ');
+    expect(ids).toContain('hint-1');
+    expect(ids).toContain(alert.id);
+  });
+
   it('dialog_traps_focus_and_closes_on_escape', async () => {
+    // jsdom does not reproduce real-browser focus behaviour; the Playwright/axe suite of Task 14 is the real-browser re-check.
     const user = userEvent.setup();
     const onOpenChange = vi.fn();
     render(
@@ -66,6 +84,7 @@ describe('base components', () => {
     }
     await user.keyboard('{Escape}');
     expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(onOpenChange).toHaveBeenCalledTimes(1);
   });
 
   it('status_badge_renders_icon_text_and_tone_class', () => {
