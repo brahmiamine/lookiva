@@ -40,7 +40,7 @@ export function withApi(handler: Handler, deps: { logger?: Logger } = {}): (req:
       }
       return Response.json(toProblem(appErr, requestId), {
         status: appErr.status,
-        headers: { 'Content-Type': 'application/problem+json', 'X-Request-Id': requestId },
+        headers: { ...appErr.headers, 'Content-Type': 'application/problem+json', 'X-Request-Id': requestId },
       });
     }
   };

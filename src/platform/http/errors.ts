@@ -7,6 +7,8 @@ export class AppError extends Error {
     readonly status: number,
     message: string,
     readonly errors?: { path: string; message: string }[],
+    /** Extra response headers (e.g. Retry-After). Never put secrets here: they are sent to the client. */
+    readonly headers?: Record<string, string>,
   ) {
     super(message);
     this.name = 'AppError';

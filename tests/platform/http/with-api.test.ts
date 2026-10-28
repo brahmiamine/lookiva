@@ -118,6 +118,16 @@ describe('withApi', () => {
     expect(res.headers.getSetCookie()).toEqual(['a=1; Path=/; HttpOnly', 'b=2; Path=/']);
   });
 
+  it('app_error_headers_are_sent_with_the_problem', async () => {
+    const { logger } = memory();
+    const res = await withApi(async () => {
+      throw new AppError('RATE_LIMITED', 429, 'Too many requests', undefined, { 'Retry-After': '42' });
+    }, { logger })(req());
+    expect(res.status).toBe(429);
+    expect(res.headers.get('retry-after')).toBe('42');
+    expect(res.headers.get('content-type')).toContain('application/problem+json');
+  });
+
   it('valid_inbound_request_id_is_echoed', async () => {
     const { logger } = memory();
     const res = await withApi(async () => new Response('ok'), { logger })(req({ 'x-request-id': 'abc-12345678' }));
