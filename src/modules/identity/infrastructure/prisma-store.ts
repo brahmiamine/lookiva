@@ -8,6 +8,8 @@ import type { IdentityStore, Preferences } from '../application/ports';
 // latest committed version in any isolation level, so single use and compare-and-set stay exact.
 const TX = { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted };
 
+class InactiveUser extends Error {}
+
 const isDuplicate = (e: unknown): boolean => e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002';
 
 const USER = { id: true, email: true, emailNormalized: true, emailVerifiedAt: true, status: true, createdAt: true } as const;
@@ -50,8 +52,9 @@ export function createPrismaIdentityStore(db: PrismaClient): IdentityStore {
     async getPasswordHash(userId) {
       return (await db.credential.findUnique({ where: { userId }, select: { passwordHash: true } }))?.passwordHash ?? null;
     },
-    async setPasswordHash(userId, passwordHash, now) {
-      await db.credential.update({ where: { userId }, data: { passwordHash, updatedAt: now } });
+    async rehashPassword(userId, oldEncoded, newEncoded) {
+      const { count } = await db.credential.updateMany({ where: { userId, passwordHash: oldEncoded }, data: { passwordHash: newEncoded } });
+      return count === 1;
     },
 
     async lastTokenAt(userId, purpose) {
@@ -75,7 +78,10 @@ export function createPrismaIdentityStore(db: PrismaClient): IdentityStore {
       ], TX);
     },
     async findLiveToken(tokenHash, purpose, now) {
-      return db.emailToken.findFirst({ where: { tokenHash, purpose, usedAt: null, expiresAt: { gt: now } }, select: { userId: true } });
+      return db.emailToken.findFirst({
+        where: { tokenHash, purpose, usedAt: null, expiresAt: { gt: now }, user: { status: 'ACTIVE' } },
+        select: { userId: true },
+      });
     },
     consumeVerifyToken: (tokenHash, now) =>
       db.$transaction(async (tx) => {
@@ -104,20 +110,42 @@ export function createPrismaIdentityStore(db: PrismaClient): IdentityStore {
           data: { usedAt: now },
         });
         if (count !== 1) return null;
-        const { userId } = await tx.emailToken.findUniqueOrThrow({ where: { tokenHash }, select: { userId: true } });
+        const { userId, user } = await tx.emailToken.findUniqueOrThrow({
+          where: { tokenHash },
+          select: { userId: true, user: { select: { status: true } } },
+        });
+        if (user.status !== 'ACTIVE') throw new InactiveUser(); // rolls the consumption back
         await tx.credential.update({ where: { userId }, data: { passwordHash, updatedAt: now } });
         await tx.sessionRegistry.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: now } });
         // The link proved control of the mailbox.
         await tx.user.updateMany({ where: { id: userId, emailVerifiedAt: null }, data: { emailVerifiedAt: now } });
         return userId;
-      }, TX),
+      }, TX).catch((e: unknown) => {
+        if (e instanceof InactiveUser) return null;
+        throw e;
+      }),
 
-    async createSession(s) {
-      await db.sessionRegistry.create({
-        data: { id: s.id, userId: s.userId, tokenHash: s.tokenHash, userAgent: s.userAgent, createdAt: s.now, lastSeenAt: s.now, expiresAt: s.expiresAt },
+    createSession: (s) =>
+      db.$transaction(async (tx) => {
+        // Row lock on the credential: a concurrent reset (which updates this row) is serialised with us. Either the
+        // reset committed first and the hash differs (no session), or it waits and then revokes the new session.
+        const rows = await tx.$queryRaw<{ passwordHash: string }[]>`
+          SELECT passwordHash FROM credentials WHERE userId = ${s.userId} FOR UPDATE`;
+        if (rows[0]?.passwordHash !== s.expectedPasswordHash) return false;
+        await tx.sessionRegistry.create({
+          data: { id: s.id, userId: s.userId, tokenHash: s.tokenHash, userAgent: s.userAgent, createdAt: s.now, lastSeenAt: s.now, expiresAt: s.expiresAt },
+        });
+        return true;
+      }, TX),
+    async findSessionByTokenHash(tokenHash) {
+      const row = await db.sessionRegistry.findUnique({
+        where: { tokenHash },
+        select: { ...SESSION, user: { select: { credential: { select: { updatedAt: true } } } } },
       });
+      if (!row) return null;
+      const { user, ...session } = row;
+      return { ...session, passwordChangedAt: user.credential?.updatedAt ?? null };
     },
-    findSessionByTokenHash: (tokenHash) => db.sessionRegistry.findUnique({ where: { tokenHash }, select: SESSION }),
     async touchSession(id, now) {
       await db.sessionRegistry.updateMany({ where: { id, lastSeenAt: { lt: now } }, data: { lastSeenAt: now } });
     },

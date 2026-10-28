@@ -36,6 +36,8 @@ export type IdentityHttpDeps = {
   config: IdentityConfig;
   logger?: Logger;
   rateLimitPrefix?: string;
+  /** Test seam only (see IdentityServiceDeps.hooks). */
+  hooks?: { afterPasswordCheck?: () => Promise<void> };
 };
 
 export type SessionContext = { requestId: string; log: Logger; userId: OwnerId; sessionId: string };
@@ -68,6 +70,7 @@ export function createIdentityHttp(deps: IdentityHttpDeps) {
         audit: deps.audit,
         mailer: deps.email,
         appOrigin: config.appOrigin as string,
+        hooks: deps.hooks,
       })
     : null;
   const ready = () => {

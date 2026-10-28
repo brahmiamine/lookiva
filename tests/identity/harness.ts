@@ -5,7 +5,7 @@ import { FakeAudit, FakeClock } from '@/platform';
 import { createDb } from '@/platform/db';
 import { OutboxEmail, readOutbox } from '@/platform/email/outbox';
 import { createLogger } from '@/platform/logger';
-import { createIdentityHttp, type IdentityHttp } from '@/modules/identity';
+import { createIdentityHttp, type IdentityHttp, type IdentityHttpDeps } from '@/modules/identity';
 import { testDatabaseUrl, testRedisUrl } from '../setup/db-url';
 
 export const db = createDb(testDatabaseUrl());
@@ -18,7 +18,7 @@ export const closeAll = async () => {
 export const ORIGIN = 'http://localhost:3000';
 export const PASSWORD = 'violet sunset harbour';
 
-type Opts = { production?: boolean; trustProxy?: boolean; appOrigin?: string; withEmail?: boolean };
+type Opts = { production?: boolean; trustProxy?: boolean; appOrigin?: string; withEmail?: boolean; hooks?: IdentityHttpDeps['hooks'] };
 
 /** A fresh identity API on the real db/redis, with its own rate-limit namespace, clock, audit and captured logs. */
 export function harness(opts: Opts = {}) {
@@ -35,6 +35,7 @@ export function harness(opts: Opts = {}) {
     logger: createLogger({ destination, level: 'debug' }),
     config: { production: opts.production ?? false, trustProxy: opts.trustProxy ?? true, appOrigin: opts.appOrigin ?? ORIGIN },
     rateLimitPrefix: `rl-test-${randomUUID()}`,
+    hooks: opts.hooks,
   });
   // Every test client gets its own address, so per-IP limits never leak between tests.
   const ip = `10.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250)}`;

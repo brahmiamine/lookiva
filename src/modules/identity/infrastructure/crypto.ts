@@ -22,7 +22,9 @@ function parse(encoded: string): Parsed | null {
   const [n, r, p] = parts.slice(1, 4).map(Number) as [number, number, number];
   const salt = Buffer.from(parts[4] as string, 'base64');
   const hash = Buffer.from(parts[5] as string, 'base64');
-  const sane = [n, r, p].every((v) => Number.isInteger(v) && v > 0) && n <= 2 ** 20 && r <= 32 && p <= 16;
+  // Never above the current parameters (a tampered row must not make us allocate gigabytes), N a power of two >= 2.
+  const sane =
+    [n, r, p].every((v) => Number.isInteger(v) && v > 0) && n >= 2 && n <= N && (n & (n - 1)) === 0 && r <= R && p <= P;
   if (!sane || salt.length < SALT_BYTES || hash.length !== KEY_LENGTH) return null;
   return { N: n, r, p, salt, hash };
 }
@@ -45,8 +47,11 @@ export const scryptHasher: PasswordHasher = {
     }
     const parsed = parse(encoded);
     if (!parsed) return false;
-    const key = await derive(password, parsed.salt, parsed);
-    return timingSafeEqual(key, parsed.hash);
+    try {
+      return timingSafeEqual(await derive(password, parsed.salt, parsed), parsed.hash);
+    } catch {
+      return false; // invalid parameters for this runtime: never a 500, never a match
+    }
   },
   needsRehash(encoded) {
     const p = parse(encoded);

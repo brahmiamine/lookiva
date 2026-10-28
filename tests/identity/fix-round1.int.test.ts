@@ -107,3 +107,78 @@ describe('pre-registration hijack (I2)', () => {
     expect((await h.api.login(email, 'violet sunset harbour')).status).toBe(200);
   });
 });
+
+describe('login racing a password reset (I3)', () => {
+  it('a_login_that_verified_the_old_password_before_a_reset_gets_no_session', async () => {
+    let resetDuringLogin: (() => Promise<unknown>) | undefined;
+    const h = harness({ hooks: { afterPasswordCheck: async () => void (await resetDuringLogin?.()) } });
+    const { email, userId } = await h.signedIn();
+    await h.api.forgot(email);
+    const token = await h.lastToken(email);
+    resetDuringLogin = async () => {
+      resetDuringLogin = undefined; // once
+      expect((await h.api.reset(token, 'the brand new passphrase')).status).toBe(200);
+    };
+    const login = await h.api.login(email, 'violet sunset harbour'); // old password, checked before the reset commits
+    expect(login.body).toMatchObject({ status: 401, code: 'INVALID_CREDENTIALS' });
+    expect(login.headers.getSetCookie()).toEqual([]);
+    const live = await db.sessionRegistry.count({ where: { userId, revokedAt: null } });
+    expect(live).toBe(0);
+    expect((await h.api.login(email, 'the brand new passphrase')).status).toBe(200);
+  });
+
+  it('a_session_older_than_the_last_password_change_is_401', async () => {
+    const h = harness();
+    const { cookie, userId } = await h.signedIn();
+    h.clock.advance(1_000);
+    // password changed by a path that did not revoke this session (defence in depth)
+    await db.credential.update({ where: { userId }, data: { updatedAt: h.clock.now() } });
+    expect((await h.api.me(cookie)).body).toMatchObject({ status: 401, code: 'UNAUTHENTICATED' });
+  });
+
+  it('rehash_on_login_upgrades_legacy_hashes_without_ending_other_sessions', async () => {
+    const { scryptSync } = await import('node:crypto');
+    const h = harness();
+    const { email, userId, cookie } = await h.signedIn();
+    const salt = Buffer.alloc(16, 3);
+    const legacy = `scrypt$16384$8$1$${salt.toString('base64')}$${scryptSync('violet sunset harbour', salt, 64, { N: 16384, r: 8, p: 1 }).toString('base64')}`;
+    const before = await db.credential.update({ where: { userId }, data: { passwordHash: legacy } });
+    h.clock.advance(1_000);
+    expect((await h.api.login(email, 'violet sunset harbour')).status).toBe(200);
+    const after = await db.credential.findUniqueOrThrow({ where: { userId } });
+    expect(after.passwordHash.startsWith('scrypt$32768$')).toBe(true);
+    expect(after.updatedAt).toEqual(before.updatedAt); // a rehash is not a password change
+    expect((await h.api.me(cookie)).status).toBe(200);
+  });
+
+  it('rehash_is_a_compare_and_set_that_never_overwrites_a_newer_password', async () => {
+    const { createPrismaIdentityStore } = await import('@/modules/identity/infrastructure/prisma-store');
+    const h = harness();
+    const { userId } = await h.signedIn();
+    const store = createPrismaIdentityStore(db);
+    const current = (await db.credential.findUniqueOrThrow({ where: { userId } })).passwordHash;
+    expect(await store.rehashPassword(userId, 'scrypt$stale-expected', 'scrypt$would-revert')).toBe(false);
+    expect((await db.credential.findUniqueOrThrow({ where: { userId } })).passwordHash).toBe(current);
+    expect(await store.rehashPassword(userId, current, `${current}x`)).toBe(true);
+  });
+});
+
+describe('account status on reset and sessions (M3)', () => {
+  it('reset_token_of_a_disabled_account_is_400_INVALID_TOKEN_and_changes_nothing', async () => {
+    const h = harness();
+    const { email, userId } = await h.signedIn();
+    await h.api.forgot(email);
+    const token = await h.lastToken(email);
+    const before = await db.credential.findUniqueOrThrow({ where: { userId } });
+    await db.user.update({ where: { id: userId }, data: { status: 'DISABLED' } });
+    expect((await h.api.reset(token, 'the brand new passphrase')).body).toMatchObject({ status: 400, code: 'INVALID_TOKEN' });
+    expect((await db.credential.findUniqueOrThrow({ where: { userId } })).passwordHash).toBe(before.passwordHash);
+  });
+
+  it('deletion_requested_user_session_is_401', async () => {
+    const h = harness();
+    const { cookie, userId } = await h.signedIn();
+    await db.user.update({ where: { id: userId }, data: { status: 'DELETION_REQUESTED' } });
+    expect((await h.api.me(cookie)).body).toMatchObject({ status: 401, code: 'UNAUTHENTICATED' });
+  });
+});

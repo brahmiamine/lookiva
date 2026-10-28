@@ -59,7 +59,8 @@ export interface IdentityStore {
   /** User + credential + default preferences in one transaction; false when the normalised email is taken. */
   createUser(u: { id: string; email: string; emailNormalized: string; passwordHash: string; locale: Locale; now: Date }): Promise<boolean>;
   getPasswordHash(userId: string): Promise<string | null>;
-  setPasswordHash(userId: string, passwordHash: string, now: Date): Promise<void>;
+  /** Same password, stronger parameters: compare-and-set on the old encoding, `updatedAt` untouched. */
+  rehashPassword(userId: string, oldEncoded: string, newEncoded: string): Promise<boolean>;
 
   lastTokenAt(userId: string, purpose: TokenPurpose): Promise<Date | null>;
   /** Stores a new token and voids the user's older unused tokens of the same purpose. */
@@ -75,11 +76,24 @@ export interface IdentityStore {
   findLiveToken(tokenHash: string, purpose: TokenPurpose, now: Date): Promise<{ userId: string } | null>;
   /** Atomic single use (`usedAt IS NULL` guard) + marks the email verified + applies the token's pending password, if any. */
   consumeVerifyToken(tokenHash: string, now: Date): Promise<string | null>;
-  /** Atomic single use + new password + every session revoked + email verified, in one transaction. */
+  /** Atomic single use + new password + every session revoked + email verified, in one transaction; ACTIVE users only. */
   consumeResetToken(tokenHash: string, now: Date, passwordHash: string): Promise<string | null>;
 
-  createSession(s: { id: string; userId: string; tokenHash: string; userAgent: string; now: Date; expiresAt: Date }): Promise<void>;
-  findSessionByTokenHash(tokenHash: string): Promise<SessionRecord | null>;
+  /**
+   * Creates the session only if the credential still holds `expectedPasswordHash`, checked under a row lock
+   * (SELECT ... FOR UPDATE) in the same transaction: a reset committed after the password check wins.
+   */
+  createSession(s: {
+    id: string;
+    userId: string;
+    tokenHash: string;
+    userAgent: string;
+    now: Date;
+    expiresAt: Date;
+    expectedPasswordHash: string;
+  }): Promise<boolean>;
+  /** The session plus the last password change (credentials.updatedAt). */
+  findSessionByTokenHash(tokenHash: string): Promise<(SessionRecord & { passwordChangedAt: Date | null }) | null>;
   touchSession(id: string, now: Date): Promise<void>;
   /** Live sessions (not revoked, lastSeenAt >= activeSince, expiresAt > now), newest first, cursor on id. */
   listSessions(ownerId: OwnerId, q: { activeSince: Date; now: Date; limit: number; cursor?: { id: string } }): Promise<Page<SessionRecord>>;

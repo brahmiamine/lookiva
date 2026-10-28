@@ -39,6 +39,8 @@ export type IdentityServiceDeps = {
   mailer: Email;
   /** APP_ORIGIN: the only base of mailed links (never derived from Host or X-Forwarded-*). */
   appOrigin: string;
+  /** Test seam: runs after a successful password check, before the session is created (race tests). */
+  hooks?: { afterPasswordCheck?: () => Promise<void> };
 };
 
 export type Me = { id: string; email: string; emailVerifiedAt: Date | null; createdAt: Date };
@@ -161,18 +163,24 @@ export function createIdentityService(d: IdentityServiceDeps) {
       const ok = await d.hasher.verify(input.password, encoded);
       if (!user || !ok || !encoded || user.status !== 'ACTIVE') throw INVALID_CREDENTIALS();
       if (user.emailVerifiedAt === null) throw new AppError('EMAIL_NOT_VERIFIED', 403, 'Email address not verified yet');
+      await d.hooks?.afterPasswordCheck?.();
       const t = now();
-      if (d.hasher.needsRehash(encoded)) await d.store.setPasswordHash(user.id, await d.hasher.hash(input.password), t);
       const { token, hash } = d.tokens.generate();
       const sessionId = newId();
-      await d.store.createSession({
+      const created = await d.store.createSession({
         id: sessionId,
         userId: user.id,
         tokenHash: hash,
         userAgent: summariseUserAgent(input.userAgent),
         now: t,
         expiresAt: new Date(t.getTime() + SESSION_ABSOLUTE_MS),
+        expectedPasswordHash: encoded,
       });
+      // The password changed since we checked it (concurrent reset): the old password no longer opens a session.
+      if (!created) throw INVALID_CREDENTIALS();
+      if (d.hasher.needsRehash(encoded)) {
+        await d.store.rehashPassword(user.id, encoded, await d.hasher.hash(input.password)); // CAS: never reverts a reset
+      }
       await d.audit.record({ actorId: user.id, action: 'identity.login', target: sessionId });
       return { token, sessionId, user: toMe(user) };
     },
@@ -182,6 +190,8 @@ export function createIdentityService(d: IdentityServiceDeps) {
       const t = now();
       const s = await d.store.findSessionByTokenHash(d.tokens.hash(token));
       if (!s || !sessionIsActive(s, t)) throw UNAUTHENTICATED();
+      // Any session opened before the last password change is dead, even if a revocation was missed.
+      if (s.passwordChangedAt !== null && s.createdAt < s.passwordChangedAt) throw UNAUTHENTICATED();
       const user = await d.store.findUserById(s.userId);
       if (!user || user.status !== 'ACTIVE' || user.emailVerifiedAt === null) throw UNAUTHENTICATED();
       if (sessionNeedsTouch(s, t)) await d.store.touchSession(s.id, t);

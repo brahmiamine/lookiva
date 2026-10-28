@@ -47,3 +47,32 @@ describe('sessionTokens', () => {
     expect(sessionTokens.generate().token).not.toBe(token);
   });
 });
+
+describe('scryptHasher tampered encodings (M4)', () => {
+  it('parameters_above_the_current_ones_or_invalid_never_run_and_never_throw', async () => {
+    const good = await scryptHasher.hash('correct horse battery');
+    const [, , , , salt, hash] = good.split('$');
+    const tampered = [
+      `scrypt$${2 ** 20}$8$1$${salt}$${hash}`, // memory bomb
+      `scrypt$30000$8$1$${salt}$${hash}`, // not a power of two (scrypt itself would throw)
+      `scrypt$32768$9$1$${salt}$${hash}`,
+      `scrypt$32768$8$2$${salt}$${hash}`,
+      `scrypt$1$8$1$${salt}$${hash}`,
+      `scrypt$32768$8$1$!!!$${hash}`,
+      'scrypt$32768$8$1$$$',
+    ];
+    for (const t of tampered) {
+      await expect(scryptHasher.verify('correct horse battery', t), t).resolves.toBe(false);
+      expect(scryptHasher.needsRehash(t), t).toBe(true);
+    }
+  });
+
+  it('lower_legacy_parameters_still_verify_and_need_a_rehash', async () => {
+    const { scryptSync } = await import('node:crypto');
+    const salt = Buffer.alloc(16, 7);
+    const key = scryptSync('correct horse battery', salt, 64, { N: 2 ** 14, r: 8, p: 1 });
+    const legacy = `scrypt$16384$8$1$${salt.toString('base64')}$${key.toString('base64')}`;
+    expect(await scryptHasher.verify('correct horse battery', legacy)).toBe(true);
+    expect(scryptHasher.needsRehash(legacy)).toBe(true);
+  });
+});
