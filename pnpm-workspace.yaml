@@ -5,3 +5,6 @@ allowBuilds:
   msgpackr-extract: false
   '@prisma/engines': true
   prisma: true
+  # next-intl deps: prebuilt native binaries ship as optional packages; the install script is only a source-build fallback
+  '@parcel/watcher': false
+  '@swc/core': false
