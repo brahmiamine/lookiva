@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="fr" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lookiva · Maquettes (direction B · Studio)</title>
+<style>
+:root{
+  --color-bg:#F4F6F8;--color-surface:#FFFFFF;--color-text:#14202B;--color-text-muted:#5C6B78;
+  --color-primary:#0E5C63;--color-on-primary:#FFFFFF;--color-border:#7A8793;
+  --color-tone-success-fg:#16794A;--color-tone-success-bg:#DDF3E8;
+  --color-tone-warning-fg:#8A5A00;--color-tone-warning-bg:#FFF1D6;
+  --color-tone-danger-fg:#A4262C;--color-tone-danger-bg:#FBE4E4;
+  --color-tone-info-fg:#1D5A96;--color-tone-info-bg:#E2EEFA;
+  --color-tone-neutral-fg:#3F4D59;--color-tone-neutral-bg:#E6EAEE;
+  --font-sans:system-ui,'Segoe UI','Noto Sans Arabic','Geeza Pro',sans-serif;
+  --radius-card:12px;--size-touch:44px;
+  /* mockup-only: decorative hairline (no meaning carried) and page backdrop */
+  --hairline:#DCE2E8;--backdrop:#CDD4DB;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--backdrop);font-family:var(--font-sans);color:var(--color-text);line-height:1.4;font-size:15px;
+  min-block-size:100vh;display:grid;place-items:center;padding-block:24px;padding-inline:16px}
+.phone{inline-size:375px;block-size:812px;max-inline-size:100%;background:var(--color-bg);border-radius:36px;
+  box-shadow:0 0 0 8px #14202B,0 24px 60px rgba(20,32,43,.28);display:flex;flex-direction:column;position:relative;overflow:hidden}
+@media (max-width:440px){body{padding:0;display:block}.phone{block-size:100dvh;border-radius:0;box-shadow:none}}
+.scroll{flex:1;overflow-y:auto;padding-inline:16px;padding-block-end:24px}
+h1,h2,h3{line-height:1.2}
+ul,ol{list-style:none}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:3px solid var(--color-primary);outline-offset:2px;border-radius:6px}
+.sr{position:absolute;inline-size:1px;block-size:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.ic{inline-size:1em;block-size:1em;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+[dir=rtl] .flip{transform:scaleX(-1)}
+.muted{color:var(--color-text-muted)}
+
+/* header */
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-block:20px 12px;padding-inline:16px}
+.top h1{font-size:24px;font-weight:800;letter-spacing:-.01em;color:var(--color-primary)}
+.top .sub{font-size:14px;color:var(--color-text-muted);font-weight:600}
+.back{display:inline-flex;align-items:center;justify-content:center;inline-size:var(--size-touch);block-size:var(--size-touch);
+  border-radius:999px;background:var(--color-surface);border:1px solid var(--color-border);font-size:20px}
+.top .title{font-size:18px;font-weight:700}
+
+/* pills & chips */
+.pill{display:inline-flex;align-items:center;gap:4px;padding-block:3px;padding-inline:8px 10px;border-radius:999px;font-size:12px;font-weight:700;line-height:1.3}
+.pill .ic{font-size:14px}
+.t-success{color:var(--color-tone-success-fg);background:var(--color-tone-success-bg)}
+.t-warning{color:var(--color-tone-warning-fg);background:var(--color-tone-warning-bg)}
+.t-danger{color:var(--color-tone-danger-fg);background:var(--color-tone-danger-bg)}
+.t-info{color:var(--color-tone-info-fg);background:var(--color-tone-info-bg)}
+.t-neutral{color:var(--color-tone-neutral-fg);background:var(--color-tone-neutral-bg)}
+.chips{display:flex;gap:8px;overflow-x:auto;padding-block:4px 12px;scrollbar-width:none}
+.chip{display:inline-flex;align-items:center;gap:6px;min-block-size:var(--size-touch);padding-inline:14px;border-radius:999px;white-space:nowrap;
+  background:var(--color-surface);border:1.5px solid var(--color-border);font-size:14px;font-weight:600}
+.chip[aria-pressed=true],.chip.on{background:var(--color-primary);border-color:var(--color-primary);color:var(--color-on-primary)}
+.chip .ic{font-size:16px}
+
+/* cards & buttons */
+.card{background:var(--color-surface);border:1px solid var(--hairline);border-radius:var(--radius-card);box-shadow:0 1px 2px rgba(20,32,43,.06)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-block-size:48px;padding-inline:18px;border-radius:12px;
+  font-size:16px;font-weight:700;border:1.5px solid var(--color-primary);background:var(--color-surface);color:var(--color-primary);inline-size:100%}
+.btn.primary{background:var(--color-primary);color:var(--color-on-primary)}
+.btn.danger{border-color:var(--color-tone-danger-fg);color:var(--color-tone-danger-fg);background:var(--color-tone-danger-bg)}
+.btn.small{min-block-size:var(--size-touch);inline-size:auto;font-size:14px;padding-inline:14px}
+.btn .ic{font-size:20px}
+.fab{position:absolute;inset-inline-end:16px;inset-block-end:92px;inline-size:auto;border-radius:999px;box-shadow:0 6px 16px rgba(14,92,99,.35)}
+
+/* placeholder photos (illustration colours are decorative, not tokens) */
+.ph{background:var(--c,#C9A67A);display:grid;place-items:center;color:rgba(255,255,255,.75);position:relative}
+.ph .ic{font-size:44px;stroke-width:1.5}
+
+/* bottom nav */
+.nav{margin-inline:12px;margin-block:0 12px;background:var(--color-surface);border:1px solid var(--hairline);border-radius:24px;
+  box-shadow:0 4px 14px rgba(20,32,43,.10);display:flex;gap:4px;padding:6px}
+.nav a{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-block-size:52px;border-radius:18px;
+  font-size:12px;font-weight:600;color:var(--color-text-muted)}
+.nav a .ic{font-size:22px}
+.nav a[aria-current=page]{background:var(--color-primary);color:var(--color-on-primary);font-weight:800}
+.nav a[aria-current=page] .ic{stroke-width:2.6}
+
+/* section titles */
+.sec{margin-block:20px 8px;font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--color-text-muted)}
+
+
+body{display:block;padding-block:40px}
+main{max-inline-size:640px;margin-inline:auto;background:var(--color-surface);border:1px solid var(--hairline);border-radius:var(--radius-card);padding:28px}
+h1{font-size:28px;color:var(--color-primary);margin-block-end:6px}
+h2{font-size:18px;margin-block:24px 8px}
+p{margin-block-end:8px}
+.tag{display:inline-block;margin-block-end:12px}
+.links{display:grid;gap:10px;margin-block-start:12px}
+.links a{display:flex;justify-content:space-between;align-items:center;gap:12px;min-block-size:var(--size-touch);padding-inline:16px;padding-block:8px;border:1.5px solid var(--color-border);border-radius:12px;font-weight:700}
+.links a span{font-weight:500;color:var(--color-text-muted);font-size:14px}
+.links a:hover{border-color:var(--color-primary)}
+table{inline-size:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:start;padding-block:8px;padding-inline:8px;border-block-end:1px solid var(--hairline)}
+.sw{display:inline-block;inline-size:16px;block-size:16px;border-radius:4px;border:1px solid var(--color-border);vertical-align:middle;margin-inline-end:8px}
+
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
+<symbol id="i-check" viewBox="0 0 16 16"><path d="M3 8.5l3.2 3.2L13 5"/></symbol>
+<symbol id="i-drop" viewBox="0 0 16 16"><path d="M8 2.2S3.6 6.8 3.6 9.6a4.4 4.4 0 008.8 0C12.4 6.8 8 2.2 8 2.2z"/></symbol>
+<symbol id="i-warn" viewBox="0 0 16 16"><path d="M8 2.2l6.2 11H1.8z"/><path d="M8 6.6v3M8 11.7h.01"/></symbol>
+<symbol id="i-lend" viewBox="0 0 16 16"><path d="M2.5 8h11M9.5 4l4 4-4 4"/></symbol>
+<symbol id="i-lost" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.8"/><path d="M5.7 5.7l4.6 4.6M10.3 5.7l-4.6 4.6"/></symbol>
+<symbol id="i-info" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.8"/><path d="M8 7.4v3.4M8 5.2h.01"/></symbol>
+<symbol id="i-approx" viewBox="0 0 16 16"><path d="M2.5 6.2c1.8-1.6 3.4-1.6 5.5 0s3.7 1.6 5.5 0M2.5 10.6c1.8-1.6 3.4-1.6 5.5 0s3.7 1.6 5.5 0"/></symbol>
+<symbol id="i-plus" viewBox="0 0 16 16"><path d="M8 3v10M3 8h10"/></symbol>
+<symbol id="i-x" viewBox="0 0 16 16"><path d="M4 4l8 8M12 4l-8 8"/></symbol>
+<symbol id="i-back" viewBox="0 0 16 16"><path d="M10 3L5 8l5 5"/></symbol>
+<symbol id="i-trash" viewBox="0 0 16 16"><path d="M2.5 4.5h11M6 4.5V3h4v1.5M4 4.5l.6 8.5h6.8l.6-8.5M6.8 7v3.8M9.2 7v3.8"/></symbol>
+<symbol id="i-copy" viewBox="0 0 16 16"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 5.5v-2a1 1 0 00-1-1h-6a1 1 0 00-1 1v6a1 1 0 001 1h2"/></symbol>
+<symbol id="i-edit" viewBox="0 0 16 16"><path d="M10.5 3l2.5 2.5L5.5 13H3v-2.5z"/></symbol>
+<symbol id="i-swap" viewBox="0 0 16 16"><path d="M3 5.5h9.5M10 3l2.5 2.5L10 8M13 10.5H3.5M6 8l-2.5 2.5L6 13"/></symbol>
+<symbol id="i-rain" viewBox="0 0 24 24"><path d="M7 15a4.5 4.5 0 01.5-9A6 6 0 0119 8.5 3.5 3.5 0 0117.5 15H7z"/><path d="M8 18l-1 2.5M12 18l-1 2.5M16 18l-1 2.5"/></symbol>
+<symbol id="i-wind" viewBox="0 0 24 24"><path d="M3 9h10a2.5 2.5 0 10-2.4-3M3 14h14a2.5 2.5 0 11-2.4 3M3 19h6"/></symbol>
+<symbol id="i-hanger" viewBox="0 0 24 24"><path d="M12 7.5a2.3 2.3 0 10-2.3-2.3M12 7.5v2l9 6.2a1.2 1.2 0 01-.7 2.2H3.7a1.2 1.2 0 01-.7-2.2l9-6.2"/></symbol>
+<symbol id="i-shirt" viewBox="0 0 24 24"><path d="M8.5 3.5L3 6.5l2 4.2 2.5-1.1V20.5h9V9.6l2.5 1.1 2-4.2-5.5-3a3.6 3.6 0 01-7 0z"/></symbol>
+<symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/></symbol>
+<symbol id="i-more" viewBox="0 0 24 24"><circle cx="5.5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="18.5" cy="12" r="1.3"/></symbol>
+<symbol id="i-calendar" viewBox="0 0 16 16"><rect x="2.5" y="3.5" width="11" height="10" rx="1.5"/><path d="M2.5 7h11M5.5 2v3M10.5 2v3"/></symbol>
+<symbol id="i-box" viewBox="0 0 24 24"><path d="M3.5 7.5l8.5-4 8.5 4v9l-8.5 4-8.5-4zM3.5 7.5L12 11.5l8.5-4M12 11.5v9"/></symbol>
+</defs></svg>
+<main>
+<h1>Lookiva · maquettes</h1>
+<p><span class="pill t-info"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-info"/></svg>Direction B · Studio</span></p>
+<p>Maquettes <strong>statiques</strong> des parcours prioritaires, à relire avant toute construction de composant : aucun script, aucune donnée réelle, contenu d’exemple. Chaque fichier est autonome et reprend les tokens de <code>src/ui/tokens.css</code>.</p>
+<h2>Écrans</h2>
+<nav class="links" aria-label="Maquettes">
+<a href="dressing.html">Dressing <span>grille, filtres, état en pastille</span></a>
+<a href="dressing-ar.html">Dressing (arabe, RTL) <span>même écran, miroir complet</span></a>
+<a href="fiche-vetement.html">Fiche vêtement <span>Trench camel</span></a>
+<a href="tenue-du-jour.html">Tenue du jour <span>météo, 3 propositions, confirmation</span></a>
+<a href="recherche.html">Recherche <span>correspondance exacte ou estimée</span></a>
+</nav>
+<h2>Tokens de couleur</h2>
+<table><thead><tr><th>Rôle</th><th>Variable</th><th>Valeur</th></tr></thead><tbody><tr><td><span class="sw" style="background:#F4F6F8"></span>Fond</td><td><code>--color-bg</code></td><td><code>#F4F6F8</code></td></tr><tr><td><span class="sw" style="background:#FFFFFF"></span>Surface</td><td><code>--color-surface</code></td><td><code>#FFFFFF</code></td></tr><tr><td><span class="sw" style="background:#14202B"></span>Texte</td><td><code>--color-text</code></td><td><code>#14202B</code></td></tr><tr><td><span class="sw" style="background:#5C6B78"></span>Texte atténué</td><td><code>--color-text-muted</code></td><td><code>#5C6B78</code></td></tr><tr><td><span class="sw" style="background:#0E5C63"></span>Primaire</td><td><code>--color-primary</code></td><td><code>#0E5C63</code></td></tr><tr><td><span class="sw" style="background:#FFFFFF"></span>Sur primaire</td><td><code>--color-on-primary</code></td><td><code>#FFFFFF</code></td></tr><tr><td><span class="sw" style="background:#7A8793"></span>Bordure</td><td><code>--color-border</code></td><td><code>#7A8793</code></td></tr></tbody></table>
+<p class="muted" style="margin-block-start:12px;font-size:13px">États : toujours texte + icône + couleur. Cibles tactiles ≥ 44 px. CSS logique uniquement. Pas de thème sombre.</p>
+</main>
+</body>
+</html>

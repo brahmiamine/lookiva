@@ -1,0 +1,26 @@
+/* Design tokens, direction B · Studio. Plain custom properties, 6-digit hex (parsed by tests/ui/contrast.test.ts).
+   Light theme only: a dark theme is prepared in the structure (semantic names) but not shipped. */
+:root {
+  --color-bg: #F4F6F8;
+  --color-surface: #FFFFFF;
+  --color-text: #14202B;
+  --color-text-muted: #5C6B78;
+  --color-primary: #0E5C63;
+  --color-on-primary: #FFFFFF;
+  --color-border: #7A8793;
+
+  --color-tone-success-fg: #16794A;
+  --color-tone-success-bg: #DDF3E8;
+  --color-tone-warning-fg: #8A5A00;
+  --color-tone-warning-bg: #FFF1D6;
+  --color-tone-danger-fg: #A4262C;
+  --color-tone-danger-bg: #FBE4E4;
+  --color-tone-info-fg: #1D5A96;
+  --color-tone-info-bg: #E2EEFA;
+  --color-tone-neutral-fg: #3F4D59;
+  --color-tone-neutral-bg: #E6EAEE;
+
+  --font-sans: system-ui, 'Segoe UI', 'Noto Sans Arabic', 'Geeza Pro', sans-serif;
+  --radius-card: 12px;
+  --size-touch: 44px;
+}

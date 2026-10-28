@@ -1,0 +1,34 @@
+@import "tailwindcss";
+@import "../ui/tokens.css";
+
+/* Map the semantic tokens (src/ui/tokens.css) to Tailwind utilities: bg-surface, text-muted, bg-primary,
+   text-on-primary, border-border, font-sans, rounded-card, ... `inline` keeps utilities pointing at the CSS variables.
+   Same-named entries (e.g. --color-bg: var(--color-bg)) are emitted by Tailwind inside @layer theme, so the unlayered
+   :root values of tokens.css always win and no self-reference is ever computed. */
+@theme inline {
+  --color-bg: var(--color-bg);
+  --color-surface: var(--color-surface);
+  --color-text: var(--color-text);
+  --color-muted: var(--color-text-muted);
+  --color-primary: var(--color-primary);
+  --color-on-primary: var(--color-on-primary);
+  --color-border: var(--color-border);
+  --color-success: var(--color-tone-success-fg);
+  --color-success-soft: var(--color-tone-success-bg);
+  --color-warning: var(--color-tone-warning-fg);
+  --color-warning-soft: var(--color-tone-warning-bg);
+  --color-danger: var(--color-tone-danger-fg);
+  --color-danger-soft: var(--color-tone-danger-bg);
+  --color-info: var(--color-tone-info-fg);
+  --color-info-soft: var(--color-tone-info-bg);
+  --color-neutral: var(--color-tone-neutral-fg);
+  --color-neutral-soft: var(--color-tone-neutral-bg);
+  --font-sans: var(--font-sans);
+  --radius-card: var(--radius-card);
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+}

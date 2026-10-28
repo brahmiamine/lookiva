@@ -1,3 +1,4 @@
+import '../globals.css';
 import { notFound } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { LOCALES, dirFor, isLocale } from '@/i18n/config';
