@@ -100,3 +100,46 @@ describe('N4: pending hashes do not linger', () => {
     expect(left.has(recentUsed.id)).toBe(true);
   });
 });
+
+describe('N5: per-email registration limit', () => {
+  it('six_registrations_of_one_email_from_six_addresses_hit_429', async () => {
+    const h = harness();
+    const email = h.newEmail('target');
+    const from = (i: number) =>
+      h.send(h.http.register, h.request('/auth/register', { body: { email, password: A }, headers: { ...h.idem(), 'x-forwarded-for': `198.51.100.${i}` } }));
+    for (let i = 0; i < 5; i++) expect((await from(i)).status).toBe(202);
+    const res = await from(99);
+    expect([res.status, res.body?.code]).toEqual([429, 'RATE_LIMITED']);
+    expect(Number(res.headers.get('retry-after'))).toBeGreaterThan(0);
+    expect((await from(100).then(() => h.api.register({ email: h.newEmail(), password: A }))).status).toBe(202);
+  });
+});
+
+describe('N8: login holds the credential lock while a reset runs', () => {
+  it('reset_waiting_on_the_login_lock_revokes_the_new_session_without_deadlock', async () => {
+    let reset: Promise<{ status: number }> | undefined;
+    let fire: (() => void) | undefined;
+    const h = harness({
+      hooks: {
+        whileCredentialLocked: async () => {
+          fire?.();
+          await new Promise((r) => setTimeout(r, 800)); // the reset scrypts, then blocks on our row lock
+        },
+      },
+    });
+    const { email, userId } = await h.signedIn(); // hook not armed yet (fire undefined) but still sleeps: fine
+    await h.api.forgot(email);
+    const token = await h.lastToken(email);
+    fire = () => {
+      fire = undefined;
+      reset = h.api.reset(token, 'the brand new passphrase');
+    };
+    const login = await h.api.login(email, 'violet sunset harbour');
+    const r = await reset;
+    expect(r?.status).toBe(200); // no deadlock / 500
+    expect([200, 401]).toContain(login.status);
+    expect(await db.sessionRegistry.count({ where: { userId, revokedAt: null } })).toBe(0);
+    if (login.status === 200) expect((await h.api.me(h.cookieOf(login.headers))).status).toBe(401);
+    expect((await h.api.login(email, 'the brand new passphrase')).status).toBe(200);
+  });
+});

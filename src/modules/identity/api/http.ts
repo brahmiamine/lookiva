@@ -21,7 +21,7 @@ import { createPrismaIdentityStore } from '../infrastructure/prisma-store';
 import { scryptHasher, sessionTokens } from '../infrastructure/crypto';
 import { clearSessionCookie, readSessionCookie, sessionCookie } from './cookie';
 import { assertCsrf } from './csrf';
-import { LIMITS, rateLimitId } from './limits';
+import { LIMITS, emailOnlyId, rateLimitId } from './limits';
 import * as s from './schemas';
 
 export type IdentityConfig = { production: boolean; trustProxy: boolean; appOrigin?: string };
@@ -36,8 +36,8 @@ export type IdentityHttpDeps = {
   config: IdentityConfig;
   logger?: Logger;
   rateLimitPrefix?: string;
-  /** Test seam only (see IdentityServiceDeps.hooks). */
-  hooks?: { afterPasswordCheck?: () => Promise<void> };
+  /** Test seams only (race tests): after the password check / while login holds the credential row lock. */
+  hooks?: { afterPasswordCheck?: () => Promise<void>; whileCredentialLocked?: () => Promise<void> };
 };
 
 export type SessionContext = { requestId: string; log: Logger; userId: OwnerId; sessionId: string };
@@ -63,7 +63,7 @@ export function createIdentityHttp(deps: IdentityHttpDeps) {
   if (deps.email && !config.appOrigin) throw new Error('APP_ORIGIN is required when an email transport is configured');
   const service = deps.email
     ? createIdentityService({
-        store: createPrismaIdentityStore(deps.db),
+        store: createPrismaIdentityStore(deps.db, deps.hooks),
         hasher: scryptHasher,
         tokens: sessionTokens,
         clock,
@@ -121,6 +121,7 @@ export function createIdentityHttp(deps: IdentityHttpDeps) {
       await limit(req, LIMITS.registerIp);
       const body = await readJson(req, s.registerBody);
       const email = normalizeEmail(body.email);
+      await limiter.consume(LIMITS.registerEmail, emailOnlyId(email), clock.now());
       return idempotent(req, anonScope('register', email), { email, locale: body.locale }, log,
         () => svc.register(body), 202, { status: 'accepted' });
     }),

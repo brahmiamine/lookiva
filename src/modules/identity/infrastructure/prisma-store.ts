@@ -30,7 +30,8 @@ const toPreferences = (r: PrefRow): Preferences => ({
   version: r.version,
 });
 
-export function createPrismaIdentityStore(db: PrismaClient): IdentityStore {
+/** `hooks.whileCredentialLocked` is a test seam: it runs inside the login transaction while the row lock is held. */
+export function createPrismaIdentityStore(db: PrismaClient, hooks: { whileCredentialLocked?: () => Promise<void> } = {}): IdentityStore {
   return {
     findUserByEmail: (emailNormalized) => db.user.findUnique({ where: { emailNormalized }, select: USER }),
     findUserById: (id) => db.user.findUnique({ where: { id }, select: USER }),
@@ -150,6 +151,7 @@ export function createPrismaIdentityStore(db: PrismaClient): IdentityStore {
         // reset committed first and the hash differs (no session), or it waits and then revokes the new session.
         const rows = await tx.$queryRaw<{ passwordHash: string }[]>`
           SELECT passwordHash FROM credentials WHERE userId = ${s.userId} FOR UPDATE`;
+        await hooks.whileCredentialLocked?.();
         if (rows[0]?.passwordHash !== s.expectedPasswordHash) return false;
         await tx.sessionRegistry.create({
           data: { id: s.id, userId: s.userId, tokenHash: s.tokenHash, userAgent: s.userAgent, createdAt: s.now, lastSeenAt: s.now, expiresAt: s.expiresAt },
