@@ -48,11 +48,14 @@ describe('module boundaries', () => {
   });
 
   it('allows a module importing another module through its index', async () => {
-    const { rules, summary } = await run('allowed');
+    const { rules, summary, modules } = await run('allowed');
     expect(rules).toEqual([]);
-    // not vacuous: files were cruised and the import was resolved
+    // not vacuous: files were cruised and every import was resolved
     expect(summary.totalCruised).toBeGreaterThan(0);
     expect(summary.totalDependenciesCruised).toBeGreaterThan(0);
+    const deps = modules.flatMap((m) => m.dependencies);
+    expect(deps.every((d) => !d.couldNotResolve)).toBe(true);
+    expect(deps.map((d) => d.resolved)).toEqual(['src/modules/b/index.ts']);
   });
 
   it('forbids ui -> infrastructure', async () => {
@@ -86,5 +89,28 @@ describe('module boundaries', () => {
     const { summary } = await run('alias-violations');
     const v = summary.violations.filter((x) => x.rule.name === 'platform-no-modules');
     expect(v.map((x) => `${x.from} -> ${x.to}`)).toEqual(['src/platform/http/h.ts -> src/modules/a/index.ts']);
+  });
+
+  it('forbids files outside src/modules (root files, i18n) importing module internals', async () => {
+    const { summary } = await run('root-violations');
+    const v = summary.violations.filter((x) => x.rule.name === 'external-module-public-only');
+    expect(v.map((x) => x.from).sort()).toEqual(['src/i18n/y.ts', 'src/proxy.ts']);
+  });
+
+  it('allows root files and i18n importing a module through its index', async () => {
+    const { rules, modules } = await run('root-allowed');
+    expect(rules).toEqual([]);
+    const deps = modules.flatMap((m) => m.dependencies);
+    expect(deps.map((d) => d.resolved).sort()).toEqual(['src/modules/a/index.ts', 'src/modules/a/index.ts']);
+  });
+
+  it('forbids the kernel importing the rest of src', async () => {
+    expect(await violatedRules('kernel-violations')).toContain('kernel-pure');
+  });
+
+  it('allows the kernel importing itself', async () => {
+    const { rules, summary } = await run('kernel-allowed');
+    expect(rules).toEqual([]);
+    expect(summary.totalDependenciesCruised).toBeGreaterThan(0);
   });
 });

@@ -13,7 +13,9 @@ export function readIdempotencyKey(req: Request): string {
   return key;
 }
 
-/** SHA-256 hex of method, path and canonical body; each part is length-prefixed so ("ab","c") != ("a","bc"). */
+/**
+ * SHA-256 hex of method, path and canonical body (`path` should include the query string if it changes the meaning
+ * of the request; `canonicalBody` comes from `canonicalJson` of the already-parsed body); each part is length-prefixed so ("ab","c") != ("a","bc"). */
 export function requestHash(method: string, path: string, canonicalBody: string): string {
   const h = createHash('sha256');
   for (const part of [method.toUpperCase(), path, canonicalBody]) h.update(`${Buffer.byteLength(part)}:${part}`);
@@ -32,5 +34,5 @@ const sortKeys = (v: unknown): unknown => {
   return v;
 };
 
-/** Deterministic JSON: object keys sorted recursively, arrays keep their order. */
-export const canonicalJson = (value: unknown): string => JSON.stringify(sortKeys(value));
+/** Deterministic JSON of PARSED JSON input (not of raw text): keys sorted recursively, arrays keep their order. `undefined` -> 'null'. */
+export const canonicalJson = (value: unknown): string => JSON.stringify(sortKeys(value)) ?? 'null';

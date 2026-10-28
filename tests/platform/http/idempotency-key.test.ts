@@ -58,6 +58,7 @@ describe('canonicalJson', () => {
     expect(a).toBe('{"a":{"c":null,"d":[3,{"x":2,"y":1}]},"b":1}');
     // arrays keep their order, dates serialize through toJSON
     expect(canonicalJson([2, 1])).toBe('[2,1]');
+    expect(canonicalJson(undefined)).toBe('null');
     expect(canonicalJson({ at: new Date('2026-01-01T00:00:00.000Z') })).toBe('{"at":"2026-01-01T00:00:00.000Z"}');
   });
 });

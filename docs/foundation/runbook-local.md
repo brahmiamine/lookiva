@@ -86,7 +86,7 @@ Les placeholders `change-me` ne servent que le développement local : en product
 
 ## 6. Plan de migration vers la phase 03
 
-1. La phase 03 crée `src/modules/identity/` (et seulement ce dont elle a besoin) avec `domain/`, `application/`, `infrastructure/`, `api/`, `index.ts`. Avant cela, ajouter la règle `dependency-cruiser` qui interdit à `src/app`, `src/ui` et `src/platform` d'importer autre chose que `index.ts` d'un module (constat reporté de la tâche 4).
+1. La phase 03 crée `src/modules/identity/` (et seulement ce dont elle a besoin) avec `domain/`, `application/`, `infrastructure/`, `api/`, `index.ts`. La règle `dependency-cruiser` `external-module-public-only` (tout fichier hors `src/modules` n'importe un module que par son `index.ts`), `platform-no-modules` et `kernel-pure` existent déjà (étape 0 de la phase 03).
 2. Ajouter les modèles Prisma du module dans `prisma/schema.prisma`, puis générer le SQL avec `prisma migrate diff` (voir §4), relire, committer le dossier de migration. Pas de table vectorielle avant le choix des embeddings (phase 07).
 3. Les repositories exigent un `OwnerId` (`src/platform/kernel`) ; les routes passent par `withApi` ; les POST critiques par `readIdempotencyKey` + `withIdempotency` ; les schémas Zod enrichissent `openapi.json` (`pnpm openapi:gen`, puis `pnpm openapi:check`).
 4. **Production** : `prisma` est une `devDependency` ; l'installation `--prod` est faite par l'image `worker` seulement, l'image `web` copie la sortie standalone de Next construite depuis une installation complète. Un `prisma migrate deploy` en production demande donc une étape dédiée (job ou image avec le CLI Prisma), non définie en phase 02. Aucun déploiement n'est prévu avant la phase 12 et l'accord du propriétaire.

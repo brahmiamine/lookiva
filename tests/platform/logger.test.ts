@@ -131,6 +131,96 @@ describe('error serializer', () => {
     expect(line.err.message).toBe('invalid json');
   });
 
+  it('non_error_object_value_is_not_logged', () => {
+    const { raw, line } = logErr({ query: 'SELECT secret', input: 'secret-input', password: 'pw' });
+    expect(raw).not.toContain('secret');
+    expect(raw).not.toContain('"pw"');
+    expect(line.err).toEqual({ type: 'NonError' });
+  });
+
+  it('non_error_string_is_truncated', () => {
+    const { line } = logErr('secret ' + 'y'.repeat(300));
+    expect(line.err.type).toBe('string');
+    expect((line.err.message as string).length).toBeLessThanOrEqual(200);
+  });
+
+  it('non_error_cause_fields_are_not_logged', () => {
+    const { raw } = logErr(new Error('wrap', { cause: { originalMessage: "Duplicate entry 'a@b.c'", sql: 'INSERT secret' } }));
+    expect(raw).not.toContain('a@b.c');
+    expect(raw).not.toContain('INSERT');
+    expect(raw).toContain('NonError');
+  });
+
+  it('error_cause_is_serialized_recursively', () => {
+    let inner: unknown;
+    try {
+      JSON.parse('{"password":hunter2}');
+    } catch (e) {
+      inner = e;
+    }
+    const { raw, line } = logErr(new Error('wrap', { cause: inner }));
+    expect(raw).not.toContain('hunter2');
+    expect((line.err.cause as { message: string }).message).toBe('invalid json');
+  });
+
+  it('serializer_never_throws_on_circular_cause', () => {
+    const e = new Error('cyc');
+    e.cause = e;
+    let out: ReturnType<typeof logErr> | undefined;
+    expect(() => (out = logErr(e))).not.toThrow();
+    expect(out?.line.err.message).toBe('cyc');
+    const a = new Error('a');
+    const b = new Error('b', { cause: a });
+    a.cause = b;
+    expect(() => serializeError(a)).not.toThrow();
+  });
+
+  it('serializer_never_throws_on_hostile_getters', () => {
+    const e = new Error('x');
+    Object.defineProperty(e, 'boom', {
+      enumerable: true,
+      get() {
+        throw new Error('getter');
+      },
+    });
+    expect(serializeError(e)).toEqual({ type: 'SerializationFailed' });
+  });
+
+  it('nested_error_arrays_and_response_objects_are_not_leaked', () => {
+    const err = Object.assign(new Error('e'), {
+      errors: [Object.assign(new Error('x'), { input: 'secret-in-array' })],
+      response: { data: 'secret-resp' },
+      data: 'secret-data',
+      sql: 'secret-sql',
+      details: { password: 'secret-nested-pw' },
+      status: 502,
+    });
+    const { raw, line } = logErr(err);
+    expect(raw).not.toContain('secret');
+    expect(line.err.status).toBe(502);
+    expect((line.err.errors as { message: string }[])[0]?.message).toBe('x');
+  });
+
+  it('aggregate_error_inner_errors_are_serialized_safely', () => {
+    const agg = new AggregateError([Object.assign(new Error('inner'), { query: 'secret-q' })], 'agg');
+    const { raw } = logErr(agg);
+    expect(raw).not.toContain('secret-q');
+    expect(raw).toContain('inner');
+  });
+
+  it('own_toJSON_cannot_hijack_the_output', () => {
+    const err = Object.assign(new Error('e'), { toJSON: () => ({ input: 'secret-tojson' }) });
+    const { raw, line } = logErr(err);
+    expect(raw).not.toContain('secret-tojson');
+    expect(line.err.message).toBe('e');
+  });
+
+  it('long_string_props_are_truncated_and_primitives_kept', () => {
+    const { line } = logErr(Object.assign(new Error('e'), { detail: 'z'.repeat(500), retries: 3, fatal: false }));
+    expect((line.err.detail as string).length).toBeLessThanOrEqual(200);
+    expect(line.err).toMatchObject({ retries: 3, fatal: false });
+  });
+
   it('app_error_is_logged_without_stack', () => {
     const e = serializeError(new AppError('NOT_READY', 503, 'Service not ready'));
     expect(e).toEqual({ type: 'AppError', message: 'Service not ready', code: 'NOT_READY', status: 503 });

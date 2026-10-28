@@ -25,13 +25,18 @@ module.exports = {
     },
     {
       name: 'external-module-public-only',
-      comment: 'src/app, src/ui, src/worker and src/platform (except the kernel) may only import a module through src/modules/<m>/index.ts',
+      comment:
+        'every file outside src/modules (app, ui, worker, platform, i18n, root files...) may only import a module through src/modules/<m>/index.ts',
       severity: 'error',
-      from: {
-        path: ['^src/(app|ui|worker)/', '^src/platform/(?!kernel/)'],
-        pathNot: '\\.(test|spec)\\.[cm]?[jt]sx?$',
-      },
+      from: { path: '^src/', pathNot: ['^src/modules/', '\\.(test|spec)\\.[cm]?[jt]sx?$'] },
       to: { path: '^src/modules/[^/]+/', pathNot: '^src/modules/[^/]+/index\\.ts$' },
+    },
+    {
+      name: 'kernel-pure',
+      comment: 'the shared kernel may not import the rest of src (otherwise domain could reach platform code through it)',
+      severity: 'error',
+      from: { path: '^src/platform/kernel/' },
+      to: { path: '^src/', pathNot: '^src/platform/kernel/' },
     },
     {
       name: 'platform-no-modules',

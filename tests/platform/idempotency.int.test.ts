@@ -153,10 +153,13 @@ describe('withIdempotency (real mariadb)', () => {
     const ctx = { userId: newUser(), key: 'k1', requestHash: hash('a') };
     for (const status of [0, 99, 600, 200.5, Number.NaN, Number.POSITIVE_INFINITY]) {
       let ran = 0;
-      const err = await rejection(
-        withIdempotency(db, ctx, async () => (ran++, { status, body: { leaked: true } }), opts),
+      const err: unknown = await withIdempotency(db, ctx, async () => (ran++, { status, body: { leaked: true } }), opts).then(
+        () => undefined,
+        (e: unknown) => e,
       );
-      expect(err, String(status)).toMatchObject({ status: 500, code: 'INVALID_RESPONSE_STATUS' });
+      // a plain Error (a handler bug): withApi logs it at error level and answers 500
+      expect(err, String(status)).toBeInstanceOf(Error);
+      expect(err, String(status)).not.toBeInstanceOf(AppError);
       expect(ran).toBe(1);
       // nothing persisted and the key is free again
       expect(await db.idempotencyRecord.count({ where: { userId: ctx.userId } })).toBe(0);

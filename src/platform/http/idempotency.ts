@@ -17,7 +17,7 @@ const isDuplicate = (e: unknown): boolean => e instanceof Prisma.PrismaClientKno
  * final write affects 0 rows (row reclaimed/removed meanwhile) or throws, nothing else is touched and the
  * problem is only reported through `opts.onPersistError`.
  * `opts.onPersistError` is required so every caller decides what to do with a lost result (log it, count it...).
- * A `run` result whose status is not an integer in 100..599 is a bug: nothing is stored, the key is released.
+ * A `run` result whose status is not an integer in 100..599 is a bug: nothing is stored, the key is released (so a retry may repeat the side effect that already happened).
  * Known limit: a run longer than PENDING_TTL_MS can be reclaimed and executed twice.
  */
 export async function withIdempotency<T extends Prisma.InputJsonValue>(
@@ -74,7 +74,8 @@ export async function withIdempotency<T extends Prisma.InputJsonValue>(
   if (!Number.isInteger(result.status) || result.status < 100 || result.status > 599) {
     // Nothing is persisted (a 0 would read as "pending" forever): free the key and surface the bug.
     await release();
-    throw new AppError('INVALID_RESPONSE_STATUS', 500, 'Handler returned an invalid HTTP status');
+    // Plain Error on purpose: it is a bug, so withApi logs it at error level (an AppError 500 would only warn).
+    throw new Error(`Handler returned an invalid HTTP status: ${String(result.status)}`);
   }
   const report = (e: unknown) => {
     try {
