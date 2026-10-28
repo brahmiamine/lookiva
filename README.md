@@ -116,6 +116,9 @@ Sessions opaques côté serveur (pas de JWT ni d'Auth.js). Détails, limites et 
 | `POST /api/v1/me/onboarding` | Langue + ville obligatoires ; GPS, pays et fuseau IANA facultatifs | 400 `VALIDATION_ERROR` |
 
 Toute requête POST/PUT/PATCH/DELETE vers ces routes exige `X-Requested-With: lookiva` (et un `Origin` égal à l'origine de l'application s'il est présent), sinon 403 `CSRF_REJECTED`.
+Toutes ces routes peuvent répondre 503 (`EMAIL_TRANSPORT_UNAVAILABLE`, `RATE_LIMITER_UNAVAILABLE`) et, avec un corps de plus de 16 Kio, 413 `PAYLOAD_TOO_LARGE`.
+Le mot de passe saisi à l'inscription ne devient effectif qu'à l'ouverture du lien de vérification de cette inscription (protection contre le détournement d'un compte pré-enregistré).
+`APP_ORIGIN` est obligatoire dès que des e-mails peuvent partir (y compris en dev avec `EMAIL_TRANSPORT=outbox` : l'ajouter à un `.env` existant) et en production, où `TRUST_PROXY=true` est aussi exigé (sauf `TRUST_PROXY_ACK_SINGLE_BUCKET=true`).
 Les routes privées des autres modules utilisent `withSession(handler)` exporté par `@/modules/identity` : il reçoit `{ requestId, log, userId: OwnerId, sessionId }`.
 
 ## i18n et RTL
