@@ -1,4 +1,4 @@
-import { asOwnerId, type OwnerScopedRepository } from '@/platform/http/owner-scope';
+import { asOwnerId, type OwnerScopedRepository } from '@/platform/kernel';
 
 declare const repo: OwnerScopedRepository<{ id: string }>;
 

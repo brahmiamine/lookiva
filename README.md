@@ -72,8 +72,9 @@ plans/           plans produit d'origine (00 à 13) et règles pour les agents
 Dans chaque module (`src/modules/<domaine>/`) : `ui → api → application → domain`.
 `infrastructure` implémente les ports définis par `application`/`domain`, sans que ceux-ci l'importent.
 Les modules ne se parlent que par leur `index.ts` public. Règles appliquées par `pnpm boundaries`
-(`.dependency-cruiser.cjs` : `domain-pure`, `no-infra-from-inner`, `module-public-only`, `ui-no-infra`), testées sur des fixtures dans `tests/boundaries`.
-Limite connue : aucun module réel n'existe encore, et une règle pour `src/app`, `src/ui` et `src/platform` important les internes d'un module reste à ajouter avant la phase 03.
+(`.dependency-cruiser.cjs` : `domain-pure`, `no-infra-from-inner`, `module-public-only`, `external-module-public-only`, `platform-no-modules`, `ui-no-infra`), testées sur des fixtures dans `tests/boundaries` (dont l'alias `@/`).
+`src/app`, `src/ui`, `src/worker` n'importent un module que par son `index.ts` ; `src/platform` n'importe aucun module.
+Le noyau partagé `src/platform/kernel/` (`OwnerId`, `asOwnerId`, `OwnerScopedRepository`, `Page`) est la seule partie de `src/platform` importable depuis un `domain`.
 
 ## Conventions
 
@@ -86,7 +87,7 @@ Limite connue : aucun module réel n'existe encore, et une règle pour `src/app`
 - Idempotence : en-tête `Idempotency-Key` sur les POST critiques (`withIdempotency`, table `idempotency_records` unique `(userId, key)`).
 - Jamais de push (file, notification, webhook) ni de suppression d'objet (stockage) à l'intérieur d'une transaction SQL.
 - SQL brut uniquement dans `infrastructure`, toujours paramétré (spec §5).
-- Isolation des données : tout repository exige un `OwnerId` en paramètre (type `OwnerId`, oubli = erreur de compilation).
+- Isolation des données : tout repository exige un `OwnerId` en paramètre (type `OwnerId` de `src/platform/kernel`, oubli = erreur de compilation).
 - Les schémas Zod sont la source unique de validation et d'OpenAPI (`openapi.json` versionné, contrôlé par `pnpm openapi:check`).
 
 ## i18n et RTL
