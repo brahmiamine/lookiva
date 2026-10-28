@@ -32,9 +32,9 @@ Date de consultation : **2026-10-28**. Toutes les versions viennent de sources o
 | `@testing-library/dom` (peer requis de `@testing-library/react`) | **10.4.2** | https://registry.npmjs.org/@testing-library/dom/latest | 2026-10-28 | `npm view @testing-library/dom version` ; `pnpm add -D` ; requêtes `getByRole`/`getByLabelText` exécutées |
 | `@testing-library/user-event` | **14.6.8** | https://registry.npmjs.org/@testing-library/user-event/latest | 2026-10-28 | `npm view @testing-library/user-event version` ; `pnpm add -D` ; `user.tab()`/`{Escape}` exécutés dans le test du Dialog |
 | vite (peer de Vitest) | **8.3.5** (peer Vitest 5.0.5 : `^6.4 \|\| ^7 \|\| ^8`) | https://registry.npmjs.org/vite/latest ; https://registry.npmjs.org/vitest/5.0.5 | 2026-10-28 | V2 (`vitest run` 1 test PASS avec vite 8.3.5) |
-| Playwright (`@playwright/test`) | **1.64.1** (Node >= 20) | https://registry.npmjs.org/@playwright/test/latest | 2026-10-28 | Registre/doc seulement |
-| axe-core | **4.14.0** | https://registry.npmjs.org/axe-core/latest | 2026-10-28 | Registre/doc seulement |
-| `@axe-core/playwright` | **4.14.0** (Node >= 22.12 ; peer `playwright-core` >= 1) | https://registry.npmjs.org/@axe-core/playwright/latest | 2026-10-28 | Registre/doc seulement |
+| Playwright (`@playwright/test`) | **1.64.1** (Node >= 20) | https://registry.npmjs.org/@playwright/test/latest | 2026-10-28 | `pnpm add -D -E` ; `pnpm test:e2e` : 21 PASS + 3 skip sur 4 projets Chromium (`next dev` port 3100), exécuté 2 fois |
+| axe-core | **4.14.0** | https://registry.npmjs.org/axe-core/latest | 2026-10-28 | `pnpm add -D -E` ; `axe_has_no_violations_on_dev_ui` (wcag2a/aa, 21a/aa, 22aa) 0 violation sur fr/en/ar/mobile |
+| `@axe-core/playwright` | **4.14.0** (Node >= 22.12 ; peer `playwright-core` >= 1) | https://registry.npmjs.org/@axe-core/playwright/latest | 2026-10-28 | `pnpm add -D -E` ; `AxeBuilder` exécuté dans `e2e/dev-ui.spec.ts` avec Playwright 1.64.1 |
 | pino | **10.4.0** | https://registry.npmjs.org/pino/latest | 2026-10-28 | V2 (import seulement) |
 | `uuid` | **14.0.3** | https://registry.npmjs.org/uuid/latest | 2026-10-28 | V2 (`v7()` exécuté) |
 | dependency-cruiser | **18.7.0** (Node ^22 \|\| ^24 \|\| >=26) | https://registry.npmjs.org/dependency-cruiser/latest | 2026-10-28 | Registre/doc seulement |

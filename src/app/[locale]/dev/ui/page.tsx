@@ -1,4 +1,5 @@
 import { createTranslator } from 'next-intl';
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { isLocale } from '@/i18n/config';
 import { formatNumber } from '@/i18n/format';
@@ -39,6 +40,12 @@ const TONES = [
   ['neutral', 'archived', '–'],
 ] as const;
 const ARABIC_SENTENCE = 'يمكنك مراسلتي على sara.ali@example.com غدًا صباحًا.';
+
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+  const { locale } = await params;
+  if (!isLocale(locale)) notFound();
+  return { title: createTranslator({ locale, messages: messagesFor(locale) })('dev.ui.title') };
+}
 
 export default async function DevUiPage({ params }: { params: Promise<{ locale: string }> }) {
   if (process.env.NODE_ENV === 'production') notFound();
@@ -101,16 +108,18 @@ export default async function DevUiPage({ params }: { params: Promise<{ locale: 
 
       <section className="flex flex-col gap-3">
         <h2 className={h2}>{t('dev.ui.sections.gallery')}</h2>
-        <Gallery>
-          {GARMENTS.map((g) => (
-            <GarmentCard
-              key={g.name}
-              name={g.name}
-              photoUrl={'photoUrl' in g ? g.photoUrl : undefined}
-              badge={badge(g.tone)}
-            />
-          ))}
-        </Gallery>
+        <div data-testid="garment-gallery">
+          <Gallery>
+            {GARMENTS.map((g) => (
+              <GarmentCard
+                key={g.name}
+                name={g.name}
+                photoUrl={'photoUrl' in g ? g.photoUrl : undefined}
+                badge={badge(g.tone)}
+              />
+            ))}
+          </Gallery>
+        </div>
       </section>
 
       <section className="flex flex-col gap-3">

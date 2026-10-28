@@ -42,7 +42,7 @@ export function DevUiDemo({
       </section>
       <section className="flex flex-col items-start gap-3">
         <h2 className="text-lg font-semibold">{labels.dialogTitle}</h2>
-        <Button variant="primary" onClick={() => setOpen(true)}>
+        <Button variant="primary" data-testid="dialog-trigger" onClick={() => setOpen(true)}>
           {labels.dialogOpen}
         </Button>
         <Dialog open={open} onOpenChange={setOpen} title={labels.dialogTitle} closeLabel={labels.dialogClose}>
