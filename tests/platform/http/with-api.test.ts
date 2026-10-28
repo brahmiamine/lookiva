@@ -58,6 +58,27 @@ describe('withApi', () => {
     expect(read()).toContain('boom'); // logged for ops
   });
 
+  it('app_error_500_is_logged_at_warn_without_stack', async () => {
+    const { logger, read } = memory();
+    await withApi(async () => {
+      throw new AppError('NOT_READY', 503, 'Service not ready');
+    }, { logger })(req());
+    const line = JSON.parse(read().trim()) as { level: number; err: Record<string, unknown> };
+    expect(line.level).toBe(40); // warn
+    expect(line.err).toMatchObject({ type: 'AppError', code: 'NOT_READY' });
+    expect(line.err).not.toHaveProperty('stack');
+  });
+
+  it('unexpected_error_is_logged_at_error', async () => {
+    const { logger, read } = memory();
+    await withApi(async () => {
+      throw new Error('boom');
+    }, { logger })(req());
+    const line = JSON.parse(read().trim()) as { level: number; err: Record<string, unknown> };
+    expect(line.level).toBe(50); // error
+    expect(line.err.stack).toEqual(expect.any(String));
+  });
+
   it('zod_error_is_400_with_errors_array', async () => {
     const { logger } = memory();
     const res = await withApi(async () => {

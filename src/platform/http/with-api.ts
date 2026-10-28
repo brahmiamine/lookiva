@@ -1,6 +1,6 @@
 import { createLogger, type Logger } from '../logger';
 import { getEnv } from '../env';
-import { toAppError, toProblem } from './errors';
+import { AppError, toAppError, toProblem } from './errors';
 import { newId } from './ids';
 
 type Ctx = { requestId: string; log: Logger };
@@ -32,7 +32,12 @@ export function withApi(handler: Handler, deps: { logger?: Logger } = {}): (req:
       return res;
     } catch (err) {
       const appErr = toAppError(err);
-      if (appErr.status >= 500) log.error({ err }, 'unhandled error');
+      // Expected 5xx (AppError, e.g. 503 NOT_READY) are warnings; anything else that ends in 500 is a bug.
+      if (err instanceof AppError) {
+        if (err.status >= 500) log.warn({ err }, 'request failed');
+      } else if (appErr.status >= 500) {
+        log.error({ err }, 'unhandled error');
+      }
       return Response.json(toProblem(appErr, requestId), {
         status: appErr.status,
         headers: { 'Content-Type': 'application/problem+json', 'X-Request-Id': requestId },
