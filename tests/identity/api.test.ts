@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { clearSessionCookie, readSessionCookie, sessionCookie } from '@/modules/identity/api/cookie';
 import { assertCsrf } from '@/modules/identity/api/csrf';
 import { rateLimitId } from '@/modules/identity/api/limits';
+import { emailBody, loginBody, registerBody } from '@/modules/identity/api/schemas';
 import { summariseUserAgent } from '@/modules/identity/domain/user-agent';
 
 const TOKEN = 'a'.repeat(43);
@@ -80,5 +81,19 @@ describe('summariseUserAgent', () => {
       [null, 'Unknown browser on unknown OS'],
     ];
     for (const [ua, out] of cases) expect(summariseUserAgent(ua), String(ua)).toBe(out);
+  });
+});
+
+describe('raw email length (M9)', () => {
+  it('raw_email_is_capped_at_254_before_any_normalisation', () => {
+    // NFKC can shrink a raw value (decomposed accents): the raw string is what the display column stores.
+    const raw = `a@${'e\u0301'.repeat(126)}.test`; // 259 code units, 133 after NFKC
+    expect(raw.length).toBeGreaterThan(254);
+    for (const schema of [registerBody, loginBody, emailBody]) {
+      const r = schema.safeParse({ email: raw, password: 'violet sunset harbour' });
+      expect(r.success).toBe(false);
+      expect(r.error?.issues[0]?.path).toEqual(['email']);
+    }
+    expect(emailBody.safeParse({ email: `${'a'.repeat(241)}@example.test` }).success).toBe(true); // 254 exactly
   });
 });

@@ -33,7 +33,7 @@ export function harness(opts: Opts = {}) {
     audit,
     email: opts.withEmail === false ? null : new OutboxEmail(db, clock),
     logger: createLogger({ destination, level: 'debug' }),
-    config: { production: opts.production ?? false, trustProxy: opts.trustProxy ?? true, appOrigin: opts.appOrigin },
+    config: { production: opts.production ?? false, trustProxy: opts.trustProxy ?? true, appOrigin: opts.appOrigin ?? ORIGIN },
     rateLimitPrefix: `rl-test-${randomUUID()}`,
   });
   // Every test client gets its own address, so per-IP limits never leak between tests.

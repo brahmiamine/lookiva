@@ -2,7 +2,8 @@ import { z } from 'zod';
 import { LOCALES, THERMAL_SENSITIVITIES, isIanaTimeZone } from '../domain/preferences';
 
 // Format is checked after NFKC normalisation in the application (so fullwidth or decomposed input is accepted).
-const email = z.string().min(3).max(320);
+// The RAW value is capped too: it is what the VARCHAR(254) display column stores, and NFKC can shrink it.
+const email = z.string().min(3).max(254);
 const password = z.string().min(1).max(1024);
 // Any string is hashed and looked up: malformed, unknown, used and expired tokens all get the same 400 INVALID_TOKEN.
 const token = z.string().min(1).max(256);

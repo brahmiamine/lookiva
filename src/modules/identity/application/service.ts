@@ -37,6 +37,8 @@ export type IdentityServiceDeps = {
   clock: Clock;
   audit: Audit;
   mailer: Email;
+  /** APP_ORIGIN: the only base of mailed links (never derived from Host or X-Forwarded-*). */
+  appOrigin: string;
 };
 
 export type Me = { id: string; email: string; emailVerifiedAt: Date | null; createdAt: Date };
@@ -60,6 +62,7 @@ const emailFormat = z.email({ pattern: z.regexes.unicodeEmail }).max(254);
 const toMe = (u: UserRecord): Me => ({ id: u.id, email: u.email, emailVerifiedAt: u.emailVerifiedAt, createdAt: u.createdAt });
 
 export function createIdentityService(d: IdentityServiceDeps) {
+  if (!d.appOrigin) throw new Error('APP_ORIGIN is required to send identity emails');
   const now = () => d.clock.now();
 
   function normalized(email: string): string {
@@ -73,14 +76,14 @@ export function createIdentityService(d: IdentityServiceDeps) {
   }
 
   /** Issues a token and mails it, unless one of the same purpose was sent less than RESEND_COOLDOWN_MS ago. */
-  async function issueAndSend(user: UserRecord, purpose: TokenPurpose, origin: string, locale?: Locale): Promise<boolean> {
+  async function issueAndSend(user: UserRecord, purpose: TokenPurpose, locale?: Locale): Promise<boolean> {
     const t = now();
     if (cooldownLeftMs(await d.store.lastTokenAt(user.id, purpose), t) > 0) return false;
     const { token, hash } = d.tokens.generate();
     await d.store.issueToken({ userId: user.id, purpose, tokenHash: hash, now: t, expiresAt: new Date(t.getTime() + TOKEN_TTL_MS[purpose]) });
     // Sent after the token is committed, never inside a transaction.
     const kind = purpose === 'VERIFY_EMAIL' ? 'verify' : 'reset';
-    await d.mailer.send(buildMail(kind, locale ?? (await localeOf(user.id)), user.email, origin, token));
+    await d.mailer.send(buildMail(kind, locale ?? (await localeOf(user.id)), user.email, d.appOrigin, token));
     return true;
   }
 
@@ -91,7 +94,7 @@ export function createIdentityService(d: IdentityServiceDeps) {
 
   return {
     /** Same answer and the same expensive work (one scrypt) whether or not the email is already registered. */
-    async register(input: { email: string; password: string; locale: Locale; origin: string }): Promise<void> {
+    async register(input: { email: string; password: string; locale: Locale }): Promise<void> {
       const emailNormalized = normalized(input.email);
       assertPolicy(input.password, emailNormalized);
       const passwordHash = await d.hasher.hash(input.password);
@@ -109,13 +112,13 @@ export function createIdentityService(d: IdentityServiceDeps) {
         if (created) {
           await d.audit.record({ actorId: id, action: 'identity.registered' });
           user = await d.store.findUserById(id);
-          if (user) await issueAndSend(user, 'VERIFY_EMAIL', input.origin, input.locale);
+          if (user) await issueAndSend(user, 'VERIFY_EMAIL', input.locale);
           return;
         }
         user = await d.store.findUserByEmail(emailNormalized); // lost a concurrent race: behave as "exists"
       }
       if (user && user.status === 'ACTIVE' && user.emailVerifiedAt === null) {
-        await issueAndSend(user, 'VERIFY_EMAIL', input.origin);
+        await issueAndSend(user, 'VERIFY_EMAIL');
       }
     },
 
@@ -125,10 +128,10 @@ export function createIdentityService(d: IdentityServiceDeps) {
       await d.audit.record({ actorId: userId, action: 'identity.email_verified' });
     },
 
-    async resendVerification(input: { email: string; origin: string }): Promise<void> {
+    async resendVerification(input: { email: string }): Promise<void> {
       const user = await d.store.findUserByEmail(normalized(input.email));
       if (user && user.status === 'ACTIVE' && user.emailVerifiedAt === null) {
-        await issueAndSend(user, 'VERIFY_EMAIL', input.origin);
+        await issueAndSend(user, 'VERIFY_EMAIL');
       }
     },
 
@@ -197,10 +200,10 @@ export function createIdentityService(d: IdentityServiceDeps) {
       await d.audit.record({ actorId: ownerId, action: 'identity.session_revoked', target: sessionId });
     },
 
-    async forgotPassword(input: { email: string; origin: string }): Promise<void> {
+    async forgotPassword(input: { email: string }): Promise<void> {
       const user = await d.store.findUserByEmail(normalized(input.email));
       if (user && user.status === 'ACTIVE') {
-        if (await issueAndSend(user, 'RESET_PASSWORD', input.origin)) {
+        if (await issueAndSend(user, 'RESET_PASSWORD')) {
           await d.audit.record({ actorId: user.id, action: 'identity.password_reset_requested' });
         }
       } else {

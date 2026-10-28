@@ -5,7 +5,6 @@ import type { Audit } from '@/platform/audit/port';
 import type { Clock } from '@/platform/clock/port';
 import type { Email } from '@/platform/email/port';
 import { readJson } from '@/platform/http/body';
-import { requestOrigin } from '@/platform/http/client';
 import { etagFor } from '@/platform/http/etag';
 import { AppError } from '@/platform/http/errors';
 import { withIdempotency } from '@/platform/http/idempotency';
@@ -59,6 +58,7 @@ const preferencesResponse = (p: Preferences, status = 200) =>
 export function createIdentityHttp(deps: IdentityHttpDeps) {
   const { config, clock } = deps;
   const limiter = createRateLimiter(deps.redis, deps.rateLimitPrefix);
+  if (deps.email && !config.appOrigin) throw new Error('APP_ORIGIN is required when an email transport is configured');
   const service = deps.email
     ? createIdentityService({
         store: createPrismaIdentityStore(deps.db),
@@ -67,6 +67,7 @@ export function createIdentityHttp(deps: IdentityHttpDeps) {
         clock,
         audit: deps.audit,
         mailer: deps.email,
+        appOrigin: config.appOrigin as string,
       })
     : null;
   const ready = () => {
@@ -74,7 +75,6 @@ export function createIdentityHttp(deps: IdentityHttpDeps) {
     return service;
   };
   const limit = (req: Request, l: Limit, email?: string) => limiter.consume(l, rateLimitId(req, config.trustProxy, email), clock.now());
-  const origin = (req: Request) => requestOrigin(req, config);
   const opts = { logger: deps.logger };
 
   /** Public (cookie-less) routes: CSRF still applies, so a third-party page cannot log a victim into another account. */
@@ -119,7 +119,7 @@ export function createIdentityHttp(deps: IdentityHttpDeps) {
       const body = await readJson(req, s.registerBody);
       const email = normalizeEmail(body.email);
       return idempotent(req, anonScope('register', email), { email, locale: body.locale }, log,
-        () => svc.register({ ...body, origin: origin(req) }), 202, { status: 'accepted' });
+        () => svc.register(body), 202, { status: 'accepted' });
     }),
 
     verifyEmail: publicRoute(async (req, svc) => {
@@ -132,13 +132,13 @@ export function createIdentityHttp(deps: IdentityHttpDeps) {
     resendVerification: publicRoute(async (req, svc) => {
       const { email } = await readJson(req, s.emailBody);
       await limit(req, LIMITS.resendIpEmail, normalizeEmail(email));
-      await svc.resendVerification({ email, origin: origin(req) });
+      await svc.resendVerification({ email });
       return Response.json({ status: 'accepted' }, { status: 202 });
     }),
 
     login: publicRoute(async (req, svc) => {
+      await limit(req, LIMITS.loginIp); // before the body: an IP over its budget costs no parsing
       const { email, password } = await readJson(req, s.loginBody);
-      await limit(req, LIMITS.loginIp);
       await limit(req, LIMITS.loginIpEmail, normalizeEmail(email));
       const r = await svc.login({ email, password, userAgent: req.headers.get('user-agent') });
       return Response.json({ user: r.user }, { headers: { 'Set-Cookie': sessionCookie(r.token, config.production) } });
@@ -159,7 +159,7 @@ export function createIdentityHttp(deps: IdentityHttpDeps) {
       const email = normalizeEmail(body.email);
       await limit(req, LIMITS.forgotIpEmail, email);
       return idempotent(req, anonScope('forgot', email), { email }, log,
-        () => svc.forgotPassword({ email: body.email, origin: origin(req) }), 202, { status: 'accepted' });
+        () => svc.forgotPassword({ email: body.email }), 202, { status: 'accepted' });
     }),
 
     resetPassword: publicRoute(async (req, svc, log) => {
