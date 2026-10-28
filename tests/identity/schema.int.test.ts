@@ -38,6 +38,8 @@ describe('identity schema (real mariadb)', () => {
     });
     await db.userPreferences.create({ data: { userId } });
     await db.consentRecord.create({ data: { id: newId(), userId, kind: 'AI', granted: true, createdAt: now } });
+    await db.deletionRequest.create({ data: { id: newId(), userId, previousStatus: 'ACTIVE', requestedAt: now } });
+    await db.exportRequest.create({ data: { id: newId(), userId, requestedAt: now } });
     await db.user.delete({ where: { id: userId } });
     const counts = await Promise.all([
       db.credential.count({ where: { userId } }),
@@ -45,16 +47,18 @@ describe('identity schema (real mariadb)', () => {
       db.sessionRegistry.count({ where: { userId } }),
       db.userPreferences.count({ where: { userId } }),
       db.consentRecord.count({ where: { userId } }),
+      db.deletionRequest.count({ where: { userId } }),
+      db.exportRequest.count({ where: { userId } }),
     ]);
-    expect(counts).toEqual([0, 0, 0, 0, 0]);
+    expect(counts).toEqual([0, 0, 0, 0, 0, 0, 0]);
   });
 
   it('tables_use_utf8mb4_nopad_bin', async () => {
     const rows = await db.$queryRaw<{ t: string; c: string }[]>`
       SELECT TABLE_NAME AS t, TABLE_COLLATION AS c FROM information_schema.TABLES
       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME IN
-      ('users','credentials','email_tokens','session_registry','user_preferences','consent_records','outbox_messages')`;
-    expect(rows).toHaveLength(7);
+      ('users','credentials','email_tokens','session_registry','user_preferences','consent_records','outbox_messages','deletion_requests','export_requests')`;
+    expect(rows).toHaveLength(9);
     for (const r of rows) expect(r.c, r.t).toBe('utf8mb4_nopad_bin');
   });
 });

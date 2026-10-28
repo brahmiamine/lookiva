@@ -56,11 +56,13 @@ model User {
   updatedAt       DateTime   @updatedAt @db.DateTime(3)
   version         Int        @default(1)
 
-  credential  Credential?
-  tokens      EmailToken[]
-  sessions    SessionRegistry[]
-  preferences UserPreferences?
-  consents    ConsentRecord[]
+  credential       Credential?
+  tokens           EmailToken[]
+  sessions         SessionRegistry[]
+  preferences      UserPreferences?
+  consents         ConsentRecord[]
+  deletionRequests DeletionRequest[]
+  exportRequests   ExportRequest[]
 
   @@map("users")
 }
@@ -134,6 +136,41 @@ model ConsentRecord {
 
   @@index([userId, createdAt])
   @@map("consent_records")
+}
+
+enum DeletionRequestStatus {
+  PENDING
+  CANCELLED
+}
+
+enum ExportRequestStatus {
+  PENDING
+}
+
+/// Preparatory only (plans/03 T10): nothing is purged or exported yet, backups are never promised purged.
+model DeletionRequest {
+  id             String                @id @db.Char(36)
+  userId         String                @db.Char(36)
+  status         DeletionRequestStatus @default(PENDING)
+  /// Account status to restore if the request is cancelled.
+  previousStatus UserStatus
+  requestedAt    DateTime              @db.DateTime(3)
+  cancelledAt    DateTime?             @db.DateTime(3)
+  user           User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@map("deletion_requests")
+}
+
+model ExportRequest {
+  id          String              @id @db.Char(36)
+  userId      String              @db.Char(36)
+  status      ExportRequestStatus @default(PENDING)
+  requestedAt DateTime            @db.DateTime(3)
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, requestedAt])
+  @@map("export_requests")
 }
 
 /// Dev/test email transport (EMAIL_TRANSPORT=outbox). Holds plaintext links: never enabled in production.

@@ -47,6 +47,7 @@ export type Preferences = {
   version: number;
 };
 export type PreferencesPatch = Partial<Omit<Preferences, 'version'>>;
+export type ExportRequestRecord = { id: string; status: 'PENDING'; requestedAt: Date };
 export type ConsentKind = 'AI' | 'LEARNING';
 
 /**
@@ -100,6 +101,19 @@ export interface IdentityStore {
   /** False when the session does not exist, belongs to someone else or is already revoked. */
   revokeSession(ownerId: OwnerId, sessionId: string, now: Date): Promise<boolean>;
   revokeAllSessions(ownerId: OwnerId, now: Date): Promise<void>;
+
+  /** ACTIVE -> DISABLED and every session revoked, atomically; false when the account was not ACTIVE. */
+  deactivate(ownerId: OwnerId, now: Date): Promise<boolean>;
+  /**
+   * Under a row lock on the user: ACTIVE/DISABLED -> DELETION_REQUESTED, a PENDING row remembering the previous status,
+   * every session revoked. Already DELETION_REQUESTED: returns the existing pending request unchanged (idempotent).
+   */
+  requestDeletion(ownerId: OwnerId, newId: string, now: Date): Promise<{ requestedAt: Date } | null>;
+  /** Restores the remembered status and marks the PENDING request CANCELLED; false when none is pending. */
+  cancelDeletion(ownerId: OwnerId, now: Date): Promise<boolean>;
+  createExportRequest(ownerId: OwnerId, id: string, now: Date): Promise<ExportRequestRecord>;
+  /** Own requests only, newest first, cursor on id (UUIDv7). */
+  listExportRequests(ownerId: OwnerId, q: { limit: number; cursor?: { id: string } }): Promise<Page<ExportRequestRecord>>;
 
   getPreferences(ownerId: OwnerId): Promise<Preferences | null>;
   /** Compare-and-set on `version` (+1), consent rows in the same transaction; null on a version conflict. */

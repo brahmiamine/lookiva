@@ -20,6 +20,9 @@ const ROUTES: Record<string, string[]> = {
   'me/preferences': ['GET', 'PATCH'],
   'me/onboarding': ['POST'],
   'geo/cities': ['GET'],
+  'me/deactivate': ['POST'],
+  'me/deletion-request': ['POST', 'DELETE'],
+  'me/export-requests': ['POST', 'GET'],
 };
 
 describe('identity route files', () => {
@@ -50,6 +53,8 @@ describe('identity route files', () => {
       for (const m of methods) {
         const op = p[m.toLowerCase()];
         expect(op, `${m} ${path}`).toBeDefined();
+        const publicCancel = m === 'DELETE' && path === 'me/deletion-request'; // no session left: email + password
+        if (publicCancel) continue;
         if (path.startsWith('me') || path.startsWith('geo') || path.startsWith('auth/logout')) {
           expect(op?.security, path).toEqual([{ sessionCookie: [] }]);
           expect(op?.responses['401'], path).toBeDefined();
@@ -65,7 +70,7 @@ describe('identity route files', () => {
       for (const m of methods) {
         const r = p[m.toLowerCase()]?.responses ?? {};
         expect(JSON.stringify(r['503']), `${m} ${path}`).toContain('EMAIL_TRANSPORT_UNAVAILABLE');
-        if (m !== 'GET' && m !== 'DELETE' && !path.startsWith('auth/logout')) {
+        if (m !== 'GET' && m !== 'DELETE' && !path.startsWith('auth/logout') && path !== 'me/export-requests') {
           expect(JSON.stringify(r['413']), `${m} ${path}`).toContain('PAYLOAD_TOO_LARGE');
         }
       }

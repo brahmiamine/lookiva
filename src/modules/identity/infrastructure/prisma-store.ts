@@ -15,6 +15,8 @@ const isDuplicate = (e: unknown): boolean => e instanceof Prisma.PrismaClientKno
 const USER = { id: true, email: true, emailNormalized: true, emailVerifiedAt: true, status: true, createdAt: true } as const;
 const SESSION = { id: true, userId: true, userAgent: true, createdAt: true, lastSeenAt: true, expiresAt: true, revokedAt: true } as const;
 
+const EXPORT = { id: true, status: true, requestedAt: true } as const;
+
 type PrefRow = Prisma.UserPreferencesGetPayload<object>;
 const toPreferences = (r: PrefRow): Preferences => ({
   locale: r.locale,
@@ -193,6 +195,52 @@ export function createPrismaIdentityStore(db: PrismaClient, hooks: { whileCreden
     },
     async revokeAllSessions(ownerId, now) {
       await db.sessionRegistry.updateMany({ where: { userId: ownerId, revokedAt: null }, data: { revokedAt: now } });
+    },
+
+    deactivate: (ownerId, now) =>
+      db.$transaction(async (tx) => {
+        const { count } = await tx.user.updateMany({ where: { id: ownerId, status: 'ACTIVE' }, data: { status: 'DISABLED' } });
+        if (count !== 1) return false;
+        await tx.sessionRegistry.updateMany({ where: { userId: ownerId, revokedAt: null }, data: { revokedAt: now } });
+        return true;
+      }, TX),
+    requestDeletion: (ownerId, id, now) =>
+      db.$transaction(async (tx) => {
+        const rows = await tx.$queryRaw<{ status: string }[]>`SELECT status FROM users WHERE id = ${ownerId} FOR UPDATE`;
+        const status = rows[0]?.status;
+        if (status === 'DELETION_REQUESTED') {
+          const pending = await tx.deletionRequest.findFirst({ where: { userId: ownerId, status: 'PENDING' }, orderBy: { requestedAt: 'desc' } });
+          return pending ? { requestedAt: pending.requestedAt } : null;
+        }
+        if (status !== 'ACTIVE' && status !== 'DISABLED') return null;
+        await tx.user.update({ where: { id: ownerId }, data: { status: 'DELETION_REQUESTED' } });
+        await tx.deletionRequest.create({ data: { id, userId: ownerId, previousStatus: status, requestedAt: now } });
+        await tx.sessionRegistry.updateMany({ where: { userId: ownerId, revokedAt: null }, data: { revokedAt: now } });
+        return { requestedAt: now };
+      }, TX),
+    cancelDeletion: (ownerId, now) =>
+      db.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT id FROM users WHERE id = ${ownerId} FOR UPDATE`;
+        const pending = await tx.deletionRequest.findFirst({ where: { userId: ownerId, status: 'PENDING' } });
+        if (!pending) return false;
+        await tx.deletionRequest.update({ where: { id: pending.id }, data: { status: 'CANCELLED', cancelledAt: now } });
+        await tx.user.update({ where: { id: ownerId }, data: { status: pending.previousStatus } });
+        return true;
+      }, TX),
+    async createExportRequest(ownerId, id, now) {
+      const r = await db.exportRequest.create({ data: { id, userId: ownerId, requestedAt: now }, select: EXPORT });
+      return r;
+    },
+    async listExportRequests(ownerId, q) {
+      const rows = await db.exportRequest.findMany({
+        where: { userId: ownerId, ...(q.cursor ? { id: { lt: q.cursor.id } } : {}) },
+        orderBy: { id: 'desc' },
+        take: q.limit + 1,
+        select: EXPORT,
+      });
+      const items = rows.slice(0, q.limit);
+      const last = items.at(-1);
+      return rows.length > q.limit && last ? { items, nextCursor: encodeCursor({ id: last.id }) } : { items };
     },
 
     async getPreferences(ownerId) {

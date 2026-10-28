@@ -56,6 +56,9 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const anonScope = (purpose: string, identifier: string): OwnerId =>
   asOwnerId(`anon:${createHash('sha256').update(`${purpose}\n${identifier}`).digest('hex').slice(0, 59)}`);
 
+const DELETION_MESSAGE =
+  'Your account is scheduled for deletion and you have been signed out. Backups are NOT purged immediately: copies kept in backups remain until they expire under the backup retention policy.';
+
 const preferencesResponse = (p: Preferences, status = 200) =>
   Response.json(p, { status, headers: { ETag: etagFor(p.version) } });
 
@@ -115,6 +118,12 @@ export function createIdentityHttp(deps: IdentityHttpDeps) {
   };
 
   const svcOf = () => ready();
+
+  /** Re-authentication budget (per user, shared by deactivate and deletion) is spent before the password is checked. */
+  const readReauth = async (req: Request, userId: OwnerId) => {
+    await limiter.consume(LIMITS.reauthUser, `user:${userId}`, clock.now());
+    return readJson(req, s.reauthBody);
+  };
 
   return {
     withSession,
@@ -182,6 +191,40 @@ export function createIdentityHttp(deps: IdentityHttpDeps) {
       const { q } = s.citiesQuery.parse({ q: new URL(req.url).searchParams.get('q') ?? undefined });
       const prefs = await svcOf().getPreferences(ctx.userId);
       return Response.json({ items: await deps.geocoder.search(q, prefs.locale) });
+    }),
+
+    deactivate: withSession(async (req, ctx) => {
+      const { password } = await readReauth(req, ctx.userId);
+      await svcOf().deactivate(ctx.userId, password);
+      return new Response(null, { status: 204, headers: { 'Set-Cookie': clearSessionCookie(config.production) } });
+    }),
+
+    requestDeletion: withSession(async (req, ctx) => {
+      const { password } = await readReauth(req, ctx.userId);
+      const r = await svcOf().requestDeletion(ctx.userId, password);
+      return Response.json(
+        { status: 'pending', requestedAt: r.requestedAt, message: DELETION_MESSAGE },
+        { status: 202, headers: { 'Set-Cookie': clearSessionCookie(config.production) } },
+      );
+    }),
+
+    /** Public on purpose: the request revoked every session, so the owner proves the account with email + password. */
+    cancelDeletion: publicRoute(async (req, svc) => {
+      await limit(req, LIMITS.loginIp);
+      const { email, password } = await readJson(req, s.loginBody);
+      await limit(req, LIMITS.loginIpEmail, normalizeEmail(email));
+      await svc.cancelDeletion({ email, password });
+      return Response.json({ status: 'cancelled' });
+    }),
+
+    requestExport: withSession(async (_req, ctx) => {
+      await limiter.consume(LIMITS.exportUser, `user:${ctx.userId}`, clock.now());
+      return Response.json(await svcOf().requestExport(ctx.userId), { status: 202 });
+    }),
+
+    listExportRequests: withSession(async (req, ctx) => {
+      const page = parsePage(new URL(req.url).searchParams);
+      return Response.json(await svcOf().listExportRequests(ctx.userId, page));
     }),
 
     me: withSession(async (_req, ctx) => Response.json(await svcOf().getMe(ctx.userId))),

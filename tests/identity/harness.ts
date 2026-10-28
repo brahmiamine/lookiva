@@ -92,6 +92,13 @@ export function harness(opts: Opts = {}) {
         http.updatePreferences,
         request('/me/preferences', { method: 'PATCH', body, cookie, headers: ifMatch === undefined ? {} : { 'if-match': ifMatch } }),
       ),
+    deactivate: (cookie: string, password: unknown) => send(http.deactivate, request('/me/deactivate', { body: { password }, cookie })),
+    requestDeletion: (cookie: string, password: unknown) =>
+      send(http.requestDeletion, request('/me/deletion-request', { body: { password }, cookie })),
+    cancelDeletion: (email: string, password: string) =>
+      send(http.cancelDeletion, request('/me/deletion-request', { method: 'DELETE', body: { email, password } })),
+    requestExport: (cookie?: string) => send(http.requestExport, request('/me/export-requests', { method: 'POST', cookie })),
+    exports: (cookie: string, query = '') => send(http.listExportRequests, request(`/me/export-requests${query}`, { cookie })),
     cities: (cookie: string | undefined, q?: string) =>
       send(http.searchCities, request(`/geo/cities${q === undefined ? '' : `?q=${encodeURIComponent(q)}`}`, { cookie })),
     onboarding: (cookie: string, body: unknown) => send(http.completeOnboarding, request('/me/onboarding', { body, cookie })),

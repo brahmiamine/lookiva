@@ -141,3 +141,38 @@ route({
   request: { query: s.citiesQuery },
   responses: { 200: json('Candidates, best first (timezone, latitude, longitude pre-filled)', s.citiesResponse), 400: problem('VALIDATION_ERROR (q is 2..80 characters)'), ...authed },
 });
+route({
+  method: 'post', path: '/api/v1/me/deactivate', tags, security: session,
+  summary: 'Deactivate the account (status DISABLED, every session revoked). Re-authentication: current password',
+  request: { headers: csrf, body: body(s.reauthBody) },
+  responses: { 204: { description: 'Deactivated; cookie cleared' }, 400: problem('VALIDATION_ERROR'), ...authed, 401: problem('UNAUTHENTICATED or INVALID_CREDENTIALS (wrong password; rate limited per user)') },
+});
+route({
+  method: 'post', path: '/api/v1/me/deletion-request', tags, security: session,
+  summary: 'Request account deletion (DELETION_REQUESTED, every session revoked, idempotent). Backups are NOT purged immediately',
+  request: { headers: csrf, body: body(s.reauthBody) },
+  responses: { 202: json('Pending request (same one when repeated)', s.deletionRequestResponse), 400: problem('VALIDATION_ERROR'), ...authed, 401: problem('UNAUTHENTICATED or INVALID_CREDENTIALS (wrong password; rate limited per user)') },
+});
+route({
+  method: 'delete', path: '/api/v1/me/deletion-request', tags,
+  summary: 'Cancel a PENDING deletion request. No session exists any more, so the body carries email + password (login limits apply)',
+  request: { headers: csrf, body: body(s.loginBody) },
+  responses: {
+    200: json('Cancelled; the account is back to its previous status and the owner can sign in again', s.deletionCancelledResponse),
+    ...common,
+    401: problem('INVALID_CREDENTIALS (unknown email or wrong password)'),
+    404: problem('NOT_FOUND (correct credentials but no pending request)'),
+  },
+});
+route({
+  method: 'post', path: '/api/v1/me/export-requests', tags, security: session,
+  summary: 'Record a data export request (3/day/user). Nothing is generated yet',
+  request: { headers: csrf },
+  responses: { 202: json('Request recorded, status PENDING', s.exportRequestView), ...authed },
+});
+route({
+  method: 'get', path: '/api/v1/me/export-requests', tags, security: session,
+  summary: 'Own export requests, newest first (cursor pagination)',
+  request: { query: z.object({ limit: z.number().int().min(1).max(100).optional(), cursor: z.string().optional() }) },
+  responses: { 200: json('Export requests', s.exportRequestsResponse), 400: problem('VALIDATION_ERROR or INVALID_CURSOR'), ...authed },
+});

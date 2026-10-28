@@ -19,6 +19,7 @@ const pairedCoordinates = (p: { latitude?: number | null; longitude?: number | n
 const pairIssue = { message: 'latitude and longitude go together', path: ['latitude'] };
 
 export const registerBody = z.object({ email, password, locale: z.enum(LOCALES).default('fr') });
+export const reauthBody = z.object({ password });
 export const emailBody = z.object({ email });
 export const loginBody = z.object({ email, password });
 export const tokenBody = z.object({ token });
@@ -83,6 +84,14 @@ export const sessionsResponse = z.object({
   ),
   nextCursor: z.string().optional(),
 });
+export const deletionRequestResponse = z.object({
+  status: z.literal('pending'),
+  requestedAt: z.iso.datetime(),
+  message: z.string(),
+});
+export const deletionCancelledResponse = z.object({ status: z.literal('cancelled') });
+export const exportRequestView = z.object({ id: z.uuid(), status: z.literal('PENDING'), requestedAt: z.iso.datetime() });
+export const exportRequestsResponse = z.object({ items: z.array(exportRequestView), nextCursor: z.string().optional() });
 export const preferencesResponse = z.object({
   locale: z.enum(LOCALES),
   cityName: z.string().nullable(),

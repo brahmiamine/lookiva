@@ -15,6 +15,9 @@ export const LIMITS = {
   resendIpEmail: { name: 'resend:ip-email', max: 5, windowMs: HOUR },
   // verify and reset share one bucket: a guesser cannot double its attempts by alternating endpoints
   tokenIp: { name: 'token:ip', max: 10, windowMs: 15 * MIN },
+  // re-authentication (password re-check on deactivate/deletion): per user, whatever the client address
+  reauthUser: { name: 'reauth:user', max: 5, windowMs: 15 * MIN },
+  exportUser: { name: 'export:user', max: 3, windowMs: 24 * HOUR },
   geoCitiesUser: { name: 'geo-cities:user', max: 30, windowMs: MIN },
 } as const satisfies Record<string, Limit>;
 

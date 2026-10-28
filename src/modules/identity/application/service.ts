@@ -22,6 +22,7 @@ import { summariseUserAgent } from '../domain/user-agent';
 import { buildMail } from './mail';
 import type {
   ConsentKind,
+  ExportRequestRecord,
   IdentityStore,
   PasswordHasher,
   Preferences,
@@ -252,6 +253,50 @@ export function createIdentityService(d: IdentityServiceDeps) {
       if (!userId) throw INVALID_TOKEN();
       await d.audit.record({ actorId: userId, action: 'identity.password_reset' });
     },
+
+    /** Sensitive actions re-check the current password. Any failure is the generic 401 (no oracle). */
+    async reauth(ownerId: OwnerId, password: string): Promise<void> {
+      const encoded = await d.store.getPasswordHash(ownerId);
+      if (!(await d.hasher.verify(password, encoded)) || !encoded) throw INVALID_CREDENTIALS();
+    },
+
+    /** DISABLED + every session revoked. The audit event carries the user id only. */
+    async deactivate(ownerId: OwnerId, password: string): Promise<void> {
+      await this.reauth(ownerId, password);
+      if (!(await d.store.deactivate(ownerId, now()))) throw UNAUTHENTICATED();
+      await d.audit.record({ actorId: ownerId, action: 'identity.account_deactivated' });
+    },
+
+    /** Idempotent: a repeat returns the same pending request. Nothing is purged here (backups are not promised purged). */
+    async requestDeletion(ownerId: OwnerId, password: string): Promise<{ requestedAt: Date }> {
+      await this.reauth(ownerId, password);
+      const r = await d.store.requestDeletion(ownerId, newId(), now());
+      if (!r) throw UNAUTHENTICATED();
+      await d.audit.record({ actorId: ownerId, action: 'identity.deletion_requested' });
+      return r;
+    },
+
+    /**
+     * Sessions are revoked by the request, so cancelling proves the account with email + password instead (like login:
+     * every failure is the generic 401). A correct password with nothing pending is 404.
+     */
+    async cancelDeletion(input: { email: string; password: string }): Promise<void> {
+      const user = await d.store.findUserByEmail(normalized(input.email));
+      const encoded = user ? await d.store.getPasswordHash(user.id) : null;
+      const ok = await d.hasher.verify(input.password, encoded);
+      if (!user || !ok || !encoded) throw INVALID_CREDENTIALS();
+      if (!(await d.store.cancelDeletion(user.id as OwnerId, now()))) throw new AppError('NOT_FOUND', 404, 'No pending deletion request');
+      await d.audit.record({ actorId: user.id, action: 'identity.deletion_cancelled' });
+    },
+
+    /** Records the request only: no export is generated in this phase. */
+    async requestExport(ownerId: OwnerId): Promise<ExportRequestRecord> {
+      const r = await d.store.createExportRequest(ownerId, newId(), now());
+      await d.audit.record({ actorId: ownerId, action: 'identity.export_requested', target: r.id });
+      return r;
+    },
+
+    listExportRequests: (ownerId: OwnerId, page: { limit: number; cursor?: { id: string } }) => d.store.listExportRequests(ownerId, page),
 
     async getMe(ownerId: OwnerId): Promise<Me> {
       const user = await d.store.findUserById(ownerId);
