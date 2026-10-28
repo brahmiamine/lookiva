@@ -84,6 +84,8 @@ Limite connue : aucun module réel n'existe encore, et une règle pour `src/app`
 - Corps JSON : toujours `readJson(req, schema)` (`src/platform/http/body.ts`), jamais `req.json()` : 400 `INVALID_JSON` sans message du parseur, 400 `VALIDATION_ERROR` si le schéma échoue.
 - Concurrence : ETag faible `W/"v<n>"` et `If-Match` (428 si absent, 409 en conflit).
 - Idempotence : en-tête `Idempotency-Key` sur les POST critiques (`withIdempotency`, table `idempotency_records` unique `(userId, key)`).
+- Jamais de push (file, notification, webhook) ni de suppression d'objet (stockage) à l'intérieur d'une transaction SQL.
+- SQL brut uniquement dans `infrastructure`, toujours paramétré (spec §5).
 - Isolation des données : tout repository exige un `OwnerId` en paramètre (type `OwnerId`, oubli = erreur de compilation).
 - Les schémas Zod sont la source unique de validation et d'OpenAPI (`openapi.json` versionné, contrôlé par `pnpm openapi:check`).
 

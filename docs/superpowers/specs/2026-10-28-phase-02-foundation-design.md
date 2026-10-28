@@ -1,6 +1,6 @@
 # Lookiva — Spec de design : CP-01 (projet neuf) et Phase 02 (socle + design system)
 
-Date : 2026-10-28 · Statut : **BROUILLON À RELIRE** (aucun code écrit) · Sources : `plans/00` à `plans/13`, `plans/AGENTS.md`
+Date : 2026-10-28 · Statut : **Implémenté (Tasks 1–16, branche `phase-02-foundation`) — validation CP-02 par le propriétaire EN ATTENTE** · Sources : `plans/00` à `plans/13`, `plans/AGENTS.md`
 
 ## 1. Intention
 
@@ -8,7 +8,7 @@ Livrer Lookiva, une PWA de dressing privé (fr/en/ar, RTL), comme **produit publ
 
 Succès pour CP-02 : architecture documentée et démarrable en local, CI (commande unique) verte, direction de design approuvée, aucun secret committé, DB et Redis non exposés.
 
-## 2. CP-01 — constat projet neuf (Phase 01)
+## 2. CP-01 — constat projet neuf (Phase 01) — constat avant la phase (snapshot du 2026-10-28)
 
 Constat factuel au 2026-10-28, sans modification :
 - Le dossier `Lookiva` ne contient que `plans/` (17 fichiers). Pas de code, pas de `package.json`, pas de README, pas de dépôt git.
