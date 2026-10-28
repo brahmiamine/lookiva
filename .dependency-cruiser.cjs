@@ -32,6 +32,7 @@ module.exports = {
   ],
   options: {
     doNotFollow: { path: 'node_modules' },
+    exclude: { path: '^src/generated/' },
     tsPreCompilationDeps: true,
   },
 };

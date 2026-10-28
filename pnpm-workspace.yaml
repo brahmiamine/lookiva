@@ -3,3 +3,5 @@ allowBuilds:
   esbuild: true
   # optional native accelerator of msgpackr (BullMQ); falls back to pure JS
   msgpackr-extract: false
+  '@prisma/engines': true
+  prisma: true

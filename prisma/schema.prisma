@@ -1,0 +1,21 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+model IdempotencyRecord {
+  id           String   @id @db.Char(36)
+  userId       String   @db.VarChar(64)
+  key          String   @db.VarChar(255)
+  requestHash  String   @db.Char(64)
+  status       Int // 0 = pending
+  responseBody Json?
+  createdAt    DateTime @default(now()) @db.DateTime(3)
+
+  @@unique([userId, key])
+  @@map("idempotency_records")
+}
