@@ -10,7 +10,7 @@ Aucun module métier ni authentification n'existe encore (phase 03).
 - Docker (Compose v2) en marche.
 - Node.js >= 24.22.1 (pin de la [matrice de compatibilité](docs/foundation/compat-matrix.md), voir `.nvmrc` et `engines`).
   Une version 24.x plus basse n'est qu'un avertissement : `pnpm verify` a été exécuté sur Node 24.11.1 (voir le rapport CP-02).
-- pnpm 12.15.0, fourni par corepack via le champ `packageManager` (`corepack enable`).
+- pnpm 12.15.0, fourni par corepack via le champ `packageManager` (`corepack enable`; étape documentée mais non testée dans cette session, où pnpm 12.15.0 était déjà disponible).
 - `nc` (netcat), utilisé par le contrôle de ports de `pnpm verify`.
 
 ## Démarrage rapide

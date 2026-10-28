@@ -7,7 +7,7 @@
 | Branche | `phase-02-foundation` (locale, aucun remote, aucun push) |
 | HEAD au moment des exécutions | `9edd0b9` (`fix: isolate verify infra in its own compose project`) ; le commit de ces trois documents vient juste après |
 | Arbre de travail avant ajout des documents | propre (`git status --short` : aucune ligne) |
-| Environnement | macOS, Docker 28.3.3 / Compose 2.39.1, Node **v24.11.1** (le pin est 24.22.1), pnpm 12.15.0 via `packageManager` |
+| Environnement | macOS, Docker 28.3.3 / Compose 2.39.1, Node **v24.11.1** (le pin est 24.22.1), pnpm 12.15.0 via `packageManager` (sorties réelles : `node --version` → `v24.11.1`, `pnpm --version` → `12.15.0`) ; `corepack enable` et une installation depuis un clone vierge n'ont **pas** été exécutés (`NOT RUN`) |
 | Statut de validation | **CP-02 NON SIGNÉ.** Voir la dernière section. |
 
 Convention : `Critère → Commande/test → Résultat → Preuve`. Tout ce qui n'a pas été exécuté est `NOT RUN`. Les sorties ci-dessous sont celles de cette session, tronquées aux lignes utiles sans modification.
@@ -76,7 +76,7 @@ Limites : la requête `/ready` avec jeton prouve la jonction web → db et web �
 
 | Commande/test | Résultat | Preuve |
 |---|---|---|
-| Direction **B · Studio** choisie (spec §3) | Approuvée par le propriétaire en conversation le 2026-10-28 | note du ledger : « USER GATE PASSED: user approved the mockups (docs/design/mockups) » ; aucune trace écrite dans le dépôt en dehors de ce rapport |
+| Direction **B · Studio** choisie (spec §3) | Approuvée par le propriétaire en conversation le 2026-10-28 ; également consignée comme décision actée dans la spec §3 (spec elle-même en brouillon marqué « à relire ») | note du ledger : « USER GATE PASSED: user approved the mockups (docs/design/mockups) » ; aucune trace écrite dans le dépôt en dehors de ce rapport |
 | Maquettes `docs/design/mockups/` (index, dressing, dressing-ar, fiche-vetement, recherche, tenue-du-jour) | Approuvées en conversation après la tâche 11 | commits `03b7e6b`, `2102bf3` |
 | Matrice de compatibilité | Validée en conversation (gate de la tâche 1) | commits `5d3a3d7`, `0f4d2e4` |
 | Tests UI (`pnpm test`, dans `verify`) : contrastes, CSS physique interdit, composants (Dialog, TextField...), galerie, calendrier, page dev | 23 fichiers, 95 tests passés | sortie de `verify` ci-dessous |
@@ -180,7 +180,7 @@ Précision : les ports hôte `127.0.0.1:3307` (MariaDB) et `127.0.0.1:6380` (Red
 | Valeurs dans `.env.example` | placeholders `change-me` uniquement | `.env.example` |
 | Scan de l'historique git complet (21 commits) | `NOT RUN` | — |
 
-Limites : `secretlint` respecte `.gitignore` et `.secretlintignore` (`node_modules`, `.next`, `dist`, `src/generated`, `.superpowers`, `playwright-report`, `test-results`, `pnpm-lock.yaml`, `.env.example`). Deux motifs `allows` ciblent des URL de base de données factices (`change-me`, `u:s3cret@h`).
+Limites : `secretlint` respecte `.gitignore` et `.secretlintignore`, qui compte 8 entrées (`node_modules`, `.next`, `dist`, `src/generated`, `.superpowers`, `playwright-report`, `test-results`, `pnpm-lock.yaml`). `.env.example` n'est **pas** ignoré : il est scanné et passe grâce au motif `allows` du placeholder `change-me` de `.secretlintrc.json`, qui compte deux motifs étroits (placeholder `change-me` et une chaîne de test exacte). `enableIDScanRule: true` est nécessaire sur la règle AWS car le préréglage recommended ne signale pas les identifiants de clé d'accès AWS par défaut (sans l'option, une clé factice sortait en code 0, voir la matrice de compatibilité).
 
 ## État git
 
@@ -230,7 +230,7 @@ Les identifiants T01..T12 sont ceux de `plans/02-foundation-design-system-plan.m
 
 | Plan 02 | Livraison | Commits | Statut |
 |---|---|---|---|
-| T01 topologie, frontières | `.dependency-cruiser.cjs` (4 règles), `pnpm boundaries`, tests sur fixtures, README (Task 4) | `c087ebf` | Partially : règles appliquées et testées, mais aucun module réel (voulu) ; la règle app/ui/platform → internes d'un module est à ajouter avant la phase 03 |
+| T01 topologie, frontières | `.dependency-cruiser.cjs` (4 règles), `pnpm boundaries`, tests sur fixtures ; documenté par le README de T12 (ce commit) | `c087ebf` | Partially : règles appliquées et testées, mais aucun module réel (voulu) ; la règle app/ui/platform → internes d'un module est à ajouter avant la phase 03 |
 | T02 versions et POC Prisma + MariaDB | `docs/foundation/compat-matrix.md`, pins exacts dans `package.json` (Tasks 1-2) | `5d3a3d7`, `0f4d2e4`, `6925736` | Done. Matrice validée par le propriétaire en conversation. POC sur Node 24.11.1 / pnpm 11.22.0, lignes « registre/doc seulement » pour Node 24.22.1, Redis 8, BullMQ |
 | T03 validation, erreurs, pagination, IDs, ETag, idempotence, OpenAPI | `src/platform/http/*`, `src/platform/openapi`, `prisma/` (Tasks 7, 8, 9) | `17dc427`, `1b007ce`, `2c533ee`, `9081a5c` | Done |
 | T04 Docker local DB/Redis/worker | `compose.yaml`, `compose.test.yaml`, `Dockerfile`, profil `app`, `tests/infra/compose.test.ts` (Tasks 3, 6, 15) | `8ea4467`, `e8475ba`, `34ceb2c`, `9edd0b9` | Done |
