@@ -1,5 +1,5 @@
 import { readFileSync, writeFileSync } from 'node:fs';
-import { buildOpenApi, openapiDiffers, renderOpenApi } from '@/platform/openapi/build';
+import { buildOpenApi, openapiDiffers, renderOpenApi } from '@/openapi';
 
 const file = new URL('../openapi.json', import.meta.url);
 const doc = buildOpenApi();

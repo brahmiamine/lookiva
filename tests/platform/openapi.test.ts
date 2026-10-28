@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { buildOpenApi, openapiDiffers } from '@/platform/openapi/build';
+import { buildOpenApi, openapiDiffers } from '@/openapi';
 
 describe('openapi', () => {
   it('openapi_contains_health_and_ready', () => {

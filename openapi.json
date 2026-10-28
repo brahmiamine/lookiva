@@ -6,6 +6,11 @@
   },
   "components": {
     "securitySchemes": {
+      "sessionCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "lookiva_session"
+      },
       "readyToken": {
         "type": "http",
         "scheme": "bearer"
@@ -15,6 +20,3568 @@
     "parameters": {}
   },
   "paths": {
+    "/api/v1/auth/register": {
+      "post": {
+        "tags": [
+          "identity"
+        ],
+        "summary": "Create an account (same answer whether or not the email exists); mails a verification link",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "lookiva"
+              ]
+            },
+            "required": true,
+            "name": "X-Requested-With",
+            "in": "header"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{8,128}$"
+            },
+            "required": true,
+            "name": "Idempotency-Key",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 320
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1024
+                  },
+                  "locale": {
+                    "type": "string",
+                    "enum": [
+                      "fr",
+                      "en",
+                      "ar"
+                    ],
+                    "default": "fr"
+                  }
+                },
+                "required": [
+                  "email",
+                  "password"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "accepted"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR or INVALID_JSON",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "CSRF_REJECTED (missing X-Requested-With: lookiva or foreign Origin)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED (Retry-After header)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "EMAIL_TRANSPORT_UNAVAILABLE",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/email/verify": {
+      "post": {
+        "tags": [
+          "identity"
+        ],
+        "summary": "Consume a one-time email verification token",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "lookiva"
+              ]
+            },
+            "required": true,
+            "name": "X-Requested-With",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "token": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 256
+                  }
+                },
+                "required": [
+                  "token"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Email verified",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "verified"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "INVALID_TOKEN (unknown, used or expired) or VALIDATION_ERROR",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "CSRF_REJECTED (missing X-Requested-With: lookiva or foreign Origin)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED (Retry-After header)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/email/resend": {
+      "post": {
+        "tags": [
+          "identity"
+        ],
+        "summary": "Resend the verification link (60 s cooldown; same answer for unknown emails)",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "lookiva"
+              ]
+            },
+            "required": true,
+            "name": "X-Requested-With",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 320
+                  }
+                },
+                "required": [
+                  "email"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "accepted"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR or INVALID_JSON",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "CSRF_REJECTED (missing X-Requested-With: lookiva or foreign Origin)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED (Retry-After header)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "tags": [
+          "identity"
+        ],
+        "summary": "Open a session (sets the lookiva_session cookie)",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "lookiva"
+              ]
+            },
+            "required": true,
+            "name": "X-Requested-With",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 320
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1024
+                  }
+                },
+                "required": [
+                  "email",
+                  "password"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Signed in; Set-Cookie: lookiva_session (HttpOnly, SameSite=Lax, Secure in production)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "user": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "email": {
+                          "type": "string"
+                        },
+                        "emailVerifiedAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "email",
+                        "emailVerifiedAt",
+                        "createdAt"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "user"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR or INVALID_JSON",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "INVALID_CREDENTIALS (unknown email, wrong password or inactive account)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "EMAIL_NOT_VERIFIED (only after a correct password) or CSRF_REJECTED",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED (Retry-After header)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "tags": [
+          "identity"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Revoke the current session",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "lookiva"
+              ]
+            },
+            "required": true,
+            "name": "X-Requested-With",
+            "in": "header"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Signed out; cookie cleared"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED (no, unknown, revoked or expired session)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "CSRF_REJECTED on unsafe methods",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/logout-all": {
+      "post": {
+        "tags": [
+          "identity"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Revoke every session of the user",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "lookiva"
+              ]
+            },
+            "required": true,
+            "name": "X-Requested-With",
+            "in": "header"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "All sessions revoked; cookie cleared"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED (no, unknown, revoked or expired session)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "CSRF_REJECTED on unsafe methods",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/password/forgot": {
+      "post": {
+        "tags": [
+          "identity"
+        ],
+        "summary": "Mail a password reset link (same answer for unknown emails)",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "lookiva"
+              ]
+            },
+            "required": true,
+            "name": "X-Requested-With",
+            "in": "header"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{8,128}$"
+            },
+            "required": true,
+            "name": "Idempotency-Key",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 320
+                  }
+                },
+                "required": [
+                  "email"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "accepted"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR or INVALID_JSON",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "CSRF_REJECTED (missing X-Requested-With: lookiva or foreign Origin)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED (Retry-After header)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/password/reset": {
+      "post": {
+        "tags": [
+          "identity"
+        ],
+        "summary": "Set a new password with a reset token; revokes every session",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "lookiva"
+              ]
+            },
+            "required": true,
+            "name": "X-Requested-With",
+            "in": "header"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{8,128}$"
+            },
+            "required": true,
+            "name": "Idempotency-Key",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "token": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 256
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1024
+                  }
+                },
+                "required": [
+                  "token",
+                  "password"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Password changed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "password_reset"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "INVALID_TOKEN or VALIDATION_ERROR",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "CSRF_REJECTED (missing X-Requested-With: lookiva or foreign Origin)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED (Retry-After header)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me": {
+      "get": {
+        "tags": [
+          "identity"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Current account",
+        "responses": {
+          "200": {
+            "description": "Account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "email": {
+                      "type": "string"
+                    },
+                    "emailVerifiedAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "email",
+                    "emailVerifiedAt",
+                    "createdAt"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED (no, unknown, revoked or expired session)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "CSRF_REJECTED on unsafe methods",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me/sessions": {
+      "get": {
+        "tags": [
+          "identity"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Active sessions of the user (cursor pagination)",
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "cursor",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sessions, newest first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "userAgent": {
+                            "type": "string"
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "lastSeenAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "current": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "userAgent",
+                          "createdAt",
+                          "lastSeenAt",
+                          "current"
+                        ]
+                      }
+                    },
+                    "nextCursor": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR or INVALID_CURSOR",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED (no, unknown, revoked or expired session)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "CSRF_REJECTED on unsafe methods",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me/sessions/{id}": {
+      "delete": {
+        "tags": [
+          "identity"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Revoke one of the user's sessions",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "lookiva"
+              ]
+            },
+            "required": true,
+            "name": "X-Requested-With",
+            "in": "header"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Revoked"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED (no, unknown, revoked or expired session)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "CSRF_REJECTED on unsafe methods",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND (unknown, revoked or another user's session)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me/preferences": {
+      "get": {
+        "tags": [
+          "identity"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Preferences (ETag W/\"v<version>\")",
+        "responses": {
+          "200": {
+            "description": "Preferences",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "locale": {
+                      "type": "string",
+                      "enum": [
+                        "fr",
+                        "en",
+                        "ar"
+                      ]
+                    },
+                    "cityName": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "countryCode": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "latitude": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "longitude": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "timezone": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "aiEnabled": {
+                      "type": "boolean"
+                    },
+                    "learningEnabled": {
+                      "type": "boolean"
+                    },
+                    "thermalSensitivity": {
+                      "type": "string",
+                      "enum": [
+                        "COLD",
+                        "NEUTRAL",
+                        "WARM"
+                      ]
+                    },
+                    "onboardingCompletedAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time"
+                    },
+                    "version": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "locale",
+                    "cityName",
+                    "countryCode",
+                    "latitude",
+                    "longitude",
+                    "timezone",
+                    "aiEnabled",
+                    "learningEnabled",
+                    "thermalSensitivity",
+                    "onboardingCompletedAt",
+                    "version"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED (no, unknown, revoked or expired session)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "CSRF_REJECTED on unsafe methods",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "identity"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Partial update guarded by If-Match",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "lookiva"
+              ]
+            },
+            "required": true,
+            "name": "X-Requested-With",
+            "in": "header"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "If-Match",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "locale": {
+                    "type": "string",
+                    "enum": [
+                      "fr",
+                      "en",
+                      "ar"
+                    ]
+                  },
+                  "cityName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "countryCode": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "pattern": "^[A-Z]{2}$"
+                  },
+                  "latitude": {
+                    "type": [
+                      "number",
+                      "null"
+                    ],
+                    "minimum": -90,
+                    "maximum": 90
+                  },
+                  "longitude": {
+                    "type": [
+                      "number",
+                      "null"
+                    ],
+                    "minimum": -180,
+                    "maximum": 180
+                  },
+                  "timezone": {
+                    "type": "string",
+                    "maxLength": 64
+                  },
+                  "aiEnabled": {
+                    "type": "boolean"
+                  },
+                  "learningEnabled": {
+                    "type": "boolean"
+                  },
+                  "thermalSensitivity": {
+                    "type": "string",
+                    "enum": [
+                      "COLD",
+                      "NEUTRAL",
+                      "WARM"
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated preferences (new ETag)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "locale": {
+                      "type": "string",
+                      "enum": [
+                        "fr",
+                        "en",
+                        "ar"
+                      ]
+                    },
+                    "cityName": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "countryCode": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "latitude": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "longitude": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "timezone": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "aiEnabled": {
+                      "type": "boolean"
+                    },
+                    "learningEnabled": {
+                      "type": "boolean"
+                    },
+                    "thermalSensitivity": {
+                      "type": "string",
+                      "enum": [
+                        "COLD",
+                        "NEUTRAL",
+                        "WARM"
+                      ]
+                    },
+                    "onboardingCompletedAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time"
+                    },
+                    "version": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "locale",
+                    "cityName",
+                    "countryCode",
+                    "latitude",
+                    "longitude",
+                    "timezone",
+                    "aiEnabled",
+                    "learningEnabled",
+                    "thermalSensitivity",
+                    "onboardingCompletedAt",
+                    "version"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED (no, unknown, revoked or expired session)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "CSRF_REJECTED on unsafe methods",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "VERSION_CONFLICT (stale ETag; `*` is refused too)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "IF_MATCH_REQUIRED",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me/onboarding": {
+      "post": {
+        "tags": [
+          "identity"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Onboarding: locale and city required; GPS and timezone optional (IANA, default UTC)",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "lookiva"
+              ]
+            },
+            "required": true,
+            "name": "X-Requested-With",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "locale": {
+                    "type": "string",
+                    "enum": [
+                      "fr",
+                      "en",
+                      "ar"
+                    ]
+                  },
+                  "cityName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "countryCode": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "pattern": "^[A-Z]{2}$"
+                  },
+                  "latitude": {
+                    "type": [
+                      "number",
+                      "null"
+                    ],
+                    "minimum": -90,
+                    "maximum": 90
+                  },
+                  "longitude": {
+                    "type": [
+                      "number",
+                      "null"
+                    ],
+                    "minimum": -180,
+                    "maximum": 180
+                  },
+                  "timezone": {
+                    "type": "string",
+                    "maxLength": 64
+                  }
+                },
+                "required": [
+                  "locale",
+                  "cityName"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Preferences after onboarding",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "locale": {
+                      "type": "string",
+                      "enum": [
+                        "fr",
+                        "en",
+                        "ar"
+                      ]
+                    },
+                    "cityName": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "countryCode": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "latitude": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "longitude": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "timezone": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "aiEnabled": {
+                      "type": "boolean"
+                    },
+                    "learningEnabled": {
+                      "type": "boolean"
+                    },
+                    "thermalSensitivity": {
+                      "type": "string",
+                      "enum": [
+                        "COLD",
+                        "NEUTRAL",
+                        "WARM"
+                      ]
+                    },
+                    "onboardingCompletedAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time"
+                    },
+                    "version": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "locale",
+                    "cityName",
+                    "countryCode",
+                    "latitude",
+                    "longitude",
+                    "timezone",
+                    "aiEnabled",
+                    "learningEnabled",
+                    "thermalSensitivity",
+                    "onboardingCompletedAt",
+                    "version"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED (no, unknown, revoked or expired session)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "CSRF_REJECTED on unsafe methods",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "VERSION_CONFLICT",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/health": {
       "get": {
         "summary": "Liveness (no dependency access)",
