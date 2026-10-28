@@ -12,8 +12,8 @@ START=$SECONDS
 teardown() {
   if [ "$INFRA_STARTED" = 1 ]; then
     INFRA_STARTED=0
-    echo "==> teardown: pnpm infra:down (project $COMPOSE_PROJECT_NAME)"
-    pnpm infra:down || echo "teardown failed" >&2
+    echo "==> teardown: pnpm infra:reset (project $COMPOSE_PROJECT_NAME, volumes removed)"
+    pnpm infra:reset || echo "teardown failed" >&2
   fi
 }
 trap teardown EXIT
@@ -46,8 +46,15 @@ step() {
   echo "-- OK: $name ($((SECONDS - t))s)"
 }
 
+# Explicit test URLs (the placeholders of .env.example, i.e. the loopback ports of compose.test.yaml): a developer's
+# .env or shell must never point the integration tests at another database or Redis.
+example_value() { grep "^$1=" .env.example | cut -d= -f2-; }
+
 integration() {
   INFRA_STARTED=1
+  DATABASE_URL="$(example_value DATABASE_URL)"
+  REDIS_URL="$(example_value REDIS_URL)"
+  export DATABASE_URL REDIS_URL
   pnpm infra:up && pnpm test:int
 }
 

@@ -35,8 +35,11 @@ services:
       NODE_ENV: production
       REDIS_URL: redis://redis:6379
       DATABASE_URL: mysql://${MARIADB_USER:?set in .env}:${MARIADB_PASSWORD:?set in .env}@db:3306/${MARIADB_DATABASE:?set in .env}
-      READY_TOKEN: ${READY_TOKEN:?set in .env}
+      # NODE_ENV=production refuses `change-me` and tokens under 32 chars: the local stack has its own placeholder.
+      READY_TOKEN: ${STACK_READY_TOKEN:?set in .env}
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      # No real email provider is chosen yet (ADR-10): identity routes answer 503 in containers.
+      EMAIL_TRANSPORT: none
     depends_on:
       db:
         condition: service_healthy
@@ -61,8 +64,11 @@ services:
       NODE_ENV: production
       REDIS_URL: redis://redis:6379
       DATABASE_URL: mysql://${MARIADB_USER:?set in .env}:${MARIADB_PASSWORD:?set in .env}@db:3306/${MARIADB_DATABASE:?set in .env}
-      READY_TOKEN: ${READY_TOKEN:?set in .env}
+      # NODE_ENV=production refuses `change-me` and tokens under 32 chars: the local stack has its own placeholder.
+      READY_TOKEN: ${STACK_READY_TOKEN:?set in .env}
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      # No real email provider is chosen yet (ADR-10): identity routes answer 503 in containers.
+      EMAIL_TRANSPORT: none
     ports:
       - "127.0.0.1:${WEB_HOST_PORT:-3000}:3000"
     depends_on:

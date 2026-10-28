@@ -107,6 +107,17 @@ describe('withApi', () => {
     }
   });
 
+  it('multiple_set_cookie_headers_survive_the_rewrap', async () => {
+    const { logger } = memory();
+    const res = await withApi(async () => {
+      const r = new Response(null, { status: 204 });
+      r.headers.append('Set-Cookie', 'a=1; Path=/; HttpOnly');
+      r.headers.append('Set-Cookie', 'b=2; Path=/');
+      return r;
+    }, { logger })(req());
+    expect(res.headers.getSetCookie()).toEqual(['a=1; Path=/; HttpOnly', 'b=2; Path=/']);
+  });
+
   it('valid_inbound_request_id_is_echoed', async () => {
     const { logger } = memory();
     const res = await withApi(async () => new Response('ok'), { logger })(req({ 'x-request-id': 'abc-12345678' }));
