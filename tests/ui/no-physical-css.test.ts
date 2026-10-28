@@ -2,6 +2,8 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
+// Deliberately NOT flagged: `translate-x-*` (direction-neutral uses such as centering exist) and directional gradients
+// (`bg-gradient-to-r`, `bg-linear-to-r`). Reviewers must check those by hand for RTL.
 // Tailwind classes use a left boundary of "not a word char" (so `-ml-4`, `md:ml-2`, `scroll-ml-2` are caught,
 // `html-` is not). `\b` on the right keeps `rounded-lg` / `border-lime-500` out.
 const L = String.raw`(?<![A-Za-z0-9_])`;
@@ -15,9 +17,16 @@ const PATTERNS: RegExp[] = [
   new RegExp(`${L}scroll-(?:ml|mr|pl|pr)-`),
   /\b(?:margin|padding)-(?:left|right)\b/,
   /\bborder-(?:left|right)\b/,
+  /\bborder-(?:top|bottom)-(?:left|right)-radius\b/,
+  /\bscroll-(?:margin|padding)-(?:left|right)\b/,
   /(?<![\w-])(?:left|right)\s*:/,
-  /\btext-align\s*:\s*(?:left|right)\b/,
-  /\bfloat\s*:\s*(?:left|right)\b/,
+  /\b(?:text-align|textAlign)\s*:\s*['"]?(?:left|right)\b/,
+  /\b(?:float|clear)\s*:\s*['"]?(?:left|right)\b/,
+  // style objects (camelCase): marginLeft, borderRightWidth, scrollPaddingLeft, ...
+  /\b(?:margin|padding|border|scrollMargin|scrollPadding)(?:Left|Right)(?:Width|Color|Style)?\b/,
+  /\bborder(?:Top|Bottom)(?:Left|Right)Radius\b/,
+  // Tailwind background / object / origin / clear utilities
+  new RegExp(`${L}(?:bg|object|origin|clear)-(?:left|right)\\b`),
 ];
 
 export function physicalHits(text: string): string[] {
@@ -53,6 +62,17 @@ describe('physical CSS ban', () => {
       'margin-left: 1px', 'margin-right: 1px', 'padding-left: 1px', 'padding-right: 1px',
       'border-left: 1px solid', 'border-right-color: red', 'left: 0', 'right:0',
       'text-align: left', 'text-align:right', 'float: left', 'float:right',
+      // style objects (camelCase)
+      'marginLeft: 8', 'marginRight: 8', 'paddingLeft: 8', 'paddingRight: 8', 'borderLeft: "1px solid"', 'borderRight: "1px solid"',
+      'borderLeftWidth: 1', 'borderRightWidth: 1', 'borderLeftColor: "red"', 'borderRightColor: "red"',
+      'borderTopLeftRadius: 4', 'borderTopRightRadius: 4', 'borderBottomLeftRadius: 4', 'borderBottomRightRadius: 4',
+      "textAlign: 'left'", 'textAlign: "right"', "float: 'left'", 'float: "right"', "clear: 'left'", 'clear: "right"',
+      'scrollMarginLeft: 4', 'scrollMarginRight: 4', 'scrollPaddingLeft: 4', 'scrollPaddingRight: 4',
+      // CSS corner / clear / scroll longhands
+      'border-top-left-radius: 4px', 'border-bottom-right-radius: 4px', 'clear: left', 'clear:right',
+      'scroll-margin-left: 4px', 'scroll-padding-right: 4px',
+      // Tailwind
+      'bg-left', 'bg-right-top', 'object-left', 'object-right-bottom', 'origin-left', 'origin-right', 'clear-left', 'clear-right',
     ];
     for (const s of bad) expect(physicalHits(`class="${s}"`), s).not.toEqual([]);
     const good = [
@@ -60,6 +80,9 @@ describe('physical CSS ban', () => {
       'border-s', 'border-e-2', 'margin-inline-start: 1px', 'padding-inline-end: 1px', 'inset-inline-start: 0',
       'text-align: start', 'overflow-hidden', 'rounded-lg', 'border-lime-500', 'html-foo', 'float-start',
       'border-inline-start: 1px solid', 'scroll-ms-2',
+      'marginInlineStart: 8', 'paddingInlineEnd: 8', 'borderInlineStartWidth: 1', 'borderStartStartRadius: 4',
+      "textAlign: 'start'", "float: 'inline-start'", "clear: 'both'", 'clear-both', 'object-cover', 'origin-center',
+      'bg-linear-to-r', 'bg-gradient-to-r', 'translate-x-1/2', 'html-lang', 'border-start-start-radius: 4px',
     ];
     for (const s of good) expect(physicalHits(`class="${s}"`), s).toEqual([]);
   });
