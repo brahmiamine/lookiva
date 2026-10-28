@@ -182,3 +182,42 @@ describe('account status on reset and sessions (M3)', () => {
     expect((await h.api.me(cookie)).body).toMatchObject({ status: 401, code: 'UNAUTHENTICATED' });
   });
 });
+
+describe('missing coverage from the review', () => {
+  it('a_token_of_one_purpose_is_refused_by_the_other_and_is_not_burned', async () => {
+    const h = harness();
+    const email = h.newEmail();
+    await h.api.register({ email, password: 'violet sunset harbour' });
+    const verifyToken = await h.lastToken(email);
+    expect((await h.api.reset(verifyToken, 'the brand new passphrase')).body).toMatchObject({ code: 'INVALID_TOKEN' });
+    expect((await h.api.verify(verifyToken)).status).toBe(200); // still usable for its own purpose
+
+    await h.api.forgot(email);
+    const resetToken = await h.lastToken(email);
+    expect((await h.api.verify(resetToken)).body).toMatchObject({ code: 'INVALID_TOKEN' });
+    expect((await h.api.reset(resetToken, 'the brand new passphrase')).status).toBe(200);
+    expect((await h.api.reset(resetToken, 'yet another passphrase')).body).toMatchObject({ code: 'INVALID_TOKEN' });
+  });
+
+  it('forgot_is_limited_to_5_per_hour_per_ip_and_email_with_retry_after', async () => {
+    const h = harness();
+    const email = h.newEmail();
+    for (let i = 0; i < 5; i++) expect((await h.api.forgot(email)).status).toBe(202);
+    const res = await h.api.forgot(email);
+    expect([res.status, res.body?.code]).toEqual([429, 'RATE_LIMITED']);
+    const retry = Number(res.headers.get('retry-after'));
+    expect(retry).toBeGreaterThan(0);
+    expect(retry).toBeLessThanOrEqual(3600);
+    expect((await h.api.forgot(h.newEmail())).status).toBe(202); // other email, same address: own bucket
+  });
+
+  it('login_is_limited_to_30_per_15_minutes_per_ip_across_emails', async () => {
+    const h = harness();
+    for (let i = 0; i < 30; i++) expect((await h.api.login(h.newEmail(), 'wrong password x')).status).toBe(401);
+    const res = await h.api.login(h.newEmail(), 'wrong password x');
+    expect([res.status, res.body?.code]).toEqual([429, 'RATE_LIMITED']);
+    expect(Number(res.headers.get('retry-after'))).toBeGreaterThan(0);
+    h.clock.advance(15 * 60_000);
+    expect((await h.api.login(h.newEmail(), 'wrong password x')).status).toBe(401);
+  });
+});
