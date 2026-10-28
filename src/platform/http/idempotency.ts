@@ -10,12 +10,18 @@ type Outcome<T> = { status: number; body: T };
 // Verified against the MariaDB adapter: a duplicate key (ER_DUP_ENTRY 1062) surfaces as PrismaClientKnownRequestError P2002.
 const isDuplicate = (e: unknown): boolean => e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002';
 
-/** Never holds a SQL transaction around `run`: pending row first, then run, then update. */
+/**
+ * Never holds a SQL transaction around `run`: pending row first, then run, then update.
+ * Once `run` has succeeded its side effect happened, so the caller always gets the true result: if the
+ * final write affects 0 rows (row reclaimed/removed meanwhile) or throws, nothing else is touched and the
+ * problem is only reported through `opts.onPersistError`.
+ * Known limit: a run longer than PENDING_TTL_MS can be reclaimed and executed twice.
+ */
 export async function withIdempotency<T>(
   db: PrismaClient,
   ctx: Ctx,
   run: () => Promise<Outcome<T>>,
-  opts?: { now?: () => Date },
+  opts?: { now?: () => Date; onPersistError?: (e: unknown) => void },
 ): Promise<Outcome<T> & { replayed: boolean }> {
   const where = { userId_key: { userId: ctx.userId, key: ctx.key } };
   const tryInsert = async (): Promise<string | null> => {
@@ -61,9 +67,23 @@ export async function withIdempotency<T>(
     await db.idempotencyRecord.deleteMany({ where: { id, status: 0 } }).catch(() => undefined);
     throw e;
   }
-  await db.idempotencyRecord.update({
-    where: { id },
-    data: { status: result.status, responseBody: (result.body ?? Prisma.JsonNull) as Prisma.InputJsonValue },
-  });
+  const report = (e: unknown) => {
+    try {
+      opts?.onPersistError?.(e);
+    } catch {
+      // a failing callback must not turn a successful run into an error
+    }
+  };
+  try {
+    const { count } = await db.idempotencyRecord.updateMany({
+      where: { id, status: 0 },
+      data: { status: result.status, responseBody: (result.body ?? Prisma.JsonNull) as Prisma.InputJsonValue },
+    });
+    if (count === 0) {
+      report(new AppError('IDEMPOTENCY_NOT_PERSISTED', 500, 'Idempotency record was reclaimed before the result was stored'));
+    }
+  } catch (e) {
+    report(e);
+  }
   return { ...result, replayed: false };
 }

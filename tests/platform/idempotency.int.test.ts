@@ -144,4 +144,88 @@ describe('withIdempotency (real mariadb)', () => {
     });
     expect(Math.abs(k2.createdAt.getTime() - Date.now())).toBeLessThan(60_000);
   });
+  describe('exact key and user matching', () => {
+    const runTwice = async (a: { userId: string; key: string }, b: { userId: string; key: string }) => {
+      let calls = 0;
+      const run = async () => ({ status: 201, body: { n: ++calls } });
+      const ra = await withIdempotency(db, { ...a, requestHash: hash('a') }, run);
+      const rb = await withIdempotency(db, { ...b, requestHash: hash('a') }, run);
+      expect(calls).toBe(2);
+      expect([ra.replayed, rb.replayed]).toEqual([false, false]);
+    };
+
+    it('keys_differing_only_by_case_are_independent', async () => {
+      const userId = newUser();
+      await runTwice({ userId, key: 'K1' }, { userId, key: 'k1' });
+    });
+
+    it('keys_differing_by_trailing_space_are_independent', async () => {
+      const userId = newUser();
+      await runTwice({ userId, key: 'k1' }, { userId, key: 'k1 ' });
+    });
+
+    it('userIds_differing_only_by_case_are_independent', async () => {
+      const base = `test-${randomUUID()}`;
+      users.push(base, base.toUpperCase());
+      await runTwice({ userId: base, key: 'k1' }, { userId: base.toUpperCase(), key: 'k1' });
+    });
+  });
+
+  describe('persisting the result after run', () => {
+    it('row_reclaimed_during_run_does_not_overwrite_new_row', async () => {
+      const userId = newUser();
+      const ctx = { userId, key: 'k1', requestHash: hash('a') };
+      const newRowId = newId();
+      const reported: unknown[] = [];
+      const res = await withIdempotency(
+        db,
+        ctx,
+        async () => {
+          // simulate another caller reclaiming the stale pending row while this run is still going
+          await db.idempotencyRecord.deleteMany({ where: { userId, key: 'k1' } });
+          await db.idempotencyRecord.create({ data: { id: newRowId, ...ctx, status: 0 } });
+          return { status: 201, body: { mine: true } };
+        },
+        { onPersistError: (e) => reported.push(e) },
+      );
+      expect(res).toEqual({ status: 201, body: { mine: true }, replayed: false });
+      expect(reported).toHaveLength(1);
+      expect(reported[0]).toMatchObject({ code: 'IDEMPOTENCY_NOT_PERSISTED', status: 500 });
+      const rows = await db.idempotencyRecord.findMany({ where: { userId } });
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({ id: newRowId, status: 0, responseBody: null });
+    });
+
+    it('update_failure_returns_result_and_reports', async () => {
+      const userId = newUser();
+      const failure = new Error('db went away');
+      const failing = new Proxy(db, {
+        get(target, prop) {
+          const value: unknown = Reflect.get(target, prop);
+          if (prop !== 'idempotencyRecord') return value;
+          return new Proxy(value as object, {
+            get(model, method) {
+              if (method === 'updateMany') return () => Promise.reject(failure);
+              const fn: unknown = Reflect.get(model, method);
+              return typeof fn === 'function' ? fn.bind(model) : fn;
+            },
+          });
+        },
+      });
+      const reported: unknown[] = [];
+      const res = await withIdempotency(
+        failing,
+        { userId, key: 'k1', requestHash: hash('a') },
+        async () => ({ status: 201, body: { ok: 1 } }),
+        {
+          onPersistError: (e) => {
+            reported.push(e);
+            throw new Error('callback failure is swallowed');
+          },
+        },
+      );
+      expect(res).toEqual({ status: 201, body: { ok: 1 }, replayed: false });
+      expect(reported).toEqual([failure]);
+    });
+  });
 });
