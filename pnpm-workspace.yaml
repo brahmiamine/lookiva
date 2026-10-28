@@ -1,2 +1,5 @@
 allowBuilds:
   unrs-resolver: true
+  esbuild: true
+  # optional native accelerator of msgpackr (BullMQ); falls back to pure JS
+  msgpackr-extract: false

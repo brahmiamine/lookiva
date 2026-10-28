@@ -30,5 +30,11 @@ describe('local compose', () => {
     const s = config('compose.yaml');
     expect(s.db?.healthcheck?.test?.length).toBeGreaterThan(0);
     expect(s.redis?.healthcheck?.test?.length).toBeGreaterThan(0);
+    expect(s.worker?.healthcheck?.test?.length).toBeGreaterThan(0);
+  });
+
+  it('worker_publishes_no_ports', () => {
+    expect(config('compose.yaml').worker?.ports ?? []).toEqual([]);
+    expect(config('compose.yaml', 'compose.test.yaml').worker?.ports ?? []).toEqual([]);
   });
 });

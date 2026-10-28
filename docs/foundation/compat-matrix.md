@@ -35,6 +35,7 @@ Date de consultation : **2026-10-28**. Toutes les versions viennent de sources o
 | `uuid` | **14.0.3** | https://registry.npmjs.org/uuid/latest | 2026-10-28 | V2 (`v7()` exécuté) |
 | dependency-cruiser | **18.7.0** (Node ^22 \|\| ^24 \|\| >=26) | https://registry.npmjs.org/dependency-cruiser/latest | 2026-10-28 | Registre/doc seulement |
 | secretlint | **13.1.0** + `@secretlint/secretlint-rule-preset-recommend` **13.1.0** (Node >= 22) | https://registry.npmjs.org/secretlint/latest ; https://registry.npmjs.org/@secretlint/secretlint-rule-preset-recommend/latest | 2026-10-28 | Registre/doc seulement |
+| esbuild (bundle du worker) | **0.28.2** (`latest` ; Node >= 18) | https://registry.npmjs.org/esbuild/latest | 2026-10-28 | `npm view esbuild version` = 0.28.2 et `curl https://registry.npmjs.org/esbuild/latest` (version 0.28.2, engines node >=18) ; `pnpm build:worker` produit `dist/worker.js` ; build Docker de la cible `worker` (Node 24 slim) |
 
 ## 2. Choix avec candidats
 

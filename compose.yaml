@@ -27,6 +27,30 @@ services:
       timeout: 3s
       retries: 10
 
+  worker:
+    build:
+      context: .
+      target: worker
+    environment:
+      NODE_ENV: production
+      REDIS_URL: redis://redis:6379
+      DATABASE_URL: mysql://${MARIADB_USER:?set in .env}:${MARIADB_PASSWORD:?set in .env}@db:3306/${MARIADB_DATABASE:?set in .env}
+      READY_TOKEN: ${READY_TOKEN:?set in .env}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks: [internal]
+    healthcheck:
+      # The worker touches /tmp/worker-alive every 10 s; unhealthy if the file is older than 30 s.
+      test: ["CMD", "node", "-e", "const s=require('fs').statSync('/tmp/worker-alive');process.exit(Date.now()-s.mtimeMs<30000?0:1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
 networks:
   internal: {}
 
