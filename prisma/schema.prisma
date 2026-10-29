@@ -64,6 +64,8 @@ model User {
   deletionRequests    DeletionRequest[]
   exportRequests      ExportRequest[]
   garments            Garment[]
+  outfits             Outfit[]
+  wearRecords         WearRecord[]
   customSubcategories CustomSubcategory[]
   tags                Tag[]
   collections         Collection[]
@@ -250,6 +252,8 @@ model Garment {
   tagLinks            GarmentTag[]
   collectionLinks     CollectionGarment[]
   setItems            GarmentSetItem[]
+  outfitItems         OutfitItem[]
+  wearItems           WearRecordItem[]
 
   @@index([ownerId, deletedAt, id])
   @@index([ownerId, status])
@@ -423,4 +427,63 @@ model GarmentSetItem {
   @@id([setId, garmentId])
   @@index([garmentId])
   @@map("garment_set_items")
+}
+
+/// Phase 05: a composition of garments for one planned or worn look. Status is one of DRAFT, PLANNED, WORN, CANCELLED.
+model Outfit {
+  id        String       @id @db.Char(36)
+  ownerId   String       @db.Char(36)
+  name      String?      @db.VarChar(80)
+  status    String       @default("DRAFT") @db.VarChar(16)
+  version   Int          @default(1)
+  createdAt DateTime     @db.DateTime(3)
+  updatedAt DateTime     @db.DateTime(3)
+  owner     User         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  items     OutfitItem[]
+  wears     WearRecord[]
+
+  @@index([ownerId, status])
+  @@map("outfits")
+}
+
+model OutfitItem {
+  outfitId  String  @db.Char(36)
+  garmentId String  @db.Char(36)
+  outfit    Outfit  @relation(fields: [outfitId], references: [id], onDelete: Cascade)
+  garment   Garment @relation(fields: [garmentId], references: [id], onDelete: Cascade)
+
+  @@id([outfitId, garmentId])
+  @@index([garmentId])
+  @@map("outfit_items")
+}
+
+/// The record of a confirmed wear. Items are a snapshot: they stay readable after the garment is edited or purged.
+model WearRecord {
+  id        String           @id @db.Char(36)
+  ownerId   String           @db.Char(36)
+  outfitId  String?          @db.Char(36)
+  wornAt    DateTime         @db.DateTime(3)
+  createdAt DateTime         @db.DateTime(3)
+  owner     User             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  outfit    Outfit?          @relation(fields: [outfitId], references: [id], onDelete: SetNull)
+  items     WearRecordItem[]
+
+  @@index([ownerId, wornAt])
+  @@index([outfitId])
+  @@map("wear_records")
+}
+
+model WearRecordItem {
+  id           String      @id @db.Char(36)
+  wearRecordId String      @db.Char(36)
+  garmentId    String?     @db.Char(36)
+  garmentName  String      @db.VarChar(120)
+  categoryCode String      @db.VarChar(32)
+  colorCode    String      @db.VarChar(24)
+  wearRecord   WearRecord  @relation(fields: [wearRecordId], references: [id], onDelete: Cascade)
+  garment      Garment?    @relation(fields: [garmentId], references: [id], onDelete: SetNull)
+
+  @@index([wearRecordId])
+  @@index([garmentId])
+  @@map("wear_record_items")
 }

@@ -233,3 +233,23 @@ for (const [path, label, max] of [['tags', 'tag', 40], ['collections', 'collecti
     request: { headers: csrf, params: member }, responses: { 200: json('Updated', s.organizerView, true), ...authed, 404: NOT_FOUND },
   });
 }
+
+// ---- outfits (phase 05 slice 1): composition, snapshot of a confirmed wear
+const outfits = ["outfits"];
+route({
+  method: 'post', path: '/api/v1/outfits', tags: outfits, security: session,
+  summary: 'Create a DRAFT outfit from live garments of the owner (no garment status changes)',
+  request: { headers: idempotency, body: body(s.createOutfitBody) },
+  responses: { 201: json('Created', s.outfitView), 400: BAD, ...authed, 404: NOT_FOUND, 409: problem('IDEMPOTENCY_IN_PROGRESS'), 422: problem('IDEMPOTENCY_KEY_REUSED') },
+});
+route({ method: 'get', path: '/api/v1/outfits/{id}', tags: outfits, security: session, summary: 'One outfit with its items and the wear record id once worn', request: { params: id }, responses: { 200: json('Outfit', s.outfitView), 404: NOT_FOUND, ...authed } });
+route({
+  method: 'post', path: '/api/v1/outfits/{id}/confirm-worn', tags: outfits, security: session,
+  summary: 'Confirm the wear: outfit becomes WORN and one wear record snapshots its garments. Garment statuses are never changed',
+  request: { params: id, headers: idempotency },
+  responses: {
+    200: json('Confirmed (replays return the same answer)', s.confirmWornView), 400: BAD, ...authed, 404: NOT_FOUND,
+    409: problem('OUTFIT_ALREADY_WORN, OUTFIT_CANCELLED, GARMENT_UNAVAILABLE (a garment is in the trash) or IDEMPOTENCY_IN_PROGRESS'),
+    422: problem('IDEMPOTENCY_KEY_REUSED'),
+  },
+});

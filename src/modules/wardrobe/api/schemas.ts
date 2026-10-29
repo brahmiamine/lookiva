@@ -3,6 +3,7 @@ import { AppError } from '@/platform/http/errors';
 import { CATEGORY_CODES, COLOR_CODES, SEASON_CODES, SHADE_CODES, STYLE_CODES, SUBTYPE_CODES } from '../domain/catalog';
 import { WEATHER_FIELDS } from '../domain/garment';
 import { GARMENT_STATUSES } from '../domain/status';
+import { MAX_OUTFIT_ITEMS, OUTFIT_STATUSES } from '../domain/outfit';
 
 const colorRef = z.strictObject({ code: z.enum(COLOR_CODES), shade: z.enum(SHADE_CODES).nullish().transform((v) => v ?? null) });
 const unique = <T extends z.ZodType>(item: T, max: number) =>
@@ -185,3 +186,16 @@ export const organizerView = z.object({
   version: z.number().int(), createdAt: iso, updatedAt: iso,
 });
 export const organizerPage = z.object({ items: z.array(organizerView), nextCursor: z.string().optional() });
+
+// ---- outfits (phase 05 slice 1)
+export const createOutfitBody = z.strictObject({
+  name: text(80).nullish().transform((v) => v ?? null),
+  garmentIds: z.array(z.uuid()).max(MAX_OUTFIT_ITEMS),
+});
+export const outfitView = z.object({
+  id: z.uuid(), name: z.string().nullable(), status: z.enum(OUTFIT_STATUSES), version: z.number().int(),
+  wearRecordId: z.uuid().nullable(),
+  items: z.array(z.object({ garmentId: z.uuid(), name: z.string(), categoryCode: z.string(), colorCode: z.string() })),
+  createdAt: iso, updatedAt: iso,
+});
+export const confirmWornView = z.object({ outfit: outfitView, wearRecordId: z.uuid().nullable() });

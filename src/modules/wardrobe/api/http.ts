@@ -22,6 +22,7 @@ import { readPhotoUpload } from './upload';
 import { createPrismaCustomSubcategoryStore, createPrismaGarmentStore } from '../infrastructure/prisma-store';
 import { createPrismaOrganizerStore } from '../infrastructure/prisma-organizer-store';
 import { createOrganizerHttp } from './organizer-http';
+import { createOutfitHttp } from './outfit-http';
 import { queryOf, withEtag } from './respond';
 import type { GarmentUsageChecker } from '../application/ports';
 import * as s from './schemas';
@@ -71,6 +72,7 @@ export function createWardrobeHttp(deps: WardrobeHttpDeps) {
   return {
     /** Application service for in-process callers (duplication, tests). */
     photoService: photoSvc,
+    outfits: createOutfitHttp({ db, redis: deps.redis, clock, withSession: deps.withSession }),
     catalogCategories: withApi(async () => Response.json({ items: CATEGORIES }), opts),
     catalogColors: withApi(async () => Response.json({ items: COLORS, shades: SHADES }), opts),
     catalogOptions: withApi(
