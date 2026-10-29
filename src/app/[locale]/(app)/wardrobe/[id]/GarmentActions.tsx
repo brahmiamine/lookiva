@@ -25,6 +25,7 @@ export function GarmentActions({ garment, etag, statuses }: { garment: Garment; 
   const [confirm, setConfirm] = useState(false);
   const [notice, setNotice] = useState<NoticeData | null>(null);
   const noticeRef = useRef<HTMLDivElement>(null);
+  const copyKey = useRef(crypto.randomUUID());
   useFocusOn(noticeRef, notice);
 
   const unauthorized = (e: unknown) => e instanceof ApiError && e.status === 401 && (router.replace(`/${locale}/login`), true);
@@ -40,6 +41,23 @@ export function GarmentActions({ garment, etag, statuses }: { garment: Garment; 
     } catch (err) {
       if (unauthorized(err)) return;
       setNotice(err instanceof ApiError && err.code === 'VERSION_CONFLICT' ? { tone: 'warning', title: errors('conflict') } : genericNotice(err));
+    }
+    setBusy(false);
+  }
+
+  // Duplication copies the fields only (no photos, no history): the copy starts as AVAILABLE with its own id.
+  async function duplicate() {
+    if (busy) return;
+    setBusy(true);
+    setNotice(null);
+    try {
+      const r = await api<Garment>(`/garments/${garment.id}/duplicate`, { method: 'POST', body: {}, idempotent: copyKey.current });
+      router.push(`/${locale}/wardrobe/${r.data.id}`);
+      return;
+    } catch (err) {
+      if (unauthorized(err)) return;
+      if (!(err instanceof ApiError && err.code === 'NETWORK_ERROR')) copyKey.current = crypto.randomUUID();
+      setNotice(genericNotice(err));
     }
     setBusy(false);
   }
@@ -75,6 +93,11 @@ export function GarmentActions({ garment, etag, statuses }: { garment: Garment; 
           {t('changeStatus')}
         </Button>
       </div>
+
+      <Button variant="outline" className={BLOCK} onClick={duplicate} aria-disabled={busy || undefined}>
+        <Icon name="download" />
+        {t('duplicate')}
+      </Button>
 
       <Button variant="danger" className={BLOCK} onClick={() => setConfirm(true)}>
         <Icon name="trash" />

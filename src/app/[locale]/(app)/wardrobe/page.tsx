@@ -47,9 +47,14 @@ export default async function WardrobePage(props: { params: Promise<{ locale: st
           <h1 className={H1}>{t('title')}</h1>
           <p className={LEAD}>{t('lead')}</p>
         </div>
-        <Link href={`/${locale}/wardrobe/new`} className={ADD}>
-          {t('add')}
-        </Link>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <Link href={`/${locale}/wardrobe/trash`} className="inline-flex min-h-12 items-center px-2 font-bold text-primary underline underline-offset-[3px]">
+            {t('trashLink')}
+          </Link>
+          <Link href={`/${locale}/wardrobe/new`} className={ADD}>
+            {t('add')}
+          </Link>
+        </div>
       </header>
 
       <form method="get" role="search" className={`${CARD} grid grid-cols-1 gap-3 p-3.5 sm:grid-cols-[1fr_1fr_2fr_auto]`}>

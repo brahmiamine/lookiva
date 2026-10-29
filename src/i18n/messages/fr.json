@@ -310,13 +310,24 @@
       "primary": "Principale",
       "setPrimary": "Définir comme principale",
       "deletePhoto": "Supprimer la photo",
-      "photoN": "Photo {n}"
+      "photoN": "Photo {n}",
+      "duplicate": "Dupliquer",
+      "duplicated": "Copie créée."
     },
     "errors": {
       "conflict": "Ce vêtement a changé ailleurs. Rechargez la page avant de réessayer.",
       "photoLimit": "Ce vêtement a déjà 5 photos.",
       "photoTooLarge": "Photo trop lourde (10 Mo maximum).",
       "photoUnsupported": "Format non accepté : JPEG, PNG ou WebP uniquement."
+    },
+    "trashLink": "Corbeille",
+    "trash": {
+      "title": "Corbeille",
+      "lead": "Les vêtements restent ici 30 jours avant suppression définitive.",
+      "empty": "La corbeille est vide.",
+      "restore": "Restaurer",
+      "purgeOn": "Suppression définitive le {date}",
+      "restored": "Vêtement restauré."
     }
   }
 }

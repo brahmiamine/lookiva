@@ -310,13 +310,24 @@
       "primary": "Primary",
       "setPrimary": "Set as primary",
       "deletePhoto": "Delete photo",
-      "photoN": "Photo {n}"
+      "photoN": "Photo {n}",
+      "duplicate": "Duplicate",
+      "duplicated": "Copy created."
     },
     "errors": {
       "conflict": "This garment changed elsewhere. Reload the page before trying again.",
       "photoLimit": "This garment already has 5 photos.",
       "photoTooLarge": "Photo too large (10 MB maximum).",
       "photoUnsupported": "Unsupported format: JPEG, PNG or WebP only."
+    },
+    "trashLink": "Trash",
+    "trash": {
+      "title": "Trash",
+      "lead": "Garments stay here for 30 days before permanent deletion.",
+      "empty": "The trash is empty.",
+      "restore": "Restore",
+      "purgeOn": "Permanently deleted on {date}",
+      "restored": "Garment restored."
     }
   }
 }
