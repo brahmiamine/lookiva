@@ -73,6 +73,7 @@ const prefs = {
   aiEnabled: false,
   learningEnabled: false,
   thermalSensitivity: 'NEUTRAL' as const,
+  personalization: false,
   onboardingCompletedAt: new Date().toISOString(),
   version: 1,
 };

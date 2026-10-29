@@ -39,6 +39,15 @@ const schema = z
     STORAGE_LOCAL_DIR: unsetIfEmpty(z.string().min(1).optional()),
     // Per-user cap on stored photo bytes (default 1 GiB; owner decision pending).
     PHOTO_QUOTA_BYTES: unsetIfEmpty(z.coerce.number().int().positive().optional()),
+    // Phase 06. none = no provider: weather is reported unavailable / rules only. fake = deterministic local adapters (dev/test).
+    // Real weather and AI providers are owner decisions (ADR-10); none is wired.
+    WEATHER_PROVIDER: unsetIfEmpty(z.enum(['none', 'fake']).default('none')),
+    RECOMMENDATION_AI: unsetIfEmpty(z.enum(['none', 'fake']).default('none')),
+    WEATHER_CACHE_TTL_MIN: unsetIfEmpty(z.coerce.number().int().min(1).max(1440).default(30)),
+    // Provider calls per UTC day, all users (spend guard; ADR-08 pending).
+    WEATHER_DAILY_CALL_CAP: unsetIfEmpty(z.coerce.number().int().min(0).default(1000)),
+    // AI recommendation calls per user per UTC day (ADR-08 pending).
+    AI_RECOMMENDATION_DAILY_CAP: unsetIfEmpty(z.coerce.number().int().min(0).default(10)),
   })
   .superRefine((env, ctx) => {
     const emailsPossible = (env.EMAIL_TRANSPORT ?? 'outbox') !== 'none';

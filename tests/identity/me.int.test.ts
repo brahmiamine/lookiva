@@ -66,6 +66,7 @@ describe('preferences', () => {
       aiEnabled: false,
       learningEnabled: false,
       thermalSensitivity: 'NEUTRAL',
+      personalization: false,
       onboardingCompletedAt: null,
       version: 1,
     });

@@ -44,6 +44,7 @@ export type Preferences = {
   aiEnabled: boolean;
   learningEnabled: boolean;
   thermalSensitivity: ThermalSensitivity;
+  personalization: boolean;
   onboardingCompletedAt: Date | null;
   version: number;
 };

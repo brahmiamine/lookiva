@@ -3809,6 +3809,9 @@
                         "WARM"
                       ]
                     },
+                    "personalization": {
+                      "type": "boolean"
+                    },
                     "onboardingCompletedAt": {
                       "type": [
                         "string",
@@ -3830,6 +3833,7 @@
                     "aiEnabled",
                     "learningEnabled",
                     "thermalSensitivity",
+                    "personalization",
                     "onboardingCompletedAt",
                     "version"
                   ]
@@ -4097,6 +4101,9 @@
                       "NEUTRAL",
                       "WARM"
                     ]
+                  },
+                  "personalization": {
+                    "type": "boolean"
                   }
                 },
                 "additionalProperties": false
@@ -4164,6 +4171,9 @@
                         "WARM"
                       ]
                     },
+                    "personalization": {
+                      "type": "boolean"
+                    },
                     "onboardingCompletedAt": {
                       "type": [
                         "string",
@@ -4185,6 +4195,7 @@
                     "aiEnabled",
                     "learningEnabled",
                     "thermalSensitivity",
+                    "personalization",
                     "onboardingCompletedAt",
                     "version"
                   ]
@@ -4727,6 +4738,9 @@
                         "WARM"
                       ]
                     },
+                    "personalization": {
+                      "type": "boolean"
+                    },
                     "onboardingCompletedAt": {
                       "type": [
                         "string",
@@ -4748,6 +4762,7 @@
                     "aiEnabled",
                     "learningEnabled",
                     "thermalSensitivity",
+                    "personalization",
                     "onboardingCompletedAt",
                     "version"
                   ]
@@ -36657,6 +36672,2813 @@
           },
           "404": {
             "description": "NOT_FOUND (unknown or another user's resource)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED (Retry-After header; per user)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/weather": {
+      "get": {
+        "tags": [
+          "weather"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Normalized forecast of a local day and hour window (default 8..20) for the profile city, or `cityOverride` for this request only. Cached (TTL) behind a provider quota. When unavailable the answer is 200 with `weatherAvailable: false` and a `reason` (NO_PROVIDER, NO_LOCATION, CITY_NOT_FOUND, QUOTA, TIMEOUT, PROVIDER_ERROR, NO_DATA): a forecast is never invented",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "date",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer"
+            },
+            "required": false,
+            "name": "from",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer"
+            },
+            "required": false,
+            "name": "to",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "cityOverride",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Weather (or weatherAvailable:false)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "weatherAvailable": {
+                      "type": "boolean"
+                    },
+                    "reason": {
+                      "type": "string"
+                    },
+                    "date": {
+                      "type": "string",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                    },
+                    "from": {
+                      "type": "number"
+                    },
+                    "to": {
+                      "type": "number"
+                    },
+                    "location": {
+                      "type": "object",
+                      "properties": {
+                        "label": {
+                          "type": "string"
+                        },
+                        "latitude": {
+                          "type": "number"
+                        },
+                        "longitude": {
+                          "type": "number"
+                        },
+                        "timezone": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "label",
+                        "latitude",
+                        "longitude",
+                        "timezone"
+                      ]
+                    },
+                    "source": {
+                      "type": "string",
+                      "enum": [
+                        "CACHE",
+                        "PROVIDER"
+                      ]
+                    },
+                    "provider": {
+                      "type": "string"
+                    },
+                    "issuedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "summary": {
+                      "type": "object",
+                      "properties": {
+                        "hours": {
+                          "type": "number"
+                        },
+                        "tempAvgC": {
+                          "type": "number"
+                        },
+                        "feelsAvgC": {
+                          "type": "number"
+                        },
+                        "feelsMinC": {
+                          "type": "number"
+                        },
+                        "feelsMaxC": {
+                          "type": "number"
+                        },
+                        "precipMax": {
+                          "type": "number"
+                        },
+                        "windMax": {
+                          "type": "number"
+                        },
+                        "reliability": {
+                          "type": "string",
+                          "enum": [
+                            "HIGH",
+                            "MEDIUM",
+                            "LOW"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "hours",
+                        "tempAvgC",
+                        "feelsAvgC",
+                        "feelsMinC",
+                        "feelsMaxC",
+                        "precipMax",
+                        "windMax",
+                        "reliability"
+                      ]
+                    },
+                    "hours": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "hour": {
+                            "type": "number"
+                          },
+                          "tempC": {
+                            "type": "number"
+                          },
+                          "feelsLikeC": {
+                            "type": "number"
+                          },
+                          "precipProbability": {
+                            "type": "number"
+                          },
+                          "windKph": {
+                            "type": "number"
+                          },
+                          "reliability": {
+                            "type": "string",
+                            "enum": [
+                              "HIGH",
+                              "MEDIUM",
+                              "LOW"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "hour",
+                          "tempC",
+                          "feelsLikeC",
+                          "precipProbability",
+                          "windKph",
+                          "reliability"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "weatherAvailable",
+                    "date",
+                    "from",
+                    "to"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR or INVALID_JSON",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED (Retry-After header; per user)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recommendations/outfits": {
+      "post": {
+        "tags": [
+          "recommendations"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Up to `count` (max 3) DISTINCT outfit proposals from own, non-trashed, AVAILABLE garments only; fewer when the wardrobe cannot make more (never padded). Deterministic rules (weather/occasion > comfort > styles/colors > variety); optional AI only re-orders rule candidates (AI_RECOMMENDATIONS consent + daily cap, photos never sent). Unknown garment properties are listed per proposal in `assumptions` (never saved). Nothing is saved except the shown fingerprints of the session: send `sessionId` for \"another proposal\"",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "lookiva"
+              ]
+            },
+            "required": true,
+            "name": "X-Requested-With",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "date": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                  },
+                  "from": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 23
+                  },
+                  "to": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 23
+                  },
+                  "occasion": {
+                    "type": "string",
+                    "enum": [
+                      "CASUAL",
+                      "WORK",
+                      "FORMAL",
+                      "SPORT",
+                      "EVENING",
+                      "HOME",
+                      "TRADITIONAL"
+                    ]
+                  },
+                  "cityOverride": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "sessionId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "count": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 3,
+                    "default": 3
+                  },
+                  "useAi": {
+                    "type": "boolean",
+                    "default": true
+                  }
+                },
+                "required": [
+                  "date",
+                  "occasion"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Proposals (`exhausted: true` when fewer than requested; `manualFallback: true` when no weather)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "source": {
+                      "type": "string",
+                      "enum": [
+                        "RULES",
+                        "RULES+AI"
+                      ]
+                    },
+                    "sessionId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "date": {
+                      "type": "string",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                    },
+                    "occasion": {
+                      "type": "string",
+                      "enum": [
+                        "CASUAL",
+                        "WORK",
+                        "FORMAL",
+                        "SPORT",
+                        "EVENING",
+                        "HOME",
+                        "TRADITIONAL"
+                      ]
+                    },
+                    "comfort": {
+                      "type": "string",
+                      "enum": [
+                        "COLD",
+                        "NEUTRAL",
+                        "WARM"
+                      ]
+                    },
+                    "weatherAvailable": {
+                      "type": "boolean"
+                    },
+                    "manualFallback": {
+                      "type": "boolean"
+                    },
+                    "weather": {
+                      "type": "object",
+                      "properties": {
+                        "source": {
+                          "type": "string",
+                          "enum": [
+                            "CACHE",
+                            "PROVIDER"
+                          ]
+                        },
+                        "provider": {
+                          "type": "string"
+                        },
+                        "issuedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "summary": {
+                          "type": "object",
+                          "properties": {
+                            "hours": {
+                              "type": "number"
+                            },
+                            "tempAvgC": {
+                              "type": "number"
+                            },
+                            "feelsAvgC": {
+                              "type": "number"
+                            },
+                            "feelsMinC": {
+                              "type": "number"
+                            },
+                            "feelsMaxC": {
+                              "type": "number"
+                            },
+                            "precipMax": {
+                              "type": "number"
+                            },
+                            "windMax": {
+                              "type": "number"
+                            },
+                            "reliability": {
+                              "type": "string",
+                              "enum": [
+                                "HIGH",
+                                "MEDIUM",
+                                "LOW"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "hours",
+                            "tempAvgC",
+                            "feelsAvgC",
+                            "feelsMinC",
+                            "feelsMaxC",
+                            "precipMax",
+                            "windMax",
+                            "reliability"
+                          ]
+                        },
+                        "location": {
+                          "type": "string"
+                        },
+                        "reason": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "proposals": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "fingerprint": {
+                            "type": "string"
+                          },
+                          "items": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "garmentId": {
+                                  "type": "string",
+                                  "format": "uuid"
+                                },
+                                "role": {
+                                  "type": "string",
+                                  "enum": [
+                                    "TOP",
+                                    "BOTTOM",
+                                    "ONE_PIECE",
+                                    "OUTERWEAR",
+                                    "SHOES"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "garmentId",
+                                "role"
+                              ]
+                            }
+                          },
+                          "missing": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "enum": [
+                                "TOP",
+                                "BOTTOM",
+                                "ONE_PIECE",
+                                "OUTERWEAR",
+                                "SHOES"
+                              ]
+                            }
+                          },
+                          "reasons": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "code": {
+                                  "type": "string"
+                                },
+                                "params": {
+                                  "type": "object",
+                                  "additionalProperties": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "number"
+                                      }
+                                    ]
+                                  }
+                                }
+                              },
+                              "required": [
+                                "code"
+                              ]
+                            }
+                          },
+                          "warnings": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "code": {
+                                  "type": "string"
+                                },
+                                "params": {
+                                  "type": "object",
+                                  "additionalProperties": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "number"
+                                      }
+                                    ]
+                                  }
+                                }
+                              },
+                              "required": [
+                                "code"
+                              ]
+                            }
+                          },
+                          "assumptions": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "code": {
+                                  "type": "string"
+                                },
+                                "garmentId": {
+                                  "type": "string",
+                                  "format": "uuid"
+                                }
+                              },
+                              "required": [
+                                "code",
+                                "garmentId"
+                              ]
+                            }
+                          },
+                          "weatherSource": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "enum": [
+                              "CACHE",
+                              "PROVIDER",
+                              null
+                            ]
+                          },
+                          "issuedAt": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "fingerprint",
+                          "items",
+                          "missing",
+                          "reasons",
+                          "warnings",
+                          "assumptions",
+                          "weatherSource",
+                          "issuedAt"
+                        ]
+                      },
+                      "maxItems": 3
+                    },
+                    "exhausted": {
+                      "type": "boolean"
+                    },
+                    "ai": {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "USED",
+                            "NOT_CONFIGURED",
+                            "NO_CONSENT",
+                            "DISABLED",
+                            "QUOTA",
+                            "TIMEOUT",
+                            "ERROR",
+                            "INVALID_OUTPUT",
+                            "SKIPPED"
+                          ]
+                        },
+                        "used": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "dailyCap": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "status",
+                        "used",
+                        "dailyCap"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "source",
+                    "sessionId",
+                    "date",
+                    "occasion",
+                    "comfort",
+                    "weatherAvailable",
+                    "manualFallback",
+                    "weather",
+                    "proposals",
+                    "exhausted",
+                    "ai"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR or INVALID_JSON",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND (session unknown, expired or not yours)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "PAYLOAD_TOO_LARGE",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED (Retry-After header; per user)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recommendations/feedback": {
+      "post": {
+        "tags": [
+          "recommendations"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Records ACCEPT / REJECT / MODIFY of a proposal (garment ids snapshot; fingerprint computed by the server). Only influences ranking when preferences.personalization is true",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "lookiva"
+              ]
+            },
+            "required": true,
+            "name": "X-Requested-With",
+            "in": "header"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{8,128}$"
+            },
+            "required": true,
+            "name": "Idempotency-Key",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "sessionId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "ACCEPT",
+                      "REJECT",
+                      "MODIFY"
+                    ]
+                  },
+                  "garmentIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "minItems": 1,
+                    "maxItems": 12
+                  }
+                },
+                "required": [
+                  "action",
+                  "garmentIds"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Recorded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "fingerprint": {
+                      "type": "string"
+                    },
+                    "action": {
+                      "type": "string",
+                      "enum": [
+                        "ACCEPT",
+                        "REJECT",
+                        "MODIFY"
+                      ]
+                    },
+                    "garmentIds": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "format": "uuid"
+                      }
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "fingerprint",
+                    "action",
+                    "garmentIds",
+                    "createdAt"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR or IDEMPOTENCY_KEY_*",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND (a garment is unknown or not yours)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "PAYLOAD_TOO_LARGE",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "IDEMPOTENCY_KEY_REUSED",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED (Retry-After header; per user)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "recommendations"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Deletes ALL own feedback (outfits are untouched)",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "lookiva"
+              ]
+            },
+            "required": true,
+            "name": "X-Requested-With",
+            "in": "header"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Count",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "deleted": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "deleted"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED (Retry-After header; per user)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recommendations/feedback/{id}": {
+      "delete": {
+        "tags": [
+          "recommendations"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Deletes one feedback entry",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "lookiva"
+              ]
+            },
+            "required": true,
+            "name": "X-Requested-With",
+            "in": "header"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND (unknown or another user's resource)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED (Retry-After header; per user)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/outfits/{id}/weather-baseline": {
+      "post": {
+        "tags": [
+          "recommendations"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Remembers the forecast the outfit is planned against (send `{}` or a `cityOverride`). Needs a scheduled outfit (422 OUTFIT_NOT_SCHEDULED). Never changes the outfit",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "lookiva"
+              ]
+            },
+            "required": true,
+            "name": "X-Requested-With",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "cityOverride": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Baseline stored (or weatherAvailable:false)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "weatherAvailable": {
+                      "type": "boolean"
+                    },
+                    "reason": {
+                      "type": "string"
+                    },
+                    "issuedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "provider": {
+                      "type": "string"
+                    },
+                    "summary": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "hours": {
+                          "type": "number"
+                        },
+                        "tempAvgC": {
+                          "type": "number"
+                        },
+                        "feelsAvgC": {
+                          "type": "number"
+                        },
+                        "feelsMinC": {
+                          "type": "number"
+                        },
+                        "feelsMaxC": {
+                          "type": "number"
+                        },
+                        "precipMax": {
+                          "type": "number"
+                        },
+                        "windMax": {
+                          "type": "number"
+                        },
+                        "reliability": {
+                          "type": "string",
+                          "enum": [
+                            "HIGH",
+                            "MEDIUM",
+                            "LOW"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "hours",
+                        "tempAvgC",
+                        "feelsAvgC",
+                        "feelsMinC",
+                        "feelsMaxC",
+                        "precipMax",
+                        "windMax",
+                        "reliability"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "weatherAvailable"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR or INVALID_JSON",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND (unknown or another user's resource)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "PAYLOAD_TOO_LARGE",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "OUTFIT_NOT_SCHEDULED",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED (Retry-After header; per user)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/outfits/{id}/weather-impact": {
+      "get": {
+        "tags": [
+          "recommendations"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Compares the stored baseline forecast with a fresh one using fixed thresholds (temperature >= 5 C, precipitation probability >= 30 points, wind >= 20 km/h). Returns warnings and suggestion codes only: the outfit is NEVER replaced (`replaced` is always false)",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Impact",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "outfitId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "replaced": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "thresholds": {
+                      "type": "object",
+                      "properties": {
+                        "tempC": {
+                          "type": "number"
+                        },
+                        "precipPoints": {
+                          "type": "number"
+                        },
+                        "windKph": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "tempC",
+                        "precipPoints",
+                        "windKph"
+                      ]
+                    },
+                    "baselineAvailable": {
+                      "type": "boolean"
+                    },
+                    "weatherAvailable": {
+                      "type": [
+                        "boolean",
+                        "null"
+                      ]
+                    },
+                    "reason": {
+                      "type": "string"
+                    },
+                    "impact": {
+                      "type": "boolean"
+                    },
+                    "baselineIssuedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "currentIssuedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "before": {
+                      "type": "object",
+                      "properties": {
+                        "hours": {
+                          "type": "number"
+                        },
+                        "tempAvgC": {
+                          "type": "number"
+                        },
+                        "feelsAvgC": {
+                          "type": "number"
+                        },
+                        "feelsMinC": {
+                          "type": "number"
+                        },
+                        "feelsMaxC": {
+                          "type": "number"
+                        },
+                        "precipMax": {
+                          "type": "number"
+                        },
+                        "windMax": {
+                          "type": "number"
+                        },
+                        "reliability": {
+                          "type": "string",
+                          "enum": [
+                            "HIGH",
+                            "MEDIUM",
+                            "LOW"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "hours",
+                        "tempAvgC",
+                        "feelsAvgC",
+                        "feelsMinC",
+                        "feelsMaxC",
+                        "precipMax",
+                        "windMax",
+                        "reliability"
+                      ]
+                    },
+                    "after": {
+                      "type": "object",
+                      "properties": {
+                        "hours": {
+                          "type": "number"
+                        },
+                        "tempAvgC": {
+                          "type": "number"
+                        },
+                        "feelsAvgC": {
+                          "type": "number"
+                        },
+                        "feelsMinC": {
+                          "type": "number"
+                        },
+                        "feelsMaxC": {
+                          "type": "number"
+                        },
+                        "precipMax": {
+                          "type": "number"
+                        },
+                        "windMax": {
+                          "type": "number"
+                        },
+                        "reliability": {
+                          "type": "string",
+                          "enum": [
+                            "HIGH",
+                            "MEDIUM",
+                            "LOW"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "hours",
+                        "tempAvgC",
+                        "feelsAvgC",
+                        "feelsMinC",
+                        "feelsMaxC",
+                        "precipMax",
+                        "windMax",
+                        "reliability"
+                      ]
+                    },
+                    "changes": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "metric": {
+                            "type": "string",
+                            "enum": [
+                              "TEMPERATURE",
+                              "PRECIPITATION",
+                              "WIND"
+                            ]
+                          },
+                          "before": {
+                            "type": "number"
+                          },
+                          "after": {
+                            "type": "number"
+                          },
+                          "delta": {
+                            "type": "number"
+                          },
+                          "threshold": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "metric",
+                          "before",
+                          "after",
+                          "delta",
+                          "threshold"
+                        ]
+                      }
+                    },
+                    "warnings": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "suggestions": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "outfitId",
+                    "replaced",
+                    "thresholds",
+                    "baselineAvailable",
+                    "weatherAvailable",
+                    "impact",
+                    "changes",
+                    "warnings",
+                    "suggestions"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND (unknown or another user's resource)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "OUTFIT_NOT_SCHEDULED",
             "content": {
               "application/problem+json": {
                 "schema": {

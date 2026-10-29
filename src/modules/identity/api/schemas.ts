@@ -47,6 +47,7 @@ export const preferencesPatchBody = z
     aiEnabled: z.boolean().optional(),
     learningEnabled: z.boolean().optional(),
     thermalSensitivity: z.enum(THERMAL_SENSITIVITIES).optional(),
+    personalization: z.boolean().optional(),
   })
   .refine(pairedCoordinates, pairIssue);
 
@@ -106,6 +107,7 @@ export const preferencesResponse = z.object({
   aiEnabled: z.boolean(),
   learningEnabled: z.boolean(),
   thermalSensitivity: z.enum(THERMAL_SENSITIVITIES),
+  personalization: z.boolean(),
   onboardingCompletedAt: z.iso.datetime().nullable(),
   version: z.number().int(),
 });
