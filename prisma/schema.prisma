@@ -64,12 +64,13 @@ model User {
   deletionRequests    DeletionRequest[]
   exportRequests      ExportRequest[]
   garments            Garment[]
-  outfits             Outfit[]
-  wearRecords         WearRecord[]
   customSubcategories CustomSubcategory[]
   tags                Tag[]
   collections         Collection[]
   garmentSets         GarmentSet[]
+  outfits             Outfit[]
+  outfitTemplates     OutfitTemplate[]
+  wearRecords         WearRecord[]
 
   @@map("users")
 }
@@ -253,6 +254,7 @@ model Garment {
   collectionLinks     CollectionGarment[]
   setItems            GarmentSetItem[]
   outfitItems         OutfitItem[]
+  templateItems       OutfitTemplateItem[]
   wearItems           WearRecordItem[]
 
   @@index([ownerId, deletedAt, id])
@@ -429,62 +431,118 @@ model GarmentSetItem {
   @@map("garment_set_items")
 }
 
-/// Phase 05: a composition of garments for one planned or worn look. Status is one of DRAFT, PLANNED, WORN, CANCELLED.
-model Outfit {
-  id        String       @id @db.Char(36)
-  ownerId   String       @db.Char(36)
-  name      String?      @db.VarChar(80)
-  status    String       @default("DRAFT") @db.VarChar(16)
-  plannedFor DateTime?   @db.DateTime(3)
-  occasion  String?      @db.VarChar(40)
-  version   Int          @default(1)
-  createdAt DateTime     @db.DateTime(3)
-  updatedAt DateTime     @db.DateTime(3)
-  owner     User         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  items     OutfitItem[]
-  wears     WearRecord[]
+// ---- Phase 05: outfits, templates, wear records. Planning (Outfit) is separate from usage (WearRecord) and current state (Garment.status).
 
+/// startsAt/endsAt are UTC; localDate/localTime/timezone (IANA) are the user's wall clock at the start (derived by the server). A DRAFT may lack all of them.
+model Outfit {
+  id           String         @id @db.Char(36)
+  ownerId      String         @db.Char(36)
+  title        String?        @db.VarChar(120)
+  /// DRAFT | PLANNED | WORN | CANCELLED
+  status       String         @default("DRAFT") @db.VarChar(12)
+  occasion     String?        @db.VarChar(80)
+  startsAt     DateTime?      @db.DateTime(3)
+  endsAt       DateTime?      @db.DateTime(3)
+  localDate    DateTime?      @db.Date
+  localTime    String?        @db.VarChar(5)
+  timezone     String?        @db.VarChar(64)
+  version      Int            @default(1)
+  createdAt    DateTime       @db.DateTime(3)
+  updatedAt    DateTime       @db.DateTime(3)
+  owner        User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  items        OutfitItem[]
+  wearRecords  WearRecord[]
+
+  @@index([ownerId, localDate, startsAt])
   @@index([ownerId, status])
-  @@index([ownerId, plannedFor])
   @@map("outfits")
 }
 
 model OutfitItem {
+  id        String  @id @db.Char(36)
   outfitId  String  @db.Char(36)
   garmentId String  @db.Char(36)
+  role      String  @db.VarChar(12)
+  position  Int
   outfit    Outfit  @relation(fields: [outfitId], references: [id], onDelete: Cascade)
   garment   Garment @relation(fields: [garmentId], references: [id], onDelete: Cascade)
 
-  @@id([outfitId, garmentId])
+  @@unique([outfitId, garmentId])
   @@index([garmentId])
   @@map("outfit_items")
 }
 
-/// The record of a confirmed wear. Items are a snapshot: they stay readable after the garment is edited or purged.
-model WearRecord {
-  id        String           @id @db.Char(36)
-  ownerId   String           @db.Char(36)
-  outfitId  String?          @db.Char(36)
-  wornAt    DateTime         @db.DateTime(3)
-  createdAt DateTime         @db.DateTime(3)
-  owner     User             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  outfit    Outfit?          @relation(fields: [outfitId], references: [id], onDelete: SetNull)
-  items     WearRecordItem[]
+model OutfitTemplate {
+  id        String               @id @db.Char(36)
+  ownerId   String               @db.Char(36)
+  name      String               @db.VarChar(80)
+  occasion  String?              @db.VarChar(80)
+  version   Int                  @default(1)
+  createdAt DateTime             @db.DateTime(3)
+  updatedAt DateTime             @db.DateTime(3)
+  owner     User                 @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  items     OutfitTemplateItem[]
 
-  @@index([ownerId, wornAt])
-  @@index([outfitId])
+  @@index([ownerId, id])
+  @@map("outfit_templates")
+}
+
+model OutfitTemplateItem {
+  id         String         @id @db.Char(36)
+  templateId String         @db.Char(36)
+  garmentId  String         @db.Char(36)
+  role       String         @db.VarChar(12)
+  position   Int
+  template   OutfitTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  garment    Garment        @relation(fields: [garmentId], references: [id], onDelete: Cascade)
+
+  @@unique([templateId, garmentId])
+  @@index([garmentId])
+  @@map("outfit_template_items")
+}
+
+/// activeSlot is 1 while ACTIVE and NULL once INVALIDATED: UNIQUE(outfitId, activeSlot) = at most one active record per outfit.
+model WearRecord {
+  id                 String           @id @db.Char(36)
+  ownerId            String           @db.Char(36)
+  outfitId           String           @db.Char(36)
+  title              String?          @db.VarChar(120)
+  occasion           String?          @db.VarChar(80)
+  /// ACTIVE | INVALIDATED
+  status             String           @default("ACTIVE") @db.VarChar(12)
+  activeSlot         Int?
+  confirmedAt        DateTime         @db.DateTime(3)
+  localDate          DateTime         @db.Date
+  localTime          String           @db.VarChar(5)
+  timezone           String           @db.VarChar(64)
+  version            Int              @default(1)
+  invalidatedAt      DateTime?        @db.DateTime(3)
+  invalidationReason String?          @db.VarChar(500)
+  createdAt          DateTime         @db.DateTime(3)
+  owner              User             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  outfit             Outfit           @relation(fields: [outfitId], references: [id], onDelete: Cascade)
+  items              WearRecordItem[]
+
+  @@unique([outfitId, activeSlot])
+  @@index([ownerId, status, confirmedAt])
   @@map("wear_records")
 }
 
+/// Immutable snapshot of one worn garment. No photo reference. garmentId becomes NULL when the garment is purged.
 model WearRecordItem {
-  id           String      @id @db.Char(36)
-  wearRecordId String      @db.Char(36)
-  garmentId    String?     @db.Char(36)
-  garmentName  String      @db.VarChar(120)
-  categoryCode String      @db.VarChar(32)
-  colorCode    String      @db.VarChar(24)
-  wearRecord   WearRecord  @relation(fields: [wearRecordId], references: [id], onDelete: Cascade)
-  garment      Garment?    @relation(fields: [garmentId], references: [id], onDelete: SetNull)
+  id                 String     @id @db.Char(36)
+  wearRecordId       String     @db.Char(36)
+  garmentId          String?    @db.Char(36)
+  role               String     @db.VarChar(12)
+  position           Int
+  nickname           String?    @db.VarChar(80)
+  categoryCode       String     @db.VarChar(32)
+  subtypeCode        String?    @db.VarChar(48)
+  customSubtypeLabel String?    @db.VarChar(60)
+  primaryColorCode   String     @db.VarChar(24)
+  extraColorCodes    Json
+  wearRecord         WearRecord @relation(fields: [wearRecordId], references: [id], onDelete: Cascade)
+  garment            Garment?   @relation(fields: [garmentId], references: [id], onDelete: SetNull)
 
   @@index([wearRecordId])
   @@index([garmentId])

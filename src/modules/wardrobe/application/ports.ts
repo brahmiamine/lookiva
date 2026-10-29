@@ -41,7 +41,7 @@ export type BulkFailure = { id: string; code: 'NOT_FOUND' | 'VERSION_CONFLICT'; 
 /** `changed` were written; `unchanged` already had the requested status (SET_STATUS only: no event, no version bump). */
 export type BulkResult = { ok: true; changed: string[]; unchanged: string[] } | { ok: false; failures: BulkFailure[] };
 
-/** Outfits do not exist yet (phase 05): the default checker reports nothing. Warnings are advisory, never blocking. */
+/** Implemented by the outfits module (phase 05); the default checker reports nothing. Warnings are advisory, never blocking. */
 export type UsageWarning = { garmentId: string; kind: string; count: number };
 export interface GarmentUsageChecker {
   check(ownerId: OwnerId, garmentIds: string[]): Promise<UsageWarning[]>;
@@ -60,7 +60,7 @@ export interface GarmentStore extends OwnerScopedRepository<GarmentView> {
   /** Compare-and-set on `expectedVersion`; null = the version moved (or the garment is gone). */
   update(ownerId: OwnerId, id: string, expectedVersion: number, data: GarmentData, now: Date): Promise<GarmentView | null>;
   /** Compare-and-set + history event in one transaction; null as above. */
-  changeStatus(ownerId: OwnerId, id: string, expectedVersion: number, to: GarmentStatus, note: string | null, now: Date): Promise<GarmentView | null>;
+  changeStatus(ownerId: OwnerId, id: string, expectedVersion: number, to: GarmentStatus, note: string | null, now: Date, source?: string): Promise<GarmentView | null>;
   softDelete(ownerId: OwnerId, id: string, now: Date): Promise<boolean>;
   listStatusEvents(ownerId: OwnerId, garmentId: string, page: PageArg): Promise<Page<StatusEventView>>;
   /** Garments of the owner, trashed ones included (they still occupy storage). */
@@ -99,4 +99,28 @@ export interface CustomSubcategoryStore extends OwnerScopedRepository<CustomSubc
    * 'in_use' = garments still reference it (or the target vanished): nothing changed.
    */
   remove(ownerId: OwnerId, id: string, target: { subtypeCode: string } | { customSubcategoryId: string } | null, now: Date): Promise<'ok' | 'in_use' | 'missing'>;
+}
+
+/** What other modules (outfits) may know about a garment: no photo, no purchase data. */
+export type GarmentRef = {
+  id: string;
+  nickname: string | null;
+  categoryCode: string;
+  subtypeCode: string | null;
+  customSubtypeLabel: string | null;
+  primaryColorCode: string;
+  extraColorCodes: string[];
+  status: GarmentStatus;
+  version: number;
+  trashed: boolean;
+};
+export type SetStatusResult = { ok: true; ref: GarmentRef } | { ok: false; code: 'NOT_FOUND' | 'VERSION_CONFLICT' | 'NOT_ELIGIBLE'; status?: GarmentStatus; currentVersion?: number };
+/** Public port for other modules: owner scoped, goes through the same compare-and-set and status-event path as the API. */
+export interface GarmentGateway {
+  /** Own garments among `ids`, trashed ones included (flagged); unknown and foreign ids are simply absent. */
+  find(ownerId: OwnerId, ids: string[]): Promise<GarmentRef[]>;
+  /** Own, non-trashed garment to `to` (history event with `source`). `onlyFrom`: refuse (NOT_ELIGIBLE) from any other status. */
+  setStatus(ownerId: OwnerId, id: string, to: GarmentStatus, o: { source: string; note: string | null; expectedVersion?: number; onlyFrom?: GarmentStatus[] }): Promise<SetStatusResult>;
+  /** Ids of own, non-trashed AVAILABLE garments of a category (replacement suggestions). */
+  availableInCategory(ownerId: OwnerId, categoryCode: string, excludeIds: string[], limit: number): Promise<string[]>;
 }

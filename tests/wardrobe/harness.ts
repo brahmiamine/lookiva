@@ -94,5 +94,5 @@ export function wardrobeHarness(opts: { storage?: ObjectStorage; remover?: Backg
 
   const shirt = (extra: Json = {}): Json => ({ categoryCode: 'TOPS', subtypeCode: 'SHIRT', primaryColor: { code: 'BLUE' }, ...extra });
   const etag = (res: { headers: Headers }) => res.headers.get('etag') as string;
-  return { ...h, api, organizers, photos, storage, http, clock, ORIGIN, shirt, etag, wardrobeIdem: idem };
+  return { ...h, api, organizers, photos, storage, http, withSession: h.http.withSession, clock, ORIGIN, shirt, etag, wardrobeIdem: idem };
 }

@@ -1,6 +1,6 @@
-import { wardrobeRoutes } from '@/modules/wardrobe';
+import { outfitsRoutes } from '@/modules/outfits';
 
 export const dynamic = 'force-dynamic';
 
-export const GET = wardrobeRoutes.listOutfits;
-export const POST = wardrobeRoutes.createOutfit;
+export const GET = outfitsRoutes.listOutfits;
+export const POST = outfitsRoutes.createOutfit;
