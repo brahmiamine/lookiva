@@ -55,6 +55,7 @@ describe('parseEnv phase 03 rules', () => {
     EMAIL_TRANSPORT: 'none',
     APP_ORIGIN: 'https://app.example.com',
     TRUST_PROXY: 'true',
+    STORAGE_LOCAL_DIR: '/var/lib/lookiva/storage',
   };
   const fails = (raw: Record<string, string | undefined>, name: string) => {
     expect(() => parseEnv(raw)).toThrow(EnvError);
@@ -121,11 +122,19 @@ describe('parseEnv fix round 1 (APP_ORIGIN, TRUST_PROXY)', () => {
     EMAIL_TRANSPORT: 'none',
     APP_ORIGIN: 'https://app.example.com',
     TRUST_PROXY: 'true',
+    STORAGE_LOCAL_DIR: '/var/lib/lookiva/storage',
   };
   const fails = (raw: Record<string, string | undefined>, name: string) => {
     expect(() => parseEnv(raw)).toThrow(EnvError);
     expect(() => parseEnv(raw)).toThrow(name);
   };
+
+  it('production_requires_an_explicit_storage_dir_and_quota_defaults_to_1GiB', () => {
+    fails({ ...prod, STORAGE_LOCAL_DIR: undefined }, 'STORAGE_LOCAL_DIR');
+    expect(parseEnv(prod).PHOTO_QUOTA_BYTES).toBe(1024 ** 3);
+    expect(parseEnv({ ...prod, PHOTO_QUOTA_BYTES: '5000' }).PHOTO_QUOTA_BYTES).toBe(5000);
+    expect(parseEnv(valid).STORAGE_LOCAL_DIR).toBe('.storage');
+  });
 
   it('app_origin_is_required_whenever_emails_can_be_sent', () => {
     fails({ ...valid, APP_ORIGIN: undefined }, 'APP_ORIGIN'); // outbox is the dev/test default

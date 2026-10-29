@@ -11,11 +11,11 @@ export { closeAll, db };
 export type Json = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
 /** Identity harness (real sessions) + the wardrobe API on the same db/redis. */
-export function wardrobeHarness(opts: { storage?: ObjectStorage; remover?: BackgroundRemover; usage?: GarmentUsageChecker } = {}) {
+export function wardrobeHarness(opts: { storage?: ObjectStorage; remover?: BackgroundRemover; usage?: GarmentUsageChecker; limits?: { maxGarments?: number; maxGroups?: number; photoQuotaBytes?: number } } = {}) {
   const h = harness();
   const storage = opts.storage ?? new MemoryObjectStorage();
   const clock = new FakeClock(new Date());
-  const http = createWardrobeHttp({ db, redis, clock, withSession: h.http.withSession, rateLimitPrefix: `rl-w-${randomUUID()}`, storage, remover: opts.remover ?? new WhiteKeyRemover(), usage: opts.usage });
+  const http = createWardrobeHttp({ db, redis, clock, withSession: h.http.withSession, rateLimitPrefix: `rl-w-${randomUUID()}`, storage, remover: opts.remover ?? new WhiteKeyRemover(), usage: opts.usage, limits: opts.limits });
   const idem = () => ({ 'idempotency-key': `k-${randomUUID()}` });
   const call = (handler: (r: Request) => Promise<Response>, path: string, cookie: string | undefined, init: { method?: string; body?: unknown; headers?: Record<string, string> } = {}) =>
     h.send(handler, h.request(path, { cookie, ...init }));

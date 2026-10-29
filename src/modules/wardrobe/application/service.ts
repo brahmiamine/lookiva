@@ -3,7 +3,7 @@ import { assertIfMatch } from '@/platform/http/etag';
 import { AppError } from '@/platform/http/errors';
 import type { OwnerId, Page } from '@/platform/kernel';
 import { SUBTYPE_CATEGORY, categoryOfSubtype } from '../domain/catalog';
-import { classificationError, normalizeLabel, purchaseError } from '../domain/garment';
+import { MAX_GARMENTS_PER_USER, classificationError, normalizeLabel, purchaseError } from '../domain/garment';
 import { canTransition, type GarmentStatus } from '../domain/status';
 import { noUsage, type BulkOp, type CustomSubcategoryStore, type CustomSubcategoryView, type GarmentData, type GarmentFilter, type GarmentStore, type GarmentUsageChecker, type GarmentView, type PageArg, type StatusEventView, type TrashedGarmentView, type UsageWarning } from './ports';
 
@@ -20,8 +20,12 @@ export type BulkRequest = { ids: string[]; expectedVersions: Record<string, numb
 );
 export type BulkOutcome = { action: string; affected: number; changedIds: string[]; unchangedIds: string[]; warnings: UsageWarning[] };
 
-export function createWardrobeService(deps: { garments: GarmentStore; customs: CustomSubcategoryStore; clock: Clock; usage?: GarmentUsageChecker }) {
+export function createWardrobeService(deps: { garments: GarmentStore; customs: CustomSubcategoryStore; clock: Clock; usage?: GarmentUsageChecker; maxGarments?: number }) {
   const { garments, customs, clock } = deps;
+  const maxGarments = deps.maxGarments ?? MAX_GARMENTS_PER_USER;
+  const assertRoom = async (owner: OwnerId) => {
+    if ((await garments.countOwned(owner)) >= maxGarments) throw new AppError('GARMENT_LIMIT_REACHED', 409, `A wardrobe holds at most ${maxGarments} garments (trash included): purge or delete some`);
+  };
   const usage = deps.usage ?? noUsage;
 
   const ownGarment = async (owner: OwnerId, id: string): Promise<GarmentView> => {
@@ -56,6 +60,7 @@ export function createWardrobeService(deps: { garments: GarmentStore; customs: C
   return {
     async createGarment(owner: OwnerId, data: GarmentData): Promise<GarmentView> {
       await assertValid(owner, data);
+      await assertRoom(owner);
       return garments.create(owner, data, clock.now());
     },
 
@@ -87,6 +92,7 @@ export function createWardrobeService(deps: { garments: GarmentStore; customs: C
       if (overrides.customSubcategoryId != null && overrides.subtypeCode === undefined) base.subtypeCode = null;
       const data = { ...base, ...overrides };
       await assertValid(owner, data);
+      await assertRoom(owner);
       const created = await garments.create(owner, data, clock.now());
       if (copy) {
         try {

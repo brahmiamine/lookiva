@@ -14420,7 +14420,7 @@
             "sessionCookie": []
           }
         ],
-        "summary": "Upload a photo (multipart/form-data, field `file`; optional `rotate`, `crop`). The type is detected from the bytes; the first photo is primary. The original is kept privately; optimized (max 1600 px) and thumbnail (max 400 px) WebP derivatives are stored without EXIF/GPS. Photos are never sent to any AI",
+        "summary": "Upload a photo (multipart/form-data, field `file`; optional `rotate`, `crop`). The type is detected from the bytes; the first photo is primary. The original is kept privately; the original is re-encoded without any metadata (EXIF/GPS), and optimized (max 1600 px) and thumbnail (max 400 px) WebP derivatives are stored without EXIF/GPS. Upload and cutout share a 20/min/user budget (429). Not idempotent: a retry may add another photo. Photos are never sent to any AI",
         "parameters": [
           {
             "schema": {
@@ -14714,7 +14714,7 @@
             }
           },
           "409": {
-            "description": "PHOTO_LIMIT_REACHED (5 photos per garment)",
+            "description": "PHOTO_LIMIT_REACHED (5 photos per garment) or QUOTA_EXCEEDED (per-user stored bytes)",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -14938,7 +14938,7 @@
             }
           },
           "429": {
-            "description": "RATE_LIMITED (Retry-After header; per user)",
+            "description": "RATE_LIMITED",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -16072,7 +16072,7 @@
             "sessionCookie": []
           }
         ],
-        "summary": "Duplicate: a NEW garment (new id, version 1, AVAILABLE, fresh dates) prefilled from the source; any field of the body overrides the copied value. No status history, no favorite. `copyPhotos` shares the stored objects (they survive until every owner row is gone). Idempotent on the key",
+        "summary": "Duplicate: a NEW garment (new id, version 1, AVAILABLE, fresh dates) prefilled from the source; any field of the body overrides the copied value. No status history, no favorite (409 GARMENT_LIMIT_REACHED at the cap). `copyPhotos` shares the stored objects (they survive until every owner row is gone). Idempotent on the key",
         "parameters": [
           {
             "schema": {

@@ -1,5 +1,6 @@
 import sharp from 'sharp';
 import { describe, expect, it } from 'vitest';
+import { IMAGE_SLOTS, imageWork } from '@/platform/concurrency';
 import { AppError } from '@/platform/http/errors';
 import { cropError, detectImage } from '@/modules/wardrobe/domain/photo';
 import { createSharpProcessor } from '@/modules/wardrobe/infrastructure/sharp-processor';
@@ -51,13 +52,36 @@ describe('image processor', () => {
     expect((await sharp(src).metadata()).exif).toBeDefined(); // fixture really carries EXIF
     expect(src.includes(Buffer.from('TestCam'))).toBe(true);
     const r = await run(src, 'image/jpeg');
-    for (const d of [r.optimized, r.thumb]) {
+    for (const d of [r.original, r.optimized, r.thumb]) {
       const m = await sharp(d).metadata();
       expect(m.exif).toBeUndefined();
       expect(m.icc).toBeUndefined();
       expect(Buffer.from(d).includes(Buffer.from('TestCam'))).toBe(false);
       expect(Buffer.from(d).includes(Buffer.from('Exif'))).toBe(false);
     }
+  });
+
+  it('the_original_is_metadata_free_same_format_and_oriented', async () => {
+    const src = await jpeg(60, 40, { gps: true, orientation: 6 });
+    const r = await createSharpProcessor().process(src, 'image/jpeg', { rotate: 0 });
+    const m = await sharp(r.original).metadata();
+    expect(m).toMatchObject({ format: 'jpeg', width: 40, height: 60 });
+    expect(m.exif).toBeUndefined();
+    expect(Buffer.from(r.original).includes(Buffer.from('TestCam'))).toBe(false);
+    for (const [bytes, format] of [[await png(), 'png'], [await webp(), 'webp']] as const) {
+      expect((await sharp((await createSharpProcessor().process(bytes, `image/${format}`, { rotate: 0 })).original).metadata()).format).toBe(format);
+    }
+  });
+
+  it('image_work_never_exceeds_the_process_wide_semaphore', async () => {
+    const before = imageWork.stats().peak;
+    const src = await jpeg(400, 300);
+    const p = createSharpProcessor();
+    await Promise.all(Array.from({ length: 8 }, () => p.process(src, 'image/jpeg', { rotate: 0 })));
+    const { peak, active, waiting } = imageWork.stats();
+    expect(peak).toBeLessThanOrEqual(IMAGE_SLOTS);
+    expect(peak).toBeGreaterThanOrEqual(Math.max(1, before));
+    expect([active, waiting]).toEqual([0, 0]);
   });
 
   it('applies_exif_orientation', async () => {

@@ -1,6 +1,7 @@
 import type { Clock } from '@/platform/clock/port';
 import { AppError } from '@/platform/http/errors';
 import { newId } from '@/platform/http/ids';
+import { imageWork } from '@/platform/concurrency';
 import type { OwnerId } from '@/platform/kernel';
 import type { BackgroundRemover } from '@/platform/background-remover/port';
 import type { ObjectStorage } from '@/platform/storage/objects';
@@ -11,6 +12,7 @@ import type { ImageProcessor, PhotoRow, PhotoStore, PhotoView } from './photo-po
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const notFound = (what: string) => new AppError('NOT_FOUND', 404, `${what} not found`);
+const quotaExceeded = () => new AppError('QUOTA_EXCEEDED', 409, 'Your photo storage quota is full: delete photos or purge the trash');
 const full = () => new AppError('PHOTO_LIMIT_REACHED', 409, `A garment holds at most ${MAX_PHOTOS_PER_GARMENT} photos`);
 
 export const toPhotoView = (r: PhotoRow): PhotoView => ({
@@ -37,6 +39,8 @@ export type PhotoDeps = {
   remover: BackgroundRemover;
   clock: Clock;
   log: Logger;
+  /** Per-user cap on stored photo bytes (owner decision pending: ADR). */
+  quotaBytes: number;
 };
 
 export function createPhotoService(d: PhotoDeps) {
@@ -64,6 +68,7 @@ export function createPhotoService(d: PhotoDeps) {
     async assertCanUpload(owner: OwnerId, garmentId: string): Promise<void> {
       await ownGarment(owner, garmentId);
       if ((await photos.list(owner, garmentId)).length >= MAX_PHOTOS_PER_GARMENT) throw full();
+      if ((await photos.storedBytes(owner)) >= d.quotaBytes) throw quotaExceeded();
     },
 
     async upload(owner: OwnerId, garmentId: string, file: { bytes: Uint8Array; declaredMime: string; rotate: number; crop?: Crop }): Promise<PhotoView> {
@@ -74,14 +79,15 @@ export function createPhotoService(d: PhotoDeps) {
       const written: string[] = [];
       try {
         // Objects first, row second: a crash in between leaves unreferenced objects, never a row without bytes.
-        for (const [key, body, type] of [[k.original, file.bytes, img.mime], [k.optimized, img.optimized, 'image/webp'], [k.thumb, img.thumb, 'image/webp']] as const) {
+        for (const [key, body, type] of [[k.original, img.original, img.mime], [k.optimized, img.optimized, 'image/webp'], [k.thumb, img.thumb, 'image/webp']] as const) {
           await storage.put(key, body, type);
           written.push(key);
         }
         const row = await photos.add(owner, {
           id, garmentId, ownerId: owner, originalKey: k.original, optimizedKey: k.optimized, thumbKey: k.thumb,
-          mime: img.mime, bytes: file.bytes.byteLength, width: img.width, height: img.height, sha256: img.sha256, createdAt: d.clock.now(),
-        });
+          mime: img.mime, bytes: img.original.byteLength, width: img.width, height: img.height, sha256: img.sha256, createdAt: d.clock.now(),
+        }, d.quotaBytes);
+        if (row === 'quota') throw quotaExceeded();
         if (row === 'full') throw full();
         if (row === 'gone') throw notFound('Garment');
         return toPhotoView(row);
@@ -128,19 +134,19 @@ export function createPhotoService(d: PhotoDeps) {
       try {
         const src = await storage.get(r.optimizedKey);
         if (!src) throw new Error('optimized object missing');
-        const png = await d.remover.remove(new Uint8Array(await new Response(src).arrayBuffer()));
+        const png = await imageWork.run(async () => d.remover.remove(new Uint8Array(await new Response(src).arrayBuffer())));
         key = `photos/${owner}/${photoId}/cutout-${newId()}.png`;
         await storage.put(key, png, 'image/png');
         const next = await photos.setCutout(owner, garmentId, photoId, { status: 'READY', key });
         if (!next) throw notFound('Photo');
-        await release([r.cutoutKey]);
-        return toPhotoView(next);
+        await release([next.previousKey]); // the key replaced at update time, so concurrent cutouts leak nothing
+        return toPhotoView(next.row);
       } catch (err) {
         if (key) await storage.delete(key).catch(() => undefined);
         if (err instanceof AppError) throw err;
         d.log.warn({ err, photoId }, 'cutout failed; original photo kept');
         const next = await photos.setCutout(owner, garmentId, photoId, { status: 'FAILED' });
-        return toPhotoView(next ?? r);
+        return toPhotoView(next?.row ?? r);
       }
     },
 

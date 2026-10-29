@@ -133,11 +133,11 @@ route({
 });
 route({
   method: 'post', path: '/api/v1/garments/{id}/photos', tags: pht, security: session,
-  summary: 'Upload a photo (multipart/form-data, field `file`; optional `rotate`, `crop`). The type is detected from the bytes; the first photo is primary. The original is kept privately; optimized (max 1600 px) and thumbnail (max 400 px) WebP derivatives are stored without EXIF/GPS. Photos are never sent to any AI',
+  summary: 'Upload a photo (multipart/form-data, field `file`; optional `rotate`, `crop`). The type is detected from the bytes; the first photo is primary. The original is kept privately; the original is re-encoded without any metadata (EXIF/GPS), and optimized (max 1600 px) and thumbnail (max 400 px) WebP derivatives are stored without EXIF/GPS. Upload and cutout share a 20/min/user budget (429). Not idempotent: a retry may add another photo. Photos are never sent to any AI',
   request: { headers: csrf, params: id, body: { content: { 'multipart/form-data': { schema: s.photoUploadBody } } } },
   responses: {
     201: json('Created', s.photoView), 400: BAD, ...authed, 404: NOT_FOUND,
-    409: problem('PHOTO_LIMIT_REACHED (5 photos per garment)'),
+    409: problem('PHOTO_LIMIT_REACHED (5 photos per garment) or QUOTA_EXCEEDED (per-user stored bytes)'), 429: problem('RATE_LIMITED'),
     413: problem('PAYLOAD_TOO_LARGE (over 10 MiB; the body is cut off while streaming)'),
     415: problem('UNSUPPORTED_IMAGE_FORMAT (not JPEG/PNG/WebP; HEIC refused) or MIME_MISMATCH (declared type differs from the bytes) or UNSUPPORTED_MEDIA_TYPE'),
     422: problem('INVALID_IMAGE (corrupt, or above 50 megapixels)'),
@@ -169,7 +169,7 @@ route({
 
 route({
   method: 'post', path: '/api/v1/garments/{id}/duplicate', tags: gar, security: session,
-  summary: 'Duplicate: a NEW garment (new id, version 1, AVAILABLE, fresh dates) prefilled from the source; any field of the body overrides the copied value. No status history, no favorite. `copyPhotos` shares the stored objects (they survive until every owner row is gone). Idempotent on the key',
+  summary: 'Duplicate: a NEW garment (new id, version 1, AVAILABLE, fresh dates) prefilled from the source; any field of the body overrides the copied value. No status history, no favorite (409 GARMENT_LIMIT_REACHED at the cap). `copyPhotos` shares the stored objects (they survive until every owner row is gone). Idempotent on the key',
   request: { headers: idempotency, params: id, body: body(s.garmentDuplicateBody) },
   responses: {
     201: json('Created (ETag W/"v1")', s.garmentView, true), 400: BAD, ...authed, 404: NOT_FOUND,

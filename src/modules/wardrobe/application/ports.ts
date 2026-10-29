@@ -63,6 +63,8 @@ export interface GarmentStore extends OwnerScopedRepository<GarmentView> {
   changeStatus(ownerId: OwnerId, id: string, expectedVersion: number, to: GarmentStatus, note: string | null, now: Date): Promise<GarmentView | null>;
   softDelete(ownerId: OwnerId, id: string, now: Date): Promise<boolean>;
   listStatusEvents(ownerId: OwnerId, garmentId: string, page: PageArg): Promise<Page<StatusEventView>>;
+  /** Garments of the owner, trashed ones included (they still occupy storage). */
+  countOwned(ownerId: OwnerId): Promise<number>;
   listTrash(ownerId: OwnerId, page: PageArg): Promise<Page<TrashedGarmentView>>;
   /** 'missing' = not trashed / unknown / purged, 'expired' = purgeAfter passed (not purged yet), 'custom_missing' = its custom subcategory is gone. */
   restore(ownerId: OwnerId, id: string, now: Date): Promise<GarmentView | 'missing' | 'expired' | 'custom_missing'>;

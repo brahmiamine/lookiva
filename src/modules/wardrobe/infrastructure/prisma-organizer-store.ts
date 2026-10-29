@@ -16,7 +16,7 @@ const CONFIG = {
 
 type Row = { id: string; version: number; createdAt: Date; updatedAt: Date; items: { garmentId: string; garment: { deletedAt: Date | null } }[] } & Record<string, unknown>;
 /* eslint-disable @typescript-eslint/no-explicit-any -- the three Prisma delegates are structurally identical; typing them per kind would triple this file */
-type Delegate = { findFirst(a: any): Promise<Row | null>; findMany(a: any): Promise<Row[]>; create(a: any): Promise<unknown>; updateMany(a: any): Promise<{ count: number }>; deleteMany(a: any): Promise<{ count: number }> };
+type Delegate = { findFirst(a: any): Promise<Row | null>; findMany(a: any): Promise<Row[]>; create(a: any): Promise<unknown>; updateMany(a: any): Promise<{ count: number }>; count(a: any): Promise<number>; deleteMany(a: any): Promise<{ count: number }> };
 type Link = { findMany(a: any): Promise<{ garmentId: string; position: number }[]>; createMany(a: any): Promise<unknown>; deleteMany(a: any): Promise<{ count: number }> };
 /* eslint-enable @typescript-eslint/no-explicit-any */
 const LINK_MODEL = { tags: 'garmentTag', collections: 'collectionGarment', sets: 'garmentSetItem' } as const;
@@ -49,6 +49,8 @@ export function createPrismaOrganizerStore(db: PrismaClient, kind: OrganizerKind
 
   return {
     findById: (ownerId, id) => read(ownerId, id),
+
+    count: (ownerId) => model().count({ where: { ownerId } }),
 
     async list(ownerId, p): Promise<Page<OrganizerView>> {
       const rows = await model().findMany({ where: { ownerId, ...(p.cursor ? { id: { lt: p.cursor.id } } : {}) }, include: INCLUDE, orderBy: { id: 'desc' }, take: p.limit + 1 });

@@ -37,6 +37,8 @@ const schema = z
     APP_ORIGIN: unsetIfEmpty(origin.optional()),
     // Private directory of the local object storage (photos). Outside public/, git-ignored (default ./.storage); mount a volume in production.
     STORAGE_LOCAL_DIR: unsetIfEmpty(z.string().min(1).optional()),
+    // Per-user cap on stored photo bytes (default 1 GiB; owner decision pending).
+    PHOTO_QUOTA_BYTES: unsetIfEmpty(z.coerce.number().int().positive().optional()),
   })
   .superRefine((env, ctx) => {
     const emailsPossible = (env.EMAIL_TRANSPORT ?? 'outbox') !== 'none';
@@ -54,11 +56,14 @@ const schema = z
     if (env.READY_TOKEN.length < 32 || env.READY_TOKEN.toLowerCase().startsWith('change-me')) {
       ctx.addIssue({ code: 'custom', path: ['READY_TOKEN'], message: 'production needs a real token of 32+ characters' });
     }
+    if (env.STORAGE_LOCAL_DIR === undefined) {
+      ctx.addIssue({ code: 'custom', path: ['STORAGE_LOCAL_DIR'], message: 'production needs an explicit absolute directory on a mounted volume shared by web and worker' });
+    }
     if (env.EMAIL_TRANSPORT === undefined || env.EMAIL_TRANSPORT === 'outbox') {
       ctx.addIssue({ code: 'custom', path: ['EMAIL_TRANSPORT'], message: 'production needs an explicit transport (outbox is dev-only)' });
     }
   })
-  .transform((env) => ({ ...env, EMAIL_TRANSPORT: env.EMAIL_TRANSPORT ?? 'outbox', STORAGE_LOCAL_DIR: env.STORAGE_LOCAL_DIR ?? '.storage' }));
+  .transform((env) => ({ ...env, EMAIL_TRANSPORT: env.EMAIL_TRANSPORT ?? 'outbox', STORAGE_LOCAL_DIR: env.STORAGE_LOCAL_DIR ?? '.storage', PHOTO_QUOTA_BYTES: env.PHOTO_QUOTA_BYTES ?? 1024 ** 3 }));
 
 export type Env = z.infer<typeof schema>;
 

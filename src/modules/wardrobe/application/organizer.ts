@@ -2,7 +2,7 @@ import type { Clock } from '@/platform/clock/port';
 import { assertIfMatch } from '@/platform/http/etag';
 import { AppError } from '@/platform/http/errors';
 import type { OwnerId, Page } from '@/platform/kernel';
-import { normalizeLabel } from '../domain/garment';
+import { MAX_GROUPS_PER_KIND, normalizeLabel } from '../domain/garment';
 import type { PageArg } from './ports';
 
 /** Tags, collections and garment sets share one shape and one store: a named, owner-scoped, ordered list of garments. */
@@ -25,6 +25,7 @@ export type AttachResult = OrganizerView | 'missing' | { missingGarmentIds: stri
 export interface OrganizerStore {
   findById(ownerId: OwnerId, id: string): Promise<OrganizerView | null>;
   list(ownerId: OwnerId, page: PageArg): Promise<Page<OrganizerView>>;
+  count(ownerId: OwnerId): Promise<number>;
   /** null = name already used by this owner. */
   create(ownerId: OwnerId, name: string, now: Date): Promise<OrganizerView | null>;
   rename(ownerId: OwnerId, id: string, expectedVersion: number, name: string, now: Date): Promise<OrganizerView | 'conflict' | 'exists'>;
@@ -40,7 +41,7 @@ const notFound = () => new AppError('NOT_FOUND', 404, 'Not found');
 const versionConflict = () => new AppError('VERSION_CONFLICT', 409, 'Resource version does not match If-Match');
 const exists = () => new AppError('NAME_ALREADY_USED', 409, 'This name is already used');
 
-export function createOrganizerService(store: OrganizerStore, clock: Clock) {
+export function createOrganizerService(store: OrganizerStore, clock: Clock, maxGroups = MAX_GROUPS_PER_KIND) {
   const own = async (owner: OwnerId, id: string): Promise<OrganizerView> => {
     const g = UUID_RE.test(id) ? await store.findById(owner, id) : null;
     if (!g) throw notFound();
@@ -51,6 +52,7 @@ export function createOrganizerService(store: OrganizerStore, clock: Clock) {
     list: (owner: OwnerId, page: PageArg) => store.list(owner, page),
     async create(owner: OwnerId, name: string): Promise<OrganizerView> {
       if (!normalizeLabel(name)) throw new AppError('VALIDATION_ERROR', 400, 'Validation failed', [{ path: 'name', message: 'name is required' }]);
+      if ((await store.count(owner)) >= maxGroups) throw new AppError('GROUP_LIMIT_REACHED', 409, `At most ${maxGroups} lists of this kind per user`);
       return (await store.create(owner, name, clock.now())) ?? (() => { throw exists(); })();
     },
     async rename(owner: OwnerId, id: string, ifMatch: string | null, name: string): Promise<OrganizerView> {

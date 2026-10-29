@@ -10,8 +10,8 @@ import { queryOf, withEtag } from './respond';
 type Wrap = (handler: Parameters<WithSession>[0]) => ReturnType<WithSession>;
 
 /** Handlers of one list kind (tags, collections or garment sets). */
-export function createOrganizerHttp(store: OrganizerStore, clock: Clock, w: { read: Wrap; write: Wrap }, max: number) {
-  const svc = createOrganizerService(store, clock);
+export function createOrganizerHttp(store: OrganizerStore, clock: Clock, w: { read: Wrap; write: Wrap }, max: number, maxGroups?: number) {
+  const svc = createOrganizerService(store, clock, maxGroups);
   const create = s.organizerCreateBody(max);
   return {
     create: w.write(async (req, ctx) => withEtag(await svc.create(ctx.userId, (await readJson(req, create)).name), 201)),

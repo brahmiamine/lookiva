@@ -89,8 +89,11 @@ function where(ownerId: OwnerId, f: GarmentFilter = {}): Prisma.GarmentWhereInpu
     ...(f.subtype ? { OR: [{ subtypeCode: f.subtype }, { customSubcategory: { parentSubtypeCode: f.subtype } }] } : {}),
     ...(f.season ? { seasons: { some: { code: f.season } } } : {}),
     ...(f.style ? { styles: { some: { code: f.style } } } : {}),
-    ...(f.color ? { AND: [{ OR: [{ primaryColorCode: f.color }, { colors: { some: { colorCode: f.color } } }] }] } : {}),
-    ...(f.q ? { AND: [{ OR: [{ nickname: { contains: likeEscape(f.q) } }, { notes: { contains: likeEscape(f.q) } }] }] } : {}),
+    // One AND list: color and q must both apply.
+    AND: [
+      ...(f.color ? [{ OR: [{ primaryColorCode: f.color }, { colors: { some: { colorCode: f.color } } }] }] : []),
+      ...(f.q ? [{ OR: [{ nickname: { contains: likeEscape(f.q) } }, { notes: { contains: likeEscape(f.q) } }] }] : []),
+    ],
   };
 }
 
@@ -167,6 +170,8 @@ export function createPrismaGarmentStore(db: PrismaClient): GarmentStore {
       return count === 1;
     },
 
+    countOwned: (ownerId) => db.garment.count({ where: { ownerId } }),
+
     async listTrash(ownerId, p) {
       const rows = await db.garment.findMany({
         where: { ownerId, deletedAt: { not: null }, ...(p.cursor ? { id: { lt: p.cursor.id } } : {}) },
@@ -237,11 +242,12 @@ export function createPrismaGarmentStore(db: PrismaClient): GarmentStore {
       return db.$transaction(async (tx) => {
         // Lock, then re-check: a restore that won the race has cleared deletedAt and is skipped.
         const locked = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM garments WHERE id IN (${Prisma.join(due.map((d) => d.id))}) AND deletedAt IS NOT NULL ORDER BY id FOR UPDATE`;
-        const ids = locked.map((l) => l.id);
+        // Re-check the retention under the lock: a restore + re-trash since the scan gave it a fresh purgeAfter.
+        const ids = (await tx.garment.findMany({ where: { id: { in: locked.map((l) => l.id) }, deletedAt: { not: null }, purgeAfter: { lte: now } }, select: { id: true } })).map((g) => g.id);
         if (!ids.length) return { ids: [], keys: [] };
         const photos = await tx.garmentPhoto.findMany({ where: { garmentId: { in: ids } }, select: { originalKey: true, optimizedKey: true, thumbKey: true, cutoutKey: true } });
         const keys = photos.flatMap((p) => [p.originalKey, p.optimizedKey, p.thumbKey, p.cutoutKey]).filter((k): k is string => k !== null);
-        await tx.garment.deleteMany({ where: { id: { in: ids } } }); // status events, colors, photos rows, links cascade
+        await tx.garment.deleteMany({ where: { id: { in: ids }, deletedAt: { not: null }, purgeAfter: { lte: now } } }); // status events, colors, photos rows, links cascade
         return { ids, keys };
       }, TX);
     },

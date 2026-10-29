@@ -14,6 +14,12 @@ async function lockGarment(tx: Prisma.TransactionClient, ownerId: string, garmen
   return rows.length === 1;
 }
 
+async function storedBytes(c: Db, ownerId: string): Promise<number> {
+  const rows = await c.$queryRaw<{ n: bigint | number | string | null }[]>`
+    SELECT SUM(b) AS n FROM (SELECT MAX(bytes) AS b FROM garment_photos WHERE ownerId = ${ownerId} GROUP BY originalKey) t`;
+  return Number(rows[0]?.n ?? 0);
+}
+
 export function createPrismaPhotoStore(db: PrismaClient): PhotoStore {
   const find = async (c: Db, ownerId: string, garmentId: string, id: string) => {
     const r = await c.garmentPhoto.findFirst({ where: { id, garmentId, ownerId } });
@@ -26,9 +32,15 @@ export function createPrismaPhotoStore(db: PrismaClient): PhotoStore {
 
     find: (ownerId, garmentId, photoId) => find(db, ownerId, garmentId, photoId),
 
-    async add(ownerId, p) {
+    async storedBytes(ownerId) {
+      return storedBytes(db, ownerId);
+    },
+
+    async add(ownerId, p, quotaBytes) {
       return db.$transaction(async (tx) => {
         if (!(await lockGarment(tx, ownerId, p.garmentId))) return 'gone';
+        // ponytail: two parallel uploads to DIFFERENT garments can overshoot the quota by one photo (bounded by the upload rate limit).
+        if ((await storedBytes(tx, ownerId)) + p.bytes > quotaBytes) return 'quota';
         const existing = await tx.garmentPhoto.findMany({ where: { garmentId: p.garmentId }, select: { position: true } });
         if (existing.length >= MAX_PHOTOS_PER_GARMENT) return 'full';
         const position = existing.reduce((m, e) => Math.max(m, e.position), 0) + 1;
@@ -61,11 +73,13 @@ export function createPrismaPhotoStore(db: PrismaClient): PhotoStore {
     },
 
     async setCutout(ownerId, garmentId, photoId, c) {
-      const { count } = await db.garmentPhoto.updateMany({
-        where: { id: photoId, garmentId, ownerId },
-        data: { cutoutStatus: c.status, ...(c.key === undefined ? {} : { cutoutKey: c.key }) },
-      });
-      return count === 1 ? find(db, ownerId, garmentId, photoId) : null;
+      return db.$transaction(async (tx) => {
+        if (!(await lockGarment(tx, ownerId, garmentId))) return null;
+        const before = await find(tx, ownerId, garmentId, photoId);
+        if (!before) return null;
+        await tx.garmentPhoto.update({ where: { id: photoId }, data: { cutoutStatus: c.status, ...(c.key === undefined ? {} : { cutoutKey: c.key }) } });
+        return { row: (await find(tx, ownerId, garmentId, photoId)) as PhotoRow, previousKey: c.key === undefined ? null : before.cutoutKey };
+      }, TX);
     },
 
     async copyAll(ownerId, sourceGarmentId, targetGarmentId, newId, now) {

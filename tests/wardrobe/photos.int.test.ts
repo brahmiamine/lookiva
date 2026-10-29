@@ -94,22 +94,27 @@ describe('content checks', () => {
     expect(keysOf(h.storage as MemoryObjectStorage)).toEqual([]);
   });
 
-  it('stores_the_untouched_original_privately_and_strips_gps_from_derivatives', async () => {
+  it('stores_a_metadata_free_original_privately_and_no_variant_carries_gps', async () => {
     const { h, cookie, gid, up } = await setup();
     const src = await jpeg(60, 40, { gps: true, orientation: 6 });
     const res = await up(cookie, gid, src);
     expect(res.status).toBe(201);
-    expect(res.body).toMatchObject({ isPrimary: true, position: 1, mime: 'image/jpeg', bytes: src.length, width: 40, height: 60, cutoutStatus: null });
+    expect(res.body).toMatchObject({ isPrimary: true, position: 1, mime: 'image/jpeg', width: 40, height: 60, cutoutStatus: null });
     expect(res.body).not.toHaveProperty('originalKey');
     expect(JSON.stringify(res.body)).not.toContain('photos/');
     const id = res.body?.id as string;
     const bytes = async (v: string) => Buffer.from(await (await h.photos.file(cookie, gid, id, `?variant=${v}`)).arrayBuffer());
-    expect(await bytes('original')).toEqual(src);
-    for (const v of ['optimized', 'thumb']) {
-      const m = await sharp(await bytes(v)).metadata();
-      expect(m.exif).toBeUndefined();
-      expect(m).toMatchObject({ format: 'webp', width: 40, height: 60 });
+    expect(src.includes(Buffer.from('TestCam'))).toBe(true); // the fixture really carries EXIF
+    for (const v of ['original', 'optimized', 'thumb']) {
+      const b = await bytes(v);
+      const m = await sharp(b).metadata();
+      expect(m.exif, v).toBeUndefined();
+      expect(m.orientation, v).toBeUndefined();
+      expect(b.includes(Buffer.from('TestCam')), v).toBe(false);
+      expect(b.includes(Buffer.from('GPS')), v).toBe(false);
+      expect(m).toMatchObject({ format: v === 'original' ? 'jpeg' : 'webp', width: 40, height: 60 }); // orientation baked into the pixels
     }
+    expect(res.body?.bytes).toBe((await bytes('original')).length);
   });
 
   it('applies_rotate_and_crop_params', async () => {

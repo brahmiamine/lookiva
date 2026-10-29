@@ -18,7 +18,7 @@ function wardrobe(): WardrobeHttp {
   const logger = createLogger({ level: env.LOG_LEVEL });
   const redis = new Redis(env.REDIS_URL, { maxRetriesPerRequest: 2 });
   redis.on('error', (err) => logger.error({ err }, 'redis error (wardrobe)'));
-  return (g.__lookivaWardrobe = createWardrobeHttp({ db: createDb(env.DATABASE_URL), redis, clock: systemClock, withSession, logger, storage: new LocalObjectStorage(env.STORAGE_LOCAL_DIR), remover: new WhiteKeyRemover() }));
+  return (g.__lookivaWardrobe = createWardrobeHttp({ db: createDb(env.DATABASE_URL), redis, clock: systemClock, withSession, logger, storage: new LocalObjectStorage(env.STORAGE_LOCAL_DIR), remover: new WhiteKeyRemover(), limits: { photoQuotaBytes: env.PHOTO_QUOTA_BYTES } }));
 }
 
 type Route = (req: Request) => Promise<Response>;

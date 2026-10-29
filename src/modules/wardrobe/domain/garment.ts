@@ -10,6 +10,11 @@ export const WEATHER_FIELDS = {
 } as const;
 export type WeatherField = keyof typeof WEATHER_FIELDS;
 
+/** Hard per-user caps (owner decision pending: ADR). Trashed garments count until purged. */
+export const MAX_GARMENTS_PER_USER = 5000;
+export const MAX_GROUPS_PER_KIND = 500;
+export const DEFAULT_PHOTO_QUOTA_BYTES = 1024 ** 3;
+
 export const TRASH_RETENTION_DAYS = 30;
 export const purgeAfter = (deletedAt: Date): Date => new Date(deletedAt.getTime() + TRASH_RETENTION_DAYS * 86_400_000);
 
