@@ -189,6 +189,15 @@ Toutes les durées sont dans `src/modules/identity/domain/policy.ts`.
 | Alerte e-mail | Aucun e-mail n'est envoyé lors d'une désactivation, demande d'effacement ou annulation. | Différé. |
 | Consentements : horodatage | `createdAt` et l'id sont pris dans la transaction après le verrou, monotones par type (≥ précédent + 1 ms) : l'ordre de lecture est l'ordre de commit. | Résolu (0ac3cf6). |
 
+## 12. Dressing : vêtements, états, sous-catégories perso (tranche 4a)
+
+- **Référentiels** : constantes typées dans `src/modules/wardrobe/domain/catalog.ts` (11 catégories, 76 sous-types, 16 couleurs, 3 nuances, 4 saisons, 9 styles, libellés FR/EN/AR, aucune catégorie par genre). Les codes sont des valeurs d'API stables ; changer une liste ne demande aucune migration (colonnes `VARCHAR`, pas d'`ENUM` SQL).
+- **Statuts** : `AVAILABLE`, `TO_WASH`, `WASHING`, `DRYING`, `IN_REPAIR`, `LENT`, définis uniquement dans `domain/status.ts` (décision à valider : la liste est une proposition). Un seul statut courant (colonne `garments.status`), seul `AVAILABLE` est recommandable (`isRecommendable`). Transitions manuelles de tout vers tout (sauf « aucun changement » : 409 `STATUS_UNCHANGED`), jamais automatiques ; chaque changement écrit un `GarmentStatusEvent` (source `MANUAL`) dans la même transaction que la mise à jour compare-and-set sur `version`. Deux changements parallèles avec le même `ETag` : un gagne, l'autre reçoit 409.
+- **Classification** : sous-type standard de la catégorie **ou** sous-catégorie perso dont le parent standard est de cette catégorie (jamais les deux). Le filtre `subtype` d'une liste inclut les sous-catégories perso dont c'est le parent. Une sous-catégorie perso utilisée (corbeille comprise) ne se supprime qu'avec `reassignTo` (clé étrangère `RESTRICT` en dernier rempart).
+- **Corbeille** : `DELETE /garments/{id}` pose `deletedAt` et `purgeAfter` (+30 jours) ; liste, restauration et purge viennent à la tranche suivante. Un vêtement en corbeille répond 404 partout.
+- **Recherche `q`** : `nickname` et `notes` sont en `utf8mb4_unicode_ci` (insensible à la casse et aux accents) alors que le reste des tables est en `utf8mb4_nopad_bin`.
+- **Limites connues** : filtres à valeur unique ; l'`ETag` d'une sous-catégorie perso est sa `version` ; pas encore de photos ni d'actions groupées ; pas de test e2e/UI (tranche UI ultérieure).
+
 ## 11. Écrans d'identité (tranche 2b)
 
 ### E2E

@@ -123,6 +123,22 @@ Sessions opaques côté serveur (pas de JWT ni d'Auth.js). Détails, limites et 
 | `GET /api/v1/me/consents` | Dernier consentement par type (`AI_RECOMMENDATIONS`, `LEARNING`, `CLOUD_BACKGROUND_REMOVAL`) | 401 |
 | `PUT /api/v1/me/consents/{kind}` | `{ "granted": bool }` : ajoute un `ConsentRecord` et aligne `aiEnabled`/`learningEnabled` dans la même transaction ; aucun type ne couvre la reconnaissance de photos (les photos ne vont jamais à une IA) ; 30 requêtes/min/utilisateur | 400, 404 (type inconnu), 429 |
 
+## Dressing (module `wardrobe`, tranche 4a)
+
+Garde le détail dans [runbook §12](docs/foundation/runbook-local.md#12-dressing--vêtements-états-sous-catégories-perso-tranche-4a). Toutes les routes privées exigent la session (401) et ne voient que les données de l'utilisateur (404 sinon) ; écritures limitées à 120/min/utilisateur (429).
+
+| Méthode et chemin | Rôle | Codes d'erreur notables |
+|---|---|---|
+| `GET /api/v1/catalog/categories`, `/colors`, `/options` | Référentiels FR/EN/AR (catégories + sous-types, 16 couleurs + nuances, statuts, saisons, styles, valeurs météo) ; public | |
+| `POST /api/v1/garments` | Crée un vêtement `AVAILABLE` (`Idempotency-Key` requis) ; catégorie, sous-type (ou sous-catégorie perso) et couleur principale obligatoires | 400, 404 (sous-catégorie inconnue), 409/422 idempotence |
+| `GET /api/v1/garments` | Pagination `limit`/`cursor`, filtres `category`, `subtype`, `color`, `season`, `style`, `status`, `q` | 400 |
+| `GET/PATCH/DELETE /api/v1/garments/{id}` | Fiche + `ETag` ; `PATCH` avec `If-Match` ; `DELETE` = corbeille (`deletedAt`, `purgeAfter` +30 j) | 404, 409 `VERSION_CONFLICT`, 428 `IF_MATCH_REQUIRED` |
+| `POST /api/v1/garments/{id}/status` | `{ status, note? }` avec `If-Match`, écrit l'historique dans la même transaction | 409 `VERSION_CONFLICT` / `STATUS_UNCHANGED`, 428 |
+| `GET /api/v1/garments/{id}/status-history` | Événements, plus récent d'abord | 404 |
+| `POST/GET /api/v1/custom-subcategories` | Sous-catégories perso rattachées à un sous-type standard (libellé unique par utilisateur) | 409 `CUSTOM_SUBCATEGORY_EXISTS` |
+| `PATCH /api/v1/custom-subcategories/{id}` | Renomme (`If-Match`) | 409, 428 |
+| `DELETE /api/v1/custom-subcategories/{id}?reassignTo=` | Supprime ; si des vêtements l'utilisent, `reassignTo` (sous-type standard ou autre sous-catégorie perso de la même catégorie) est obligatoire, déplacement atomique | 409 `CUSTOM_SUBCATEGORY_IN_USE`, 400 |
+
 Cycle de vie du compte : la ré-authentification (mot de passe) est limitée à 5 essais/15 min par utilisateur ; tout échec est un 401 générique. Un compte `DISABLED` ou `DELETION_REQUESTED` ne peut pas se connecter (même 401 générique qu'un mot de passe faux). Il n'existe pas encore de réactivation d'un compte `DISABLED`.
 
 Toute requête POST/PUT/PATCH/DELETE vers ces routes exige `X-Requested-With: lookiva` (et un `Origin` égal à l'origine de l'application s'il est présent), sinon 403 `CSRF_REJECTED`.
