@@ -76,3 +76,14 @@ export function toCreateBody(f: GarmentForm) {
     notes: f.notes.trim() || null,
   };
 }
+
+export type OutfitDetail = {
+  id: string;
+  name: string | null;
+  status: string;
+  plannedFor: string | null;
+  occasion: string | null;
+  version: number;
+  wearRecordId: string | null;
+  items: { garmentId: string; name: string; categoryCode: string; colorCode: string }[];
+};

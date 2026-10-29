@@ -37,6 +37,10 @@ export default async function OutfitsWeekPage(props: { params: Promise<{ locale:
       <h1 className={H1}>{t('outfits.title')}</h1>
       <p className={LEAD}>{t('outfits.weekOf', { date: fmt(start, { dateStyle: 'medium' }) })}</p>
 
+      <Link href={`/${locale}/wardrobe/outfits/new`} className="inline-flex min-h-12 items-center self-start rounded-card bg-primary px-4 font-bold text-on-primary">
+        {t('outfits.new')}
+      </Link>
+
       <nav className="flex flex-wrap gap-3 text-sm font-bold">
         <Link href={`/${locale}/wardrobe/outfits?week=${isoDay(addDays(start, -7))}`} className="inline-flex min-h-11 items-center gap-1 text-primary">
           <Icon name="back" directional />
@@ -71,7 +75,9 @@ export default async function OutfitsWeekPage(props: { params: Promise<{ locale:
                       <time dateTime={o.plannedFor} className="font-bold tabular-nums">
                         {fmt(new Date(o.plannedFor), { hour: '2-digit', minute: '2-digit', hour12: false })}
                       </time>
-                      <span className="flex-1">{o.name ?? t('outfits.untitled')}</span>
+                      <Link href={`/${locale}/wardrobe/outfits/${o.id}`} className="flex-1 font-bold text-primary underline underline-offset-[3px]">
+                        {o.name ?? t('outfits.untitled')}
+                      </Link>
                       {o.occasion && <span className="text-sm text-muted">{o.occasion}</span>}
                       <span className="rounded-full bg-neutral-soft px-3 py-1 text-sm font-medium">{t(`outfits.${o.status.toLowerCase()}`)}</span>
                     </li>

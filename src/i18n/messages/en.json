@@ -435,7 +435,29 @@
       "cancelled": "Cancelled",
       "none": "No outfit planned this week.",
       "link": "Outfits",
-      "weekOf": "Week of {date}"
+      "weekOf": "Week of {date}",
+      "new": "New outfit",
+      "pick": "Garments",
+      "name": "Name (optional)",
+      "create": "Create outfit",
+      "pickOne": "Choose at least one garment.",
+      "open": "Open outfit",
+      "confirm": "Confirm worn",
+      "confirmed": "Wear confirmed. Garment statuses do not change.",
+      "alreadyWorn": "This outfit was already worn.",
+      "cancelledNote": "This outfit is cancelled.",
+      "trashed": "A garment in this outfit is in the trash.",
+      "planTitle": "Planning",
+      "plannedFor": "Start (UTC)",
+      "occasion": "Occasion",
+      "save": "Save",
+      "startNeeded": "A planned outfit needs a start time.",
+      "cancelOutfit": "Cancel outfit",
+      "saved": "Outfit updated.",
+      "locked": "This outfit can no longer be changed.",
+      "pieces": "Pieces",
+      "noPieces": "No pieces.",
+      "wornAt": "Worn on {date}"
     }
   }
 }

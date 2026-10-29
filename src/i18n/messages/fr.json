@@ -435,7 +435,29 @@
       "cancelled": "Annulée",
       "none": "Aucune tenue planifiée cette semaine.",
       "link": "Tenues",
-      "weekOf": "Semaine du {date}"
+      "weekOf": "Semaine du {date}",
+      "new": "Nouvelle tenue",
+      "pick": "Vêtements",
+      "name": "Nom (facultatif)",
+      "create": "Créer la tenue",
+      "pickOne": "Choisissez au moins un vêtement.",
+      "open": "Ouvrir la tenue",
+      "confirm": "Confirmer le port",
+      "confirmed": "Port confirmé. Les états des vêtements ne changent pas.",
+      "alreadyWorn": "Cette tenue a déjà été portée.",
+      "cancelledNote": "Cette tenue est annulée.",
+      "trashed": "Un vêtement de cette tenue est dans la corbeille.",
+      "planTitle": "Planification",
+      "plannedFor": "Début (UTC)",
+      "occasion": "Occasion",
+      "save": "Enregistrer",
+      "startNeeded": "Une tenue planifiée a besoin d’une date de début.",
+      "cancelOutfit": "Annuler la tenue",
+      "saved": "Tenue mise à jour.",
+      "locked": "Cette tenue n’est plus modifiable.",
+      "pieces": "Pièces",
+      "noPieces": "Aucune pièce.",
+      "wornAt": "Portée le {date}"
     }
   }
 }
