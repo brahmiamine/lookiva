@@ -24,7 +24,7 @@ type Msg = NoticeData & { conflict?: boolean; templates?: boolean };
 const FIELD_OF: Record<string, Field> = { title: 'title', occasion: 'occasion', startsAt: 'start', endsAt: 'end', timezone: 'timezone' };
 const browserZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-export function OutfitEditor({ catalog, initial, timezone, zones, initialDate, created }: { catalog: Catalog; initial: Outfit | null; timezone: string; zones: string[]; initialDate?: string; created?: boolean }) {
+export function OutfitEditor({ catalog, initial, timezone, zones, initialDate, created, initialItems = [] }: { catalog: Catalog; initial: Outfit | null; timezone: string; zones: string[]; initialDate?: string; created?: boolean; initialItems?: { garmentId: string; role: Role }[] }) {
   const t = useTranslations('outfits');
   const e = useTranslations('outfits.editor');
   const c = useTranslations('common');
@@ -39,7 +39,7 @@ export function OutfitEditor({ catalog, initial, timezone, zones, initialDate, c
   const [outfit, setOutfit] = useState(initial);
   const [form, setForm] = useState(() => formOf(initial, timezone, initialDate));
   const [errors, setErrors] = useState<Partial<Record<Field, string>>>({});
-  const [draftItems, setDraftItems] = useState<{ garmentId: string; role: Role }[]>([]);
+  const [draftItems, setDraftItems] = useState<{ garmentId: string; role: Role }[]>(initialItems);
   const [msg, setMsg] = useState<Msg | null>(created ? { tone: 'success', title: e('createdTitle') } : null);
   const [busy, setBusy] = useState(false);
   const [conflicts, setConflicts] = useState<Conflict[]>([]);

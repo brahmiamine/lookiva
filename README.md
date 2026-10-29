@@ -229,3 +229,92 @@ Le dépôt git actuel est local, sans remote.
 - [Maquettes](docs/design/mockups/index.html) (direction B · Studio).
 - Spec et plan de la phase : `docs/superpowers/specs/` et `docs/superpowers/plans/`.
 - Le dossier `docs/` d'origine cité par les plans (registre des décisions, règles métier, ADR, modèle de données, contrats API, critères d'acceptation) n'existe pas dans ce dépôt : les plans de `plans/` sont la seule source.
+
+## Recherche privée (phase 07, tranche textuelle)
+
+`/fr/recherche`, `/en/recherche` et `/ar/recherche` recherchent dans les vêtements du compte connecté :
+nom, notes, magasin, sous-catégorie personnelle, étiquettes, collections et ensembles, ainsi que les libellés
+trilingues du catalogue. Le lexique versionné `text-v1` ajoute des synonymes ciblés et des corrections
+estimées de fautes simples. Les filtres catégorie/type/couleur/état/saison/style sont stricts, même lorsqu'ils
+contredisent les mots de la recherche. Les négations de propriétés du catalogue sont signalées comme
+non prises en charge ; aucun résultat contraire n'est proposé.
+
+- `GET/POST /api/v1/search/garments` : champs `q`, `category`, `subtype`, `color`, `status`, `season`, `style`,
+  `tag`, `collection`, `set`, `sort` (`relevance`, `newest`, `availability`), `limit` (1–100), `cursor`.
+  L'écran utilise POST pour ne pas placer le texte personnel dans les URL. Session requise, `no-store`,
+  30 appels/minute/utilisateur sur les trois endpoints de recherche. Les POST exigent les protections CSRF habituelles.
+- `GET /api/v1/search/suggestions?q=...` : interprétation du catalogue, sans historique ni agrégat privé.
+- `POST /api/v1/search/outfit-draft` : `{ garmentIds: [...] }` (1–30 IDs uniques), revérifie propriétaire et corbeille,
+  renvoie les pièces indisponibles et `saved: false`. Le passage à l'éditeur préremplit une tenue **sans l'enregistrer**.
+  L'accès aux vêtements est de nouveau vérifié à l'ouverture, puis à l'enregistrement par le module tenues.
+
+Les sources sont relues à chaque recherche : édition, états, groupes, corbeille et restauration sont immédiatement
+visibles, sans index à réconcilier. Le classement utilise les propriétés reconnues (10 points/champ) et les mots
+personnels (5 points dans le nom, 2 ailleurs), puis la date de création et l'ID ; aucun score n'est une probabilité.
+Les corrections estimées sont affichées. Un curseur appartient à une requête et un utilisateur ; si son point de
+reprise a disparu, l'API demande de recommencer (`INVALID_CURSOR`). Le classement étant recalculé, la pagination
+n'est pas un instantané : après une modification concurrente, relancer la recherche pour une liste complète.
+Au-delà de 5000 candidats, l'API refuse explicitement (`SEARCH_CAPACITY_EXCEEDED`) au lieu de tronquer silencieusement.
+
+Cette tranche utilise uniquement le texte et ne transmet rien à un fournisseur externe. Les embeddings,
+VECTOR/FULLTEXT, le corpus dialectal validé et les mesures de charge de CP-07 restent à réaliser.
+Preuves et blocages observés : [rapport de continuation](docs/foundation/2026-10-29-continuation-report.md).
+
+## Agenda et voyages (première tranche du plan 08)
+
+`/fr/planning`, `/en/planning`, `/ar/planning` : événements à la journée (personnel/travail/sport,
+intérieur/extérieur), récurrences quotidiennes/hebdomadaires/mensuelles, notes et checklists libres.
+Les occurrences sont virtuelles, avec une clé stable `eventId:date`, générées sur une fenêtre de 366 jours
+maximum. Un événement mensuel du 31 saute les mois dépourvus de ce jour. Dates locales et fuseau sont
+conservés sans inventer d'heure ni de rappel aux changements DST.
+
+Les voyages acceptent via l'API jusqu'à 30 étapes avec ville/fuseau/dates, sans chevauchement, et jusqu'à
+100 pièces physiques distinctes. L'écran propose pour l'instant une ville et une checklist ; les éditions
+multi-étapes et la sélection des pièces sont disponibles côté API. La préparation indique les vêtements
+manquants ou indisponibles, le dépassement de capacité et l'absence de poids connu. Aucun port, lavage
+ou changement d'état de vêtement n'est déclenché.
+
+API privée : `GET/POST /events`, `GET/PUT/DELETE /events/{id}`, `GET /events/{id}/occurrences?from=&to=`,
+les mêmes opérations sur `/trips` et `GET /trips/{id}/packing-suggestion`, sous `/api/v1`.
+Création avec `Idempotency-Key`, PUT complet et suppression avec `If-Match` ; CSRF et limite de 120 appels/min/utilisateur.
+Listes paginées (`limit`, `cursor`). Le CRUD conserve les références d'articles supprimés pour permettre
+l'édition d'une checklist et afficher un avertissement de préparation ; les nouveaux articles doivent appartenir
+au compte et être hors corbeille. Les dates/notes/listes sont persistées dans `planner_entries` et validées strictement.
+
+Migration additive : `20261105090000_planning`. La chaîne historique de main décrite dans le rapport précédent
+reste à réconcilier avant une installation complète. Les exceptions de récurrence, la modification des séries
+avec préservation du passé, les modèles, phases de tenues et l'optimisation automatisée de valise ne sont pas
+encore livrés ; CP-08 n'est pas déclaré validé.
+
+## Activité : statistiques et rappels internes
+
+`/fr/activity`, `/en/activity`, `/ar/activity` rassemblent les statistiques et le centre de notifications.
+Les rappels sont désactivés par défaut : l'utilisateur les active explicitement et choisit 15 à 1440 minutes
+avant ses tenues planifiées. Le worker vérifie les rappels toutes les cinq minutes ; le bouton Actualiser
+permet aussi une vérification immédiate. Cela ne garantit pas une livraison à la minute exacte.
+Aucun Web Push, permission navigateur ou message externe n'est envoyé.
+
+Les notifications sont privées, marquables comme lues et supprimables. Une suppression garde un marqueur
+jusqu'à expiration pour empêcher une recréation lors d'un retry. Les tenues annulées, déjà portées ou
+replanifiées ne produisent plus de rappel visible pour l'ancienne date. Rétention et purge : 90 jours.
+Désactiver les rappels empêche leur génération lors des vérifications suivantes ; les notifications déjà
+créées restent consultables jusqu'à suppression/expiration. Chaque compte est traité indépendamment :
+un compte en erreur ne bloque pas les suivants. Les erreurs sont journalisées sans payload personnel.
+
+Les statistiques se basent uniquement sur les WearRecord ACTIVE et les vêtements actuels hors corbeille,
+créés avant la fin de période. Le numérateur compte les pièces ayant un port confirmé dans la fenêtre UTC,
+le dénominateur les pièces éligibles de l'inventaire courant : ce n'est pas une mesure de présence historique.
+Les ports invalidés sont exclus ; plusieurs ports le même jour restent distincts. Le coût par port utilise
+l'historique confirmé complet et reste non calculable sans prix, devise ou port. Les prix sont totalisés
+séparément par devise pour les pièces éligibles (sans filtrer leurs dates d'achat). Aucun taux de conversion
+n'est inventé. L'oubli se calcule depuis le dernier port confirmé connu, ou la création, avec un seuil réglable
+(90 jours par défaut) ; aucun état de vêtement n'est modifié.
+
+API : `GET /analytics?from=&to=&forgottenDays=` ; `GET /notifications` (limit/cursor),
+`POST /notifications/refresh`, `GET/PUT /notifications/preferences`, `PUT /notifications/{id}/read`,
+`DELETE /notifications/{id}`, sous `/api/v1`. Session obligatoire ; CSRF sur écritures ; limites par utilisateur.
+Migration additive `20261106090000_notifications` ; bundle worker actualisé avec `pnpm build:worker`.
+
+Limites : 5000 pièces/100000 lignes de port pour les statistiques, 500 tenues à rappeler par compte et
+10000 comptes activés par balayage worker (erreurs explicites au-delà). Les notifications d'événements/valises,
+Web Push, quiet hours, import/export complet et les parties restantes des plans ne sont pas déclarés livrés.

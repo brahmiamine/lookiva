@@ -12,14 +12,14 @@ export function AppNav({ label, items }: { label: string; items: { href: string;
         {items.map((i) => {
           const current = path === i.section || path.startsWith(`${i.section}/`);
           return (
-            <li key={i.href} className="flex-1">
+            <li key={i.href} className="min-w-0 flex-1">
               <Link
                 href={i.href}
                 aria-current={current ? 'page' : undefined}
                 className="flex min-h-13 flex-col items-center justify-center gap-0.5 rounded-2xl text-xs font-semibold text-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary aria-[current=page]:bg-primary aria-[current=page]:font-extrabold aria-[current=page]:text-on-primary"
               >
                 <Icon name={i.icon} className="text-xl" />
-                {i.text}
+                <span className="max-w-full text-center [overflow-wrap:anywhere]">{i.text}</span>
               </Link>
             </li>
           );

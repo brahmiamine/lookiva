@@ -58,6 +58,9 @@ const organizerRoutes = (pick: (w: WardrobeHttp) => OrganizerHttp) => ({
 
 /** Handlers for the thin route files under src/app/api/v1. */
 export const wardrobeRoutes = {
+  searchGarments: lazy((w) => w.search.garments),
+  searchSuggestions: lazy((w) => w.search.suggestions),
+  searchOutfitDraft: lazy((w) => w.search.draft),
   catalogCategories: lazy((w) => w.catalogCategories),
   catalogColors: lazy((w) => w.catalogColors),
   catalogOptions: lazy((w) => w.catalogOptions),

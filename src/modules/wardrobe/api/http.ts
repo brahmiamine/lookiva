@@ -26,6 +26,8 @@ import { createOutfitHttp } from './outfit-http';
 import { queryOf, withEtag } from './respond';
 import type { GarmentUsageChecker } from '../application/ports';
 import * as s from './schemas';
+import { createSearchHttp } from './search-http';
+import { createPrismaSearchReader } from '../infrastructure/prisma-search-reader';
 
 type SessionCtx = { requestId: string; log: Logger; userId: import('@/platform/kernel').OwnerId; sessionId: string };
 /** Identity's session guard (injected: modules only meet through their public API). */
@@ -72,6 +74,7 @@ export function createWardrobeHttp(deps: WardrobeHttpDeps) {
   return {
     /** Application service for in-process callers (duplication, tests). */
     photoService: photoSvc,
+    search: createSearchHttp(createPrismaSearchReader(db), deps.withSession, limiter, clock),
     outfits: createOutfitHttp({ db, redis: deps.redis, clock, withSession: deps.withSession }),
     catalogCategories: withApi(async () => Response.json({ items: CATEGORIES }), opts),
     catalogColors: withApi(async () => Response.json({ items: COLORS, shades: SHADES }), opts),

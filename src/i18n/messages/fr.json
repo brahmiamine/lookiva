@@ -468,6 +468,7 @@
     }
   },
   "nav": {
+    "search": "Rechercher",
     "label": "Navigation principale",
     "dressing": "Dressing",
     "settings": "Réglages",
@@ -993,5 +994,110 @@
         "TRADITIONAL": "Traditionnelle"
       }
     }
+  },
+  "search": {
+    "unsupported": "Les négations ne sont pas prises en charge. Utilisez les filtres pour préciser votre recherche.",
+    "title": "Rechercher",
+    "intro": "Retrouvez vos vêtements par mots-clés, synonymes ou caractéristiques.",
+    "query": "Votre recherche",
+    "hint": "Exemple : baskets noires disponibles pour le travail",
+    "filters": "Filtres et tri",
+    "all": "Tous",
+    "submit": "Rechercher",
+    "results": "Résultats de recherche",
+    "count": "{count, plural, =0 {Aucun résultat affiché} one {# résultat affiché} other {# résultats affichés}}",
+    "empty": "Aucun vêtement ne correspond. Essayez moins de mots ou modifiez vos filtres.",
+    "error": "La recherche est indisponible ou trop sollicitée. Réessayez dans un instant.",
+    "changed": "Les résultats ont changé. Relancez la recherche depuis la première page.",
+    "selectionError": "La sélection a changé ou contient un vêtement inaccessible. Relancez la recherche.",
+    "pending": "Vos critères ont changé. Lancez la recherche pour actualiser les résultats.",
+    "estimated": "Correction estimée pour « {term} » : vérifiez les résultats.",
+    "more": "Afficher plus",
+    "prepare": "Préparer une tenue ({count})",
+    "draftHint": "30 pièces maximum. La tenue ne sera enregistrée que lorsque vous le confirmerez dans l’éditeur.",
+    "field": {
+      "category": "Catégorie",
+      "subtype": "Type",
+      "color": "Couleur",
+      "status": "État",
+      "season": "Saison",
+      "style": "Style",
+      "sort": "Trier par"
+    },
+    "sort": {
+      "relevance": "Pertinence",
+      "newest": "Plus récents",
+      "availability": "Disponibilité"
+    },
+    "reason": {
+      "CATALOG": "Caractéristiques du catalogue",
+      "TEXT": "Texte personnel correspondant",
+      "FILTER": "Filtres respectés"
+    }
+  },
+  "planning": {
+    "title": "Agenda et voyages",
+    "intro": "Événements à la journée et listes de préparation. Cocher un élément ne modifie jamais l’état des vêtements.",
+    "events": "Événements",
+    "trips": "Voyages",
+    "name": "Titre",
+    "date": "Date de début",
+    "end": "Date de fin",
+    "city": "Ville (facultatif)",
+    "type": "Type",
+    "indoor": "Sport en intérieur",
+    "repeat": "Répétition",
+    "notes": "Notes",
+    "checklist": "Liste libre : un élément par ligne",
+    "create": "Créer",
+    "loading": "Chargement…",
+    "error": "Opération impossible. Vérifiez les champs ou rechargez la page après un conflit.",
+    "empty": "Aucun élément pour le moment.",
+    "remove": "Supprimer",
+    "confirmDelete": "Supprimer cet élément ?",
+    "occurrences": "Voir les 90 prochains jours",
+    "more": "Afficher plus",
+    "types": {
+      "PERSONAL": "Personnel",
+      "WORK": "Travail",
+      "SPORT": "Sport"
+    },
+    "repeatValues": {
+      "NONE": "Aucune",
+      "DAILY": "Chaque jour",
+      "WEEKLY": "Chaque semaine",
+      "MONTHLY": "Chaque mois"
+    }
+  },
+  "activity": {
+    "title": "Activité",
+    "notifications": "Notifications",
+    "stats": "Statistiques",
+    "intro": "Rappels internes uniquement. Aucun push ni permission navigateur.",
+    "enabled": "Activer les rappels de tenues",
+    "minutes": "Minutes avant la tenue",
+    "save": "Enregistrer",
+    "refresh": "Actualiser",
+    "empty": "Aucune notification.",
+    "due": "Une tenue planifiée approche.",
+    "open": "Ouvrir la tenue",
+    "read": "Marquer comme lu",
+    "remove": "Supprimer",
+    "more": "Afficher plus",
+    "loading": "Chargement…",
+    "error": "Opération impossible. Réessayez.",
+    "definition": "Pièces actuellement hors corbeille, créées avant la fin de période ; ports confirmés uniquement. Période en UTC. Coût par port calculé sur tout l’historique confirmé.",
+    "from": "Du",
+    "to": "Au",
+    "threshold": "Seuil d’oubli (jours)",
+    "calculate": "Calculer",
+    "usage": "{used} pièces utilisées sur {total} pièces éligibles",
+    "missing": "{count} prix ou devises non renseignés",
+    "purchases": "Prix d’achat des pièces éligibles, par devise (sans filtre de date d’achat)",
+    "garment": "Vêtement",
+    "wears": "{count} ports sur la période ; {total} au total",
+    "cost": "Coût par port",
+    "unknown": "Non calculable",
+    "forgotten": "Aucun port confirmé récent"
   }
 }

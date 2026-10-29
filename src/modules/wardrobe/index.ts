@@ -9,3 +9,4 @@ export { noUsage, type GarmentUsageChecker, type UsageWarning } from './applicat
 export { createWardrobePurge } from './api/purge-job';
 export { createPrismaGarmentGateway as createGarmentGateway } from './infrastructure/prisma-gateway';
 export type { GarmentGateway, GarmentRef, RecommendableGarment, SetStatusResult } from './application/ports';
+export { registerSearchOpenApi } from './api/search-openapi';

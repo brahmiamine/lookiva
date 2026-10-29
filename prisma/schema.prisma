@@ -46,6 +46,9 @@ enum ThermalSensitivity {
 }
 
 model User {
+ notifications Notification[]
+ notificationPreference NotificationPreference?
+  plannerEntries PlannerEntry[]
   id              String     @id @db.Char(36)
   email           String     @db.VarChar(254)
   /// NFKC + trim + lowercase; the only column used for lookups and uniqueness.
@@ -440,6 +443,7 @@ model GarmentSetItem {
 
 /// startsAt/endsAt are UTC; localDate/localTime/timezone (IANA) are the user's wall clock at the start (derived by the server). A DRAFT may lack all of them.
 model Outfit {
+ notifications Notification[]
   id              String                 @id @db.Char(36)
   ownerId         String                 @db.Char(36)
   title           String?                @db.VarChar(120)
@@ -620,4 +624,43 @@ model OutfitWeatherBaseline {
 
   @@index([ownerId])
   @@map("outfit_weather_baselines")
+}
+
+/// Bounded, server-validated event/trip documents. Every access is owner-scoped.
+model PlannerEntry {
+ id String @id @db.Char(36)
+ ownerId String @db.Char(36)
+ kind String @db.VarChar(8)
+ payload Json
+ version Int @default(1)
+ createdAt DateTime @db.DateTime(3)
+ updatedAt DateTime @db.DateTime(3)
+ owner User @relation(fields:[ownerId],references:[id],onDelete:Cascade)
+ @@index([ownerId,kind,id])
+ @@map("planner_entries")
+}
+
+model NotificationPreference {
+ ownerId String @id @db.Char(36)
+ enabled Boolean @default(false)
+ minutesBefore Int @default(60)
+ owner User @relation(fields:[ownerId],references:[id],onDelete:Cascade)
+ @@map("notification_preferences")
+}
+model Notification {
+ dismissedAt DateTime? @db.DateTime(3)
+ id String @id @db.Char(36)
+ ownerId String @db.Char(36)
+ dedupeKey String @db.Char(64)
+ outfitId String @db.Char(36)
+ startsAt DateTime @db.DateTime(3)
+ readAt DateTime? @db.DateTime(3)
+ createdAt DateTime @db.DateTime(3)
+ expiresAt DateTime @db.DateTime(3)
+ owner User @relation(fields:[ownerId],references:[id],onDelete:Cascade)
+ outfit Outfit @relation(fields:[outfitId],references:[id],onDelete:Cascade)
+ @@unique([ownerId,dedupeKey])
+ @@index([ownerId,id])
+ @@index([expiresAt])
+ @@map("notifications")
 }

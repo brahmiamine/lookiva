@@ -1,0 +1,45 @@
+// @vitest-environment jsdom
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { afterEach, expect, it, vi } from 'vitest';
+import { Search } from '@/app/[locale]/(app)/recherche/Search';
+import { IntlProvider } from '@/ui/components/IntlProvider';
+import { getMessage, pickMessages } from '@/i18n/messages';
+import type { Catalog } from '@/app/[locale]/(app)/dressing/types';
+const router = vi.hoisted(() => ({ replace: vi.fn(), push: vi.fn() }));
+vi.mock('next/navigation', () => ({ useRouter: () => router }));
+const catalog: Catalog = { categories: [{ code: 'FOOTWEAR', label: 'Chaussures', subtypes: [{ code: 'SNEAKERS', label: 'Baskets' }] }], colors: [{ code: 'BLACK', label: 'Noir', hex: '#111111' }], seasons: [], styles: [], statuses: ['AVAILABLE'], weather: { warmth: [], rain: [], windproof: [], breathability: [], layering: [] }, customs: [] };
+const id = '00000000-0000-4000-8000-000000000001';
+const item = { id, nickname: 'Mes baskets', categoryCode: 'FOOTWEAR', subtypeCode: 'SNEAKERS', customLabel: null, primaryColorCode: 'BLACK', status: 'AVAILABLE', score: 10, reasons: ['CATALOG'] };
+const response = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
+const t = (key: string) => getMessage('fr', `search.${key}`);
+const mount = () => render(<IntlProvider locale="fr" messages={pickMessages('fr', ['common', 'wardrobe', 'search'])}><Search catalog={catalog} /></IntlProvider>);
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.clearAllMocks(); });
+it('submits private queries in a body, explains results and prepares an unsaved selection', async () => {
+  const fetch = vi.fn().mockResolvedValueOnce(response({ items: [item], mode: 'text', interpretation: { expanded: [] } })).mockResolvedValueOnce(response({ garmentIds: [id], unavailableIds: [], saved: false }));
+  vi.stubGlobal('fetch', fetch);
+  mount();
+  const user = userEvent.setup();
+  await user.type(screen.getByLabelText(t('query')), 'baskets');
+  await user.click(screen.getByRole('button', { name: t('submit') }));
+  expect(await screen.findByRole('link', { name: 'Mes baskets' })).toBeTruthy();
+  expect(fetch.mock.calls[0]![0]).toBe('/api/v1/search/garments');
+  expect(JSON.parse(fetch.mock.calls[0]![1].body)).toMatchObject({ q: 'baskets' });
+  await user.click(screen.getByRole('checkbox', { name: 'Mes baskets' }));
+  await user.click(screen.getByRole('button', { name: /Préparer une tenue/ }));
+  await waitFor(() => expect(router.push).toHaveBeenCalledWith(`/fr/tenues/new?garments=${id}`));
+  expect(fetch.mock.calls).toHaveLength(2);
+  expect(fetch.mock.calls[1]![0]).toBe('/api/v1/search/outfit-draft');
+});
+it('shows empty results, request failures and session expiry', async () => {
+  const fetch = vi.fn().mockResolvedValueOnce(response({ items: [], mode: 'text', interpretation: { expanded: [] } })).mockResolvedValueOnce(response({ code: 'RATE_LIMITED' }, 429)).mockResolvedValueOnce(response({ code: 'UNAUTHENTICATED' }, 401));
+  vi.stubGlobal('fetch', fetch);
+  mount();
+  const user = userEvent.setup();
+  await user.click(screen.getByRole('button', { name: t('submit') }));
+  expect(await screen.findByText(t('empty'))).toBeTruthy();
+  await user.click(screen.getByRole('button', { name: t('submit') }));
+  expect(await screen.findByRole('alert')).toBeTruthy();
+  await user.click(screen.getByRole('button', { name: t('submit') }));
+  await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/fr/login'));
+});

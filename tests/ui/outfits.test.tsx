@@ -227,3 +227,10 @@ describe('outfit editor', () => {
     expect(calls().some((c) => c.url.includes('mark-to-wash'))).toBe(false);
   });
 });
+
+it('prepares search selection in the editor without creating an outfit on mount', async () => {
+  fetchMock.mockImplementation((url: string) => Promise.resolve(json(url.includes('/garments/') ? garment(G(1), 'Sélection recherche') : { items: [] })));
+  wrap(<OutfitEditor catalog={catalog} initial={null} timezone="UTC" zones={['UTC']} initialItems={[{ garmentId: G(1), role: 'TOP' }]} />);
+  expect(await screen.findByRole('button', { name: fr('outfits.editor.removeOne').replace('{name}', 'Sélection recherche') })).toBeTruthy();
+  expect(calls().some((x) => x.url === '/api/v1/outfits' && x.init.method === 'POST')).toBe(false);
+});

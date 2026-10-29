@@ -468,6 +468,7 @@
     }
   },
   "nav": {
+    "search": "Search",
     "label": "Main navigation",
     "dressing": "Wardrobe",
     "settings": "Settings",
@@ -993,5 +994,110 @@
         "TRADITIONAL": "Traditional"
       }
     }
+  },
+  "search": {
+    "unsupported": "Negations are not supported. Use the filters to refine your search.",
+    "title": "Search",
+    "intro": "Find your garments by keywords, synonyms or properties.",
+    "query": "Your search",
+    "hint": "Example: black sneakers available for work",
+    "filters": "Filters and sort",
+    "all": "All",
+    "submit": "Search",
+    "results": "Search results",
+    "count": "{count, plural, =0 {No results displayed} one {# result displayed} other {# results displayed}}",
+    "empty": "No garments match. Try fewer words or change your filters.",
+    "error": "Search is unavailable or busy. Try again in a moment.",
+    "changed": "The results changed. Search again from the first page.",
+    "selectionError": "Your selection changed or contains an inaccessible garment. Search again.",
+    "pending": "Your criteria changed. Search to update the results.",
+    "estimated": "Estimated correction for “{term}”: check the results.",
+    "more": "Show more",
+    "prepare": "Prepare an outfit ({count})",
+    "draftHint": "Up to 30 garments. The outfit is only saved when you confirm in the editor.",
+    "field": {
+      "category": "Category",
+      "subtype": "Type",
+      "color": "Color",
+      "status": "Status",
+      "season": "Season",
+      "style": "Style",
+      "sort": "Sort by"
+    },
+    "sort": {
+      "relevance": "Relevance",
+      "newest": "Newest",
+      "availability": "Availability"
+    },
+    "reason": {
+      "CATALOG": "Catalog properties",
+      "TEXT": "Matching personal text",
+      "FILTER": "Filters satisfied"
+    }
+  },
+  "planning": {
+    "title": "Agenda and trips",
+    "intro": "All-day events and preparation lists. Checking an item never changes garment status.",
+    "events": "Events",
+    "trips": "Trips",
+    "name": "Title",
+    "date": "Start date",
+    "end": "End date",
+    "city": "City (optional)",
+    "type": "Type",
+    "indoor": "Indoor sport",
+    "repeat": "Repeat",
+    "notes": "Notes",
+    "checklist": "Free checklist: one item per line",
+    "create": "Create",
+    "loading": "Loading…",
+    "error": "Unable to complete. Check the fields or reload after a conflict.",
+    "empty": "Nothing here yet.",
+    "remove": "Delete",
+    "confirmDelete": "Delete this entry?",
+    "occurrences": "View the next 90 days",
+    "more": "Show more",
+    "types": {
+      "PERSONAL": "Personal",
+      "WORK": "Work",
+      "SPORT": "Sport"
+    },
+    "repeatValues": {
+      "NONE": "None",
+      "DAILY": "Daily",
+      "WEEKLY": "Weekly",
+      "MONTHLY": "Monthly"
+    }
+  },
+  "activity": {
+    "title": "Activity",
+    "notifications": "Notifications",
+    "stats": "Statistics",
+    "intro": "In-app reminders only. No push or browser permission.",
+    "enabled": "Enable outfit reminders",
+    "minutes": "Minutes before the outfit",
+    "save": "Save",
+    "refresh": "Refresh",
+    "empty": "No notifications.",
+    "due": "A planned outfit is coming up.",
+    "open": "Open outfit",
+    "read": "Mark as read",
+    "remove": "Delete",
+    "more": "Show more",
+    "loading": "Loading…",
+    "error": "Unable to complete. Try again.",
+    "definition": "Current non-trashed pieces created before the period ends; confirmed wears only. UTC period. Cost per wear uses the entire confirmed history.",
+    "from": "From",
+    "to": "To",
+    "threshold": "Forgotten threshold (days)",
+    "calculate": "Calculate",
+    "usage": "{used} used pieces out of {total} eligible pieces",
+    "missing": "{count} missing prices or currencies",
+    "purchases": "Eligible inventory purchase totals by currency (purchase dates not filtered)",
+    "garment": "Garment",
+    "wears": "{count} wears in period; {total} overall",
+    "cost": "Cost per wear",
+    "unknown": "Not calculable",
+    "forgotten": "No recent confirmed wear"
   }
 }

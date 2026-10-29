@@ -1,3 +1,4 @@
+import { createNotificationJob } from '@/modules/notifications';
 // Process entry of the worker container. Kept apart from index.ts so tests can import startWorker without side effects.
 import { writeFileSync } from 'node:fs';
 import { getEnv } from '@/platform/env';
@@ -19,8 +20,8 @@ const purgeTrash = createWardrobePurge({ db, storage: new LocalObjectStorage(env
 // Business jobs: later phases register their handlers here.
 const worker = await startWorker({
   redisUrl: env.REDIS_URL,
-  handlers: { 'wardrobe-purge': async () => void (await purgeTrash(new Date())) },
-  schedules: [{ queue: 'wardrobe-purge', everyMs: 86_400_000 }],
+  handlers: { 'notifications-refresh': async () => { await createNotificationJob(db,err=>log.error({err},'notification owner refresh failed'))(new Date()); }, 'wardrobe-purge': async () => void (await purgeTrash(new Date())) },
+  schedules: [{ queue: 'wardrobe-purge', everyMs: 86_400_000 }, { queue: 'notifications-refresh', everyMs: 300_000 }],
   onError: (err) => log.error({ err }, 'worker error'),
 });
 

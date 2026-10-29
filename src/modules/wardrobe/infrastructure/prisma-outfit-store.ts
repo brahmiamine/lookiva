@@ -1,4 +1,5 @@
 import { Prisma, type PrismaClient } from '@/generated/prisma/client';
+import { newId } from '@/platform/http/ids';
 import type { OwnerId } from '@/platform/kernel';
 import { snapshotName, type OutfitStatus } from '../domain/outfit';
 import type { ConfirmResult, MarkResult, OutfitStore, OutfitView, WearView } from '../application/outfit-service';
@@ -7,19 +8,19 @@ const TX = { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted };
 
 const INCLUDE = {
   items: { orderBy: { garmentId: 'asc' }, include: { garment: { include: { customSubcategory: { select: { label: true } } } } } },
-  wears: { select: { id: true }, take: 1 },
+  wearRecords: { where: { status: 'ACTIVE' }, select: { id: true }, take: 1 },
 } as const;
 
 type Row = Prisma.OutfitGetPayload<{ include: typeof INCLUDE }>;
 
 const toView = (o: Row): OutfitView => ({
   id: o.id,
-  name: o.name,
+  name: o.title,
   status: o.status as OutfitStatus,
-  plannedFor: o.plannedFor?.toISOString() ?? null,
+  plannedFor: o.startsAt?.toISOString() ?? null,
   occasion: o.occasion,
   version: o.version,
-  wearRecordId: o.wears[0]?.id ?? null,
+  wearRecordId: o.wearRecords[0]?.id ?? null,
   items: o.items.map((i) => ({
     garmentId: i.garmentId,
     name: snapshotName({ nickname: i.garment.nickname, customLabel: i.garment.customSubcategory?.label ?? null, subtypeCode: i.garment.subtypeCode, categoryCode: i.garment.categoryCode }),
@@ -30,6 +31,9 @@ const toView = (o: Row): OutfitView => ({
   updatedAt: o.updatedAt.toISOString(),
 });
 
+/** Compatibility adapter for the original wardrobe screens. Maps their name/plannedFor/wornAt DTOs
+ * to the current outfits schema; the legacy API's timezone-less instants are represented in UTC.
+ * Existing history is never rewritten. New clients use the outfits module directly. */
 export function createPrismaOutfitStore(db: PrismaClient): OutfitStore {
   const read = (client: PrismaClient | Prisma.TransactionClient, owner: OwnerId, id: string) =>
     client.outfit.findFirst({ where: { id, ownerId: owner }, include: INCLUDE }).then((o) => (o ? toView(o) : null));
@@ -46,12 +50,12 @@ export function createPrismaOutfitStore(db: PrismaClient): OutfitStore {
           data: {
             id,
             ownerId: owner,
-            name: input.name,
+            title: input.name,
             status: 'DRAFT',
             version: 1,
             createdAt: now,
             updatedAt: now,
-            items: { create: input.garmentIds.map((garmentId) => ({ garmentId })) },
+            items: { create: input.garmentIds.map((garmentId, position) => ({ id: newId(), garmentId, role: 'OTHER', position })) },
           },
         });
         return read(tx, owner, id);
@@ -87,16 +91,16 @@ export function createPrismaOutfitStore(db: PrismaClient): OutfitStore {
     wearsOf: (owner, garmentId) =>
       db.wearRecordItem
         .findMany({
-          where: { garmentId, wearRecord: { ownerId: owner } },
-          orderBy: { wearRecord: { wornAt: 'desc' } },
+          where: { garmentId, wearRecord: { ownerId: owner, status: 'ACTIVE' } },
+          orderBy: { wearRecord: { confirmedAt: 'desc' } },
           take: 20,
-          select: { wearRecord: { select: { id: true, wornAt: true, outfitId: true } } },
+          select: { wearRecord: { select: { id: true, confirmedAt: true, outfitId: true } } },
         })
-        .then((rows): WearView[] => rows.map((r) => ({ wearRecordId: r.wearRecord.id, wornAt: r.wearRecord.wornAt.toISOString(), outfitId: r.wearRecord.outfitId }))),
+        .then((rows): WearView[] => rows.map((r) => ({ wearRecordId: r.wearRecord.id, wornAt: r.wearRecord.confirmedAt.toISOString(), outfitId: r.wearRecord.outfitId }))),
 
     list: (owner, f) =>
       db.outfit
-        .findMany({ where: { ownerId: owner, status: f.status, plannedFor: { gte: f.from, lt: f.to } }, orderBy: [{ plannedFor: 'asc' }, { createdAt: 'asc' }], include: INCLUDE, take: 100 })
+        .findMany({ where: { ownerId: owner, status: f.status, ...(f.from || f.to ? { startsAt: { gte: f.from, lt: f.to } } : {}) }, orderBy: [{ startsAt: 'asc' }, { createdAt: 'asc' }], include: INCLUDE, take: 100 })
         .then((rows) => rows.map(toView)),
 
     /** One guarded UPDATE: the version in the WHERE clause makes a lost race a null, never a silent overwrite. */
@@ -105,9 +109,9 @@ export function createPrismaOutfitStore(db: PrismaClient): OutfitStore {
         const moved = await tx.outfit.updateMany({
           where: { id, ownerId: owner, version: expectedVersion },
           data: {
-            ...(patch.name !== undefined && { name: patch.name }),
+            ...(patch.name !== undefined && { title: patch.name }),
             ...(patch.occasion !== undefined && { occasion: patch.occasion }),
-            ...(patch.plannedFor !== undefined && { plannedFor: patch.plannedFor }),
+            ...(patch.plannedFor !== undefined && { startsAt: patch.plannedFor, localDate: patch.plannedFor ? new Date(patch.plannedFor.toISOString().slice(0, 10)) : null, localTime: patch.plannedFor?.toISOString().slice(11, 16) ?? null, timezone: patch.plannedFor ? 'UTC' : null }),
             ...(patch.status !== undefined && { status: patch.status }),
             version: { increment: 1 },
             updatedAt: now,
@@ -124,7 +128,7 @@ export function createPrismaOutfitStore(db: PrismaClient): OutfitStore {
       db.$transaction(async (tx): Promise<ConfirmResult> => {
         const o = await tx.outfit.findFirst({
           where: { id, ownerId: owner },
-          include: { items: { include: { garment: { include: { customSubcategory: { select: { label: true } } } } } } },
+          include: { items: { include: { garment: { include: { customSubcategory: { select: { label: true } }, colors: true } } } } },
         });
         if (!o) return { kind: 'NOT_FOUND' };
         const alreadyWorn = async () => ({ kind: 'ALREADY_WORN' as const, wearRecordId: (await tx.wearRecord.findFirst({ where: { outfitId: id }, select: { id: true } }))?.id ?? '' });
@@ -143,15 +147,18 @@ export function createPrismaOutfitStore(db: PrismaClient): OutfitStore {
             id: wearRecordId,
             ownerId: owner,
             outfitId: id,
-            wornAt: now,
+            title: o.title, occasion: o.occasion, status: 'ACTIVE', activeSlot: 1,
+            confirmedAt: now, localDate: o.localDate ?? new Date(now.toISOString().slice(0, 10)),
+            localTime: o.localTime ?? now.toISOString().slice(11, 16), timezone: o.timezone ?? 'UTC',
             createdAt: now,
             items: {
               create: o.items.map((i) => ({
                 id: nextId(),
                 garmentId: i.garmentId,
-                garmentName: snapshotName({ nickname: i.garment.nickname, customLabel: i.garment.customSubcategory?.label ?? null, subtypeCode: i.garment.subtypeCode, categoryCode: i.garment.categoryCode }).slice(0, 120),
+                role: i.role, position: i.position, nickname: i.garment.nickname,
+                subtypeCode: i.garment.subtypeCode, customSubtypeLabel: i.garment.customSubcategory?.label ?? null,
                 categoryCode: i.garment.categoryCode,
-                colorCode: i.garment.primaryColorCode,
+                primaryColorCode: i.garment.primaryColorCode, extraColorCodes: i.garment.colors.map((c) => c.colorCode),
               })),
             },
           },

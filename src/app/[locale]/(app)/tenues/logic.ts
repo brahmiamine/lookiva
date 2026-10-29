@@ -145,3 +145,12 @@ export function scheduleBody(f: ScheduleForm) {
   const endsAt = startsAt && f.end ? zonedInstant(f.end > f.start ? f.date : addDays(f.date, 1), f.end, f.timezone) : null;
   return { title: f.title.trim() || null, occasion: f.occasion.trim() || null, startsAt, endsAt, timezone: startsAt ? f.timezone : null };
 }
+
+/** Selection URLs are untrusted input; no outfit is persisted by parsing them. */
+export function parseGarmentSelection(value: string | string[] | undefined): string[] | null {
+  if (value === undefined || value === '') return [];
+  if (typeof value !== 'string' || value.length > 30 * 37) return null;
+  const ids = value.split(',');
+  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return ids.length <= 30 && new Set(ids.map((id) => id.toLowerCase())).size === ids.length && ids.every((id) => uuid.test(id)) ? ids : null;
+}
