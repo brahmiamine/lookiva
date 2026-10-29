@@ -1,4 +1,6 @@
 import { afterAll, describe, expect, it } from 'vitest';
+import { asOwnerId } from '@/platform/kernel';
+import { createPrismaIdentityStore } from '@/modules/identity/infrastructure/prisma-store';
 import { closeAll, db, harness } from './harness';
 
 afterAll(closeAll);
@@ -80,6 +82,22 @@ describe('consents', () => {
       const flag = (await h.api.prefs(cookie)).body?.learningEnabled;
       const latest = ((await h.api.consents(cookie)).body?.items as Item[])[1]?.granted;
       expect(flag).toBe(latest);
+    }
+  });
+
+  it('same_instant_concurrent_records_get_strictly_increasing_timestamps_and_the_flag_follows_the_latest', async () => {
+    const h = harness();
+    const { userId } = await h.signedIn();
+    const store = createPrismaIdentityStore(db);
+    const owner = asOwnerId(userId);
+    const now = new Date(); // every call carries the same clock reading
+    for (let round = 0; round < 15; round++) {
+      await Promise.all(Array.from({ length: 6 }, (_, i) => store.recordConsent(owner, 'AI_RECOMMENDATIONS', (round + i) % 3 === 0, now)));
+      const rows = await db.consentRecord.findMany({ where: { userId, kind: 'AI_RECOMMENDATIONS' }, orderBy: { createdAt: 'asc' } });
+      expect(new Set(rows.map((r) => r.createdAt.getTime())).size).toBe(rows.length);
+      const [latest] = await store.latestConsents(owner);
+      expect(latest?.granted).toBe(rows.at(-1)?.granted);
+      expect((await store.getPreferences(owner))?.aiEnabled).toBe(rows.at(-1)?.granted);
     }
   });
 

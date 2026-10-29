@@ -248,11 +248,15 @@ export function createPrismaIdentityStore(db: PrismaClient, hooks: { whileCreden
       db.$transaction(async (tx) => {
         // Row lock first: concurrent PUTs for one user serialise, so the flag always equals the latest record.
         await tx.$queryRaw`SELECT userId FROM user_preferences WHERE userId = ${ownerId} FOR UPDATE`;
-        await tx.consentRecord.create({ data: { id: newId(), userId: ownerId, kind, granted, createdAt: now } });
+        // createdAt is taken under the lock and is strictly after the previous record of this kind, so the reader's order
+        // (createdAt desc) is exactly the commit order and never depends on the uuid or on the caller's clock.
+        const prev = await tx.consentRecord.findFirst({ where: { userId: ownerId, kind }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], select: { createdAt: true } });
+        const createdAt = prev && prev.createdAt >= now ? new Date(prev.createdAt.getTime() + 1) : now;
+        await tx.consentRecord.create({ data: { id: newId(), userId: ownerId, kind, granted, createdAt } });
         const flag = kind === 'AI_RECOMMENDATIONS' || kind === 'LEARNING' ? CONSENT_PREFERENCE[kind] : null;
         // Only a real change bumps the version (the ETag of the preferences stays stable on a repeated PUT).
         if (flag) await tx.userPreferences.updateMany({ where: { userId: ownerId, [flag]: { not: granted } }, data: { [flag]: granted, version: { increment: 1 } } });
-        return { kind, granted, updatedAt: now };
+        return { kind, granted, updatedAt: createdAt };
       }, TX),
     async latestConsents(ownerId) {
       // One indexed lookup per kind (userId, kind, createdAt): bounded whatever the history length.
