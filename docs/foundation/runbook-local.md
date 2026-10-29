@@ -21,7 +21,7 @@ Ne lancez pas l'une pendant que l'autre tourne.
 `pnpm verify` exporte `COMPOSE_PROJECT_NAME=lookiva-verify` et ne démarre/arrête que ce projet pour les tests d'intégration ; son nettoyage utilise `infra:reset` (`down -v`).
 Raison : sous un projet distinct, ce nettoyage ne peut jamais supprimer les conteneurs ni le volume `lookiva_db-data` d'une pile de développement.
 Avant l'étape d'intégration, `verify` exporte aussi `DATABASE_URL` et `REDIS_URL` lus dans `.env.example` (ports loopback 3307/6380) : un `.env` ou un shell pointant ailleurs ne peut pas détourner les tests.
-Au début de chaque `verify`, un reliquat `lookiva-verify` d'un run interrompu est supprimé, puis les ports 3307, 6380 et 3100 sont contrôlés.
+Au début de chaque `verify`, un reliquat `lookiva-verify` d'un run interrompu est supprimé, puis les ports 3307, 6380 et 3100 sont contrôlés (`nc` obligatoire). L'infra est démarrée avant les tests d'intégration et gardée pour l'étape e2e, puis supprimée (`infra:reset` du seul projet `lookiva-verify`).
 
 ### Ce que prouve le profil `app`
 
@@ -150,9 +150,9 @@ Toutes les durées sont dans `src/modules/identity/domain/policy.ts`.
   - Une réinitialisation de mot de passe annule tous les liens de vérification encore valides (et efface leurs hash) dans la même transaction : un vieux lien ne peut pas écraser le mot de passe choisi.
   - Les jetons utilisés ou expirés de plus de 7 jours sont à purger par `purgeEmailTokens(db, olderThan, now)` (exporté par `@/modules/identity`, tâche worker à planifier — voir limites connues).
   - **Limite résiduelle** : un attaquant qui se réinscrit après le titulaire et avant que celui-ci clique possède le lien le plus récent ; si le titulaire ouvre ce lien, le compte est vérifié avec le mot de passe de l'attaquant. Le titulaire s'en aperçoit à la connexion et récupère le compte par « mot de passe oublié » (toutes les sessions révoquées). Conception plus forte prévue avec l'interface (tranche 2) : mot de passe saisi sur la page de vérification, ou lien lié au navigateur qui a fait l'inscription.
-- **Jetons** : Inconnu, utilisé ou expiré : même 400 `INVALID_TOKEN`. Les liens portent le jeton dans le fragment (`/<langue>/verify-email#token=...`, `/<langue>/reset-password#token=...`) : il n'est jamais envoyé à un serveur ni dans un `Referer`. Les pages correspondantes arrivent en tranche 2.
+- **Jetons** : Inconnu, utilisé ou expiré : même 400 `INVALID_TOKEN`. Les liens portent le jeton dans le fragment (`/<langue>/verify-email#token=...`, `/<langue>/reset-password#token=...`) : il n'est jamais envoyé à un serveur ni dans un `Referer`. Les pages `verify-email` et `reset-password` (tranche 2b) lisent le fragment, le retirent de l'URL (`history.replaceState`) et l'envoient en POST.
 - **Liens** : toujours `APP_ORIGIN` + `/<langue>/...` ; ni `Host` ni `X-Forwarded-Proto/Host` n'entrent dans un lien (test `forged_host_and_forwarded_proto_do_not_reach_the_mailed_link`).
-- **Lire les e-mails en dev/test** : avec `EMAIL_TRANSPORT=outbox`, les messages sont dans la table `outbox_messages`. Dans un test : `readOutbox(db, 'adresse@exemple')` (`src/platform/email/outbox.ts`, refuse de s'exécuter en production, aucune route HTTP). À la main : `docker compose --env-file .env.example exec db mariadb -ulookiva -pchange-me lookiva -e 'SELECT text FROM outbox_messages ORDER BY id DESC LIMIT 1'`.
+- **Lire les e-mails en dev/test** : avec `EMAIL_TRANSPORT=outbox`, les messages sont dans la table `outbox_messages`. Dans un test : `readOutbox(db, 'adresse@exemple')` (`src/platform/email/outbox.ts`, refuse de s'exécuter en production, aucune route HTTP). Les e2e l'utilisent directement depuis les workers Playwright (`latestMailLink` dans `e2e/support.ts`, base de `.env.example`) : aucune route de lecture d'outbox n'existe, donc rien n'est joignable en production ni avec `EMAIL_TRANSPORT=none`. À la main : `docker compose --env-file .env.example exec db mariadb -ulookiva -pchange-me lookiva -e 'SELECT text FROM outbox_messages ORDER BY id DESC LIMIT 1'`.
 - **CSRF** : sur POST/PUT/PATCH/DELETE de toutes les routes `identity` (publiques comprises, contre le « login CSRF ») : en-tête `X-Requested-With: lookiva` obligatoire et, si `Origin` est présent, il doit valoir `APP_ORIGIN` (repli `Host` + schéma seulement si `APP_ORIGIN` est absent, cas `EMAIL_TRANSPORT=none` hors production). Sinon 403 `CSRF_REJECTED`.
 - **Limites de débit** (Redis, fenêtre fixe, `INCR` + `PEXPIRE` dans un `MULTI`, 429 `RATE_LIMITED` + `Retry-After`) : login 10 / 15 min par IP+e-mail et 30 / 15 min par IP ; inscription 5 / h par IP et 5 / h par adresse e-mail (hash, quelle que soit l'IP) ; mot de passe oublié et renvoi de vérification 5 / h par IP+e-mail ; jetons (vérification et réinitialisation, compteur commun) 10 / 15 min par IP. L'e-mail entre dans la clé sous forme de SHA-256 tronqué ; une adresse IPv6 compte pour son préfixe /64 (une IPv4 mappée `::ffff:a.b.c.d` pour l'IPv4). La limite par IP du login est appliquée avant la lecture du corps. Redis indisponible : 503 `RATE_LIMITER_UNAVAILABLE` (fermé par défaut). **Adresse client** : les route handlers ne voient pas la socket ; `X-Forwarded-For` n'est lu que si `TRUST_PROXY=true`, et alors seule l'entrée la plus à droite (celle écrite par notre proxy) compte. Avec `TRUST_PROXY=false`, toutes les requêtes partagent l'adresse `untrusted` : les limites par IP deviennent globales. C'est accepté en dev ; en production l'environnement est refusé sauf `TRUST_PROXY=true` ou acquittement explicite `TRUST_PROXY_ACK_SINGLE_BUCKET=true`.
 - **Anti-énumération** : inscription, renvoi et mot de passe oublié répondent 202 `{"status":"accepted"}` que le compte existe ou non ; l'inscription calcule toujours un scrypt. Écart résiduel : un compte existant déclenche une écriture de jeton et un e-mail (quelques millisecondes).
@@ -184,3 +184,40 @@ Toutes les durées sont dans `src/modules/identity/domain/policy.ts`.
 | Consentements `AI` | Les anciennes lignes de type `AI` sont ignorées (développement seulement). | Accepté. |
 | Alerte e-mail | Aucun e-mail n'est envoyé lors d'une désactivation, demande d'effacement ou annulation. | Différé. |
 | Consentements : horodatage | `createdAt` et l'id sont pris dans la transaction après le verrou, monotones par type (≥ précédent + 1 ms) : l'ordre de lecture est l'ordre de commit. | Résolu (0ac3cf6). |
+
+## 11. Écrans d'identité (tranche 2b)
+
+### E2E
+
+- Prérequis : `pnpm infra:up` (MariaDB 3307, Redis 6380), Chromium (`pnpm e2e:install`). `pnpm test:e2e` démarre `next dev` sur 3100 avec les placeholders de `.env.example`, `EMAIL_TRANSPORT=outbox`, `APP_ORIGIN=http://localhost:3100` et `TRUST_PROXY=true` ; `e2e/global-setup.ts` applique les migrations.
+- `TRUST_PROXY=true` côté e2e : chaque test envoie son propre `X-Forwarded-For` (fixture `test` de `e2e/support.ts`), comme derrière un vrai proxy ; sans cela toutes les limites par IP (inscription 5/h...) seraient partagées par toute la suite.
+- 5 projets : `fr-desktop`, `en-desktop`, `ar-desktop`, `fr-mobile`, `ar-mobile` (375 px ; la reflow est aussi mesurée à 320 px). Les parcours lourds tournent sur un sous-ensemble de projets (voir `test.skip` dans `e2e/identity.spec.ts`).
+- Attente d'hydratation : `gotoHydrated` attend `html[data-hydrated]` posé par `HydrationMarker` après l'hydratation React.
+- Deux processus `next` (dev ou build) qui partagent le même `.next` peuvent le corrompre (observé : `SyntaxError ... JSON.parse` sur des manifestes) ; supprimer `.next` et relancer.
+
+### Écarts avec les maquettes
+
+| Maquette | Implémentation | Raison |
+|---|---|---|
+| Barre de navigation du bas (Dressing, Tenues, Recherche, Plus) | Absente | Ces écrans n'existent pas encore (phases 04+) : liens morts. |
+| Fin d'onboarding vers `dressing` | Vers `settings/profile` | Pas encore d'écran dressing. |
+| « E-mail vérifié » → « Continuer » vers l'onboarding | « Continuer » vers `login` | Vérifier l'adresse n'ouvre pas de session (API) ; la connexion envoie ensuite vers l'onboarding. |
+| Inscription : état « Compte envoyé » dans la page | Redirection vers `verify-email` (même texte, même renvoi) | Un seul écran pour l'attente et le renvoi ; l'adresse vient de `sessionStorage` (onglet seulement, jamais dans l'URL) et s'affiche isolée (`<bdi dir="ltr">`). |
+| Sessions : lieu (« Lyon, France ») | Absent | L'API ne stocke aucune localisation de session. Libellé « Système · Navigateur » dérivé du résumé serveur (« Chrome on macOS »). |
+| Sessions : « Afficher plus » | 100 premières sessions | Limite de page de l'API ; pagination à ajouter si nécessaire. |
+| Profil : export et suppression « En préparation » (désactivés) | Actifs, branchés sur `POST /me/export-requests` et `POST /me/deletion-request` (mot de passe dans un dialogue) | Demande de la tranche 2b ; le texte dit que l'export n'est pas encore généré et que les sauvegardes ne sont pas purgées immédiatement. |
+| Profil : pas de bouton de déconnexion simple | « Se déconnecter » ajouté (section Compte) | Parcours de déconnexion exigé. |
+| Onboarding : « Ma ville n'est pas dans la liste » seulement après refus/aucun résultat ; « Terminer » `aria-disabled` | Section manuelle toujours visible ; « Terminer » toujours actif, valide au clic et place le focus sur la recherche avec un message | Saisie manuelle accessible sans état caché ; erreurs annoncées et focus déplacé. |
+| Fuseaux : liste courte avec décalage (« UTC+1/+2 ») | Liste IANA complète du serveur, sans décalage | Évite une table d'offsets à maintenir et un écart serveur/client à l'hydratation. |
+| Mesure du mot de passe : 3 barres | 1 barre (< 12) ou 3 barres (≥ 12), libellés de la maquette | La politique serveur n'a qu'un seuil de longueur. |
+| Case « conditions d'utilisation » | Obligatoire côté client uniquement, sans lien | Aucun document de conditions/politique n'existe encore. |
+| Libellés de sensibilité thermique en arabe/anglais | Traductions proposées | Pas de maquette en/ar pour ces écrans. |
+
+### Limites connues et NON EXÉCUTÉ
+
+- NON EXÉCUTÉ : appareils réels (iOS/Android, lecteurs d'écran VoiceOver/TalkBack/NVDA), seuls Chromium desktop et l'émulation mobile Playwright ont tourné.
+- NON EXÉCUTÉ : relecture native des textes arabes (et anglais) ; les textes hors maquettes arabes (onboarding, paramètres, erreurs) sont des propositions.
+- NON EXÉCUTÉ : envoi d'e-mails réels (seul `outbox` existe) ; GPS réel (seul le refus est testé, le succès ne l'est pas).
+- Après une connexion, la langue de l'URL est conservée même si la préférence enregistrée est une autre langue (la page profil bascule seulement quand la langue est modifiée).
+- `global-error.tsx` embarque les trois catalogues (chargé uniquement en cas d'erreur fatale du layout).
+- La garde serveur appelle les handlers `identity` dans le process (`GET` uniquement) : une requête de page = une lecture de session + préférences.

@@ -87,8 +87,7 @@
     "unavailableTitle": "Service momentanément indisponible",
     "unavailableText": "Réessayez dans quelques instants.",
     "unexpectedTitle": "Une erreur est survenue",
-    "unexpectedText": "Réessayez. Si le problème continue, rechargez la page.",
-    "errorSummary": "{count, plural, one {Corrigez le champ signalé.} other {Corrigez les # champs signalés.}}"
+    "unexpectedText": "Réessayez. Si le problème continue, rechargez la page."
   },
   "auth": {
     "password": {
@@ -115,9 +114,7 @@
       "limitedText": "Par sécurité, la connexion est suspendue temporairement. Vous pouvez aussi réinitialiser votre mot de passe.",
       "notVerifiedTitle": "Adresse e-mail pas encore vérifiée.",
       "notVerifiedText": "Ouvrez le lien reçu par e-mail, ou demandez-en un nouveau.",
-      "notVerifiedLink": "Recevoir un nouveau lien",
-      "deletedTitle": "Demande de suppression enregistrée",
-      "deletedText": "Vous avez été déconnecté de tous vos appareils."
+      "notVerifiedLink": "Recevoir un nouveau lien"
     },
     "register": {
       "title": "Créer un compte",
@@ -209,7 +206,6 @@
       "unknownOs": "Système inconnu",
       "thisDevice": "Cet appareil",
       "lastSeen": "Dernière activité : {when}",
-      "signedIn": "Connecté le {date}",
       "revoke": "Révoquer",
       "revokeLabel": "Révoquer la session {device}",
       "revokedTitle": "Session révoquée",
@@ -219,9 +215,7 @@
       "logoutAll": "Se déconnecter partout",
       "logoutAllHint": "Déconnecte tous vos appareils, y compris celui-ci.",
       "confirmTitle": "Se déconnecter partout ?",
-      "confirmText": "Tous vos appareils seront déconnectés, y compris celui-ci. Vous devrez vous reconnecter.",
-      "more": "Afficher plus",
-      "toProfile": "Profil et préférences"
+      "confirmText": "Tous vos appareils seront déconnectés, y compris celui-ci. Vous devrez vous reconnecter."
     },
     "profile": {
       "title": "Profil et préférences",

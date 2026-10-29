@@ -87,8 +87,7 @@
     "unavailableTitle": "Service temporarily unavailable",
     "unavailableText": "Try again in a few moments.",
     "unexpectedTitle": "Something went wrong",
-    "unexpectedText": "Try again. If the problem persists, reload the page.",
-    "errorSummary": "{count, plural, one {Fix the highlighted field.} other {Fix the # highlighted fields.}}"
+    "unexpectedText": "Try again. If the problem persists, reload the page."
   },
   "auth": {
     "password": {
@@ -115,9 +114,7 @@
       "limitedText": "For your security, signing in is temporarily suspended. You can also reset your password.",
       "notVerifiedTitle": "Email address not verified yet.",
       "notVerifiedText": "Open the link we emailed you, or ask for a new one.",
-      "notVerifiedLink": "Get a new link",
-      "deletedTitle": "Deletion request recorded",
-      "deletedText": "You have been signed out of all your devices."
+      "notVerifiedLink": "Get a new link"
     },
     "register": {
       "title": "Create an account",
@@ -209,7 +206,6 @@
       "unknownOs": "Unknown system",
       "thisDevice": "This device",
       "lastSeen": "Last activity: {when}",
-      "signedIn": "Signed in on {date}",
       "revoke": "Revoke",
       "revokeLabel": "Revoke the session {device}",
       "revokedTitle": "Session revoked",
@@ -219,9 +215,7 @@
       "logoutAll": "Sign out everywhere",
       "logoutAllHint": "Signs out all your devices, including this one.",
       "confirmTitle": "Sign out everywhere?",
-      "confirmText": "All your devices will be signed out, including this one. You will need to sign in again.",
-      "more": "Show more",
-      "toProfile": "Profile and preferences"
+      "confirmText": "All your devices will be signed out, including this one. You will need to sign in again."
     },
     "profile": {
       "title": "Profile and preferences",

@@ -3,7 +3,7 @@
 Lookiva est une PWA de dressing privé, multi-utilisateurs, en français, anglais et arabe (RTL).
 Ce dépôt contient le socle de la phase 02 : monolithe modulaire Next.js 16 (App Router) avec un worker BullMQ,
 Prisma sur MariaDB 11.8, Redis 8, un design system accessible et la commande de contrôle `pnpm verify`.
-La phase 03 (tranche 1) ajoute le module `identity` : comptes email/mot de passe vérifiés, sessions serveur révocables, préférences et onboarding (API uniquement ; les écrans arrivent en tranche 2).
+La phase 03 (tranche 1) ajoute le module `identity` : comptes email/mot de passe vérifiés, sessions serveur révocables, préférences et onboarding ; la tranche 2b ajoute leurs écrans (voir « Écrans d'identité »).
 
 ## Prérequis
 
@@ -36,7 +36,7 @@ Détails (ports, pile complète, migrations, dépannage) : [runbook local](docs/
 | `pnpm typecheck` | Génère le client Prisma puis `tsc --noEmit` (TypeScript strict). |
 | `pnpm test` | Tests unitaires Vitest (sans base ni Redis). |
 | `pnpm test:int` | Tests d'intégration Vitest contre la vraie MariaDB/Redis ; demande `pnpm infra:up` avant ; applique les migrations en `globalSetup`. |
-| `pnpm test:e2e` | Tests Playwright (Chromium : fr, en, ar, mobile) contre `next dev` sur le port 3100. |
+| `pnpm test:e2e` | Tests Playwright (Chromium, projets fr/en/ar desktop, fr/ar mobile) contre `next dev` sur le port 3100. **Prérequis : `pnpm infra:up`** (MariaDB 3307, Redis 6380) ; les migrations sont appliquées par `e2e/global-setup.ts`. |
 | `pnpm e2e:install` | Installe Chromium pour Playwright. |
 | `pnpm verify` | Contrôle unique : preflight ports, db:generate, lint, typecheck, boundaries, tests unitaires, intégration (infra dédiée `lookiva-verify`), openapi:check, build, e2e, scan de secrets. S'arrête à la première erreur. |
 | `pnpm secrets:scan` | `secretlint` sur tout le dépôt. |
@@ -131,11 +131,32 @@ Aucune connexion n'est possible avant la vérification de l'adresse. Tant que le
 `APP_ORIGIN` est obligatoire dès que des e-mails peuvent partir (y compris en dev avec `EMAIL_TRANSPORT=outbox` : l'ajouter à un `.env` existant) et en production, où `TRUST_PROXY=true` est aussi exigé (sauf `TRUST_PROXY_ACK_SINGLE_BUCKET=true`).
 Les routes privées des autres modules utilisent `withSession(handler)` exporté par `@/modules/identity` : il reçoit `{ requestId, log, userId: OwnerId, sessionId }`.
 
+## Écrans d'identité
+
+| Route (`/<langue>/...`) | Écran | Accès |
+|---|---|---|
+| `login` | Connexion (erreur générique, attente 429 avec bouton bloqué) | public |
+| `register` | Inscription (mesure de longueur, confirmation, conditions) | public |
+| `verify-email` | « Vérifiez votre e-mail » + renvoi (délai 60 s) ; avec `#token=` : vérification | public |
+| `forgot-password` | Demande de lien (même réponse que le compte existe ou non) | public |
+| `reset-password` | Nouveau mot de passe depuis `#token=` (toutes les sessions fermées) | public |
+| `onboarding` | 2 étapes : langue, ville (recherche `/geo/cities`, saisie manuelle + fuseau IANA, GPS facultatif au clic) | session |
+| `settings/profile` | Préférences (`If-Match`, message 409), IA désactivée par défaut, export, suppression avec mot de passe, déconnexion | session + onboarding fait |
+| `settings/sessions` | Sessions, « Cet appareil », révocation, « Se déconnecter partout » avec confirmation | session + onboarding fait |
+
+Garde côté serveur (`src/app/[locale]/(app)/server-api.ts`) : sans session valide, redirection vers `login` ; onboarding non terminé, vers `onboarding`.
+Le jeton des liens e-mail est lu dans le fragment par la page, retiré de l'URL puis envoyé en POST : il n'apparaît dans aucune URL de requête ni aucun journal.
+Le client navigateur `src/ui/api-client.ts` ajoute `X-Requested-With: lookiva`, une `Idempotency-Key` quand la route l'exige, `If-Match`, et convertit `application/problem+json` en `ApiError` (avec `Retry-After`) ; il ne journalise rien.
+Écarts avec les maquettes, limites et NON EXÉCUTÉ : [runbook §11](docs/foundation/runbook-local.md#11-écrans-didentité-tranche-2b).
+
 ## i18n et RTL
 
 - Langues `fr` (défaut et repli), `en`, `ar` (`dir="rtl"` posé sur `<html>`). Un fichier de messages par langue dans `src/i18n/messages`.
 - CSS logique uniquement (`ms-*`, `ps-*`, `start`, `end`, ...) : pas de `left`/`right`/`ml-`/`pl-`...; un test (`tests/ui/no-physical-css.test.ts`) le fait respecter dans `src/ui` et `src/app`.
 - Le texte saisi par l'utilisateur n'est jamais traduit ; dates et nombres passent par `Intl`.
+- Composants client : `useTranslations` sous `IntlProvider` (`src/ui/components/IntlProvider.tsx`), qui ne reçoit que les espaces de noms utiles (`pickMessages(locale, [...])`) : aucun catalogue complet n'est envoyé au navigateur (exception documentée : `global-error.tsx`).
+- Icônes directionnelles (retour, flèches) : `<Icon name=... directional />`, inversée en RTL par `rtl:-scale-x-100` ; les autres icônes ne le sont jamais.
+- Titres de document : `generateMetadata` du layout (`%s · Lookiva`) et de chaque page ; 404 localisée (`[locale]/not-found.tsx`).
 
 ## Page de démonstration UI
 
