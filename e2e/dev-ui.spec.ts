@@ -1,11 +1,9 @@
-import AxeBuilder from '@axe-core/playwright';
-import { expect, test, type Page, type TestInfo } from '@playwright/test';
+import type { Page, TestInfo } from '@playwright/test';
+import { expect, expectNoAxeViolations, expectNoHorizontalScroll, gotoHydrated, isMobile, localeOf, test } from './support';
 
-const localeOf = (info: TestInfo) => String(info.project.metadata.locale);
 const open = async (page: Page, info: TestInfo) => {
   const locale = localeOf(info);
-  await page.goto(`/${locale}/dev/ui`);
-  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  await gotoHydrated(page, `/${locale}/dev/ui`);
   return locale;
 };
 const box = async (loc: ReturnType<Page['locator']>) => {
@@ -31,27 +29,29 @@ test('calendar_header_order_is_mirrored_in_rtl', async ({ page }, info) => {
   else expect(first.x).toBeLessThan(last.x);
 });
 
-test('no_horizontal_scroll_on_mobile', async ({ page }, info) => {
-  test.skip(info.project.name !== 'fr-mobile', 'mobile viewport only');
+test('no_horizontal_scroll_at_375_and_320', async ({ page }, info) => {
+  test.skip(!isMobile(info), 'mobile projects only');
   await open(page, info);
-  const m = await page.evaluate(() => ({ scrollWidth: document.documentElement.scrollWidth, innerWidth: window.innerWidth }));
-  expect(m.scrollWidth).toBeLessThanOrEqual(m.innerWidth);
-
-  // Exploratory, non-blocking: same measure at 360px. Reported in the task report, never fails the suite.
-  await page.setViewportSize({ width: 360, height: 800 });
-  const m360 = await page.evaluate(() => ({ scrollWidth: document.documentElement.scrollWidth, innerWidth: window.innerWidth }));
-  console.log(`[360px exploratory] scrollWidth=${m360.scrollWidth} innerWidth=${m360.innerWidth} overflow=${m360.scrollWidth > m360.innerWidth}`);
+  await expectNoHorizontalScroll(page, [375, 320]);
 });
 
-test('axe_has_no_violations_on_dev_ui', async ({ page }, info) => {
+test('axe_has_no_violations_on_dev_ui_with_dialog_closed_and_open', async ({ page }, info) => {
   await open(page, info);
-  const { violations } = await new AxeBuilder({ page })
-    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
-    .analyze();
-  const report = violations
-    .map((v) => `${v.id} (${v.impact}): ${v.help}\n${v.nodes.map((n) => `  - ${n.target.join(' ')}\n    ${n.failureSummary?.replace(/\n/g, '\n    ')}`).join('\n')}`)
-    .join('\n');
-  expect(violations, `axe violations:\n${report}`).toHaveLength(0);
+  await expectNoAxeViolations(page, 'dev/ui');
+  await page.getByTestId('dialog-trigger').click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await expectNoAxeViolations(page, 'dev/ui (dialog open)');
+});
+
+test('unprefixed_path_redirects_to_default_locale_and_unknown_page_is_localized_404', async ({ page }, info) => {
+  test.skip(info.project.name !== 'fr-desktop' && info.project.name !== 'ar-mobile', 'routing is locale independent');
+  const res = await page.goto('/dressing');
+  expect(new URL(page.url()).pathname).toBe('/fr/dressing');
+  expect(res?.status()).toBe(404);
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Page introuvable');
+  await expect(page).toHaveTitle(/Page introuvable/);
+  const api = await page.request.get('/apiary', { maxRedirects: 0 });
+  expect(api.status(), '/apiary is a page path, not /api').toBe(307);
 });
 
 test('rtl_grid_first_card_is_on_the_right', async ({ page }, info) => {
@@ -68,7 +68,7 @@ test('keyboard_tab_reaches_dialog_trigger_and_escape_closes', async ({ page }, i
   await open(page, info);
   const trigger = page.getByTestId('dialog-trigger');
   const dialog = page.getByRole('dialog');
-  await page.locator('body').click({ position: { x: 1, y: 1 } });
+  await page.locator('h1').click();
   let reached = false;
   for (let i = 0; i < 100 && !reached; i++) {
     await page.keyboard.press('Tab');

@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Single quality gate: `pnpm verify`. Stops at the first failing step (non-zero exit, step name printed).
-# Integration infra (db + redis + worker) lives in its own compose project, so `down -v` can only ever remove
-# resources of that project and never a developer's default-project containers or volumes.
+# Infra (db + redis + worker) lives in its own compose project, so `down -v` can only ever remove resources of that
+# project and never a developer's default-project containers or volumes. It is started before the integration tests
+# and kept up for the e2e suite (identity screens need MariaDB + Redis), then torn down.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -21,8 +22,13 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 
 # Fail before touching anything if another process already owns a port verify needs.
+# 3307 MariaDB, 6380 Redis (compose.test.yaml overlay), 3100 Playwright's `next dev`.
 preflight_ports() {
   local port
+  if ! command -v nc >/dev/null; then
+    echo "!! nc (netcat) is required for the port preflight" >&2
+    return 1
+  fi
   for port in 3307 6380 3100; do
     if nc -z 127.0.0.1 "$port" 2>/dev/null; then
       echo "!! port $port is already in use: stop your dev stack or whatever listens on $port first" >&2
@@ -50,6 +56,7 @@ step() {
 # .env or shell must never point the integration tests at another database or Redis.
 example_value() { grep "^$1=" .env.example | cut -d= -f2-; }
 
+# Exports the test URLs for every later step (build, e2e) too: they run in this shell.
 integration() {
   INFRA_STARTED=1
   DATABASE_URL="$(example_value DATABASE_URL)"
@@ -68,12 +75,12 @@ step "lint" pnpm lint
 step "typecheck" pnpm typecheck
 step "boundaries" pnpm boundaries
 step "unit tests" pnpm test
-step "integration tests (infra up/down)" integration
-teardown
+step "integration tests (infra up, kept for e2e)" integration
 step "openapi:check" pnpm openapi:check
 step "build" pnpm build
 step "e2e install (chromium)" pnpm e2e:install
-step "e2e smoke (playwright)" pnpm test:e2e
+step "e2e (playwright, infra up)" pnpm test:e2e
+teardown
 step "secret scan" pnpm secrets:scan
 
 echo
