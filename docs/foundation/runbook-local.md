@@ -183,4 +183,4 @@ Toutes les durées sont dans `src/modules/identity/domain/policy.ts`.
 | Journaux de `q` | L'application ne journalise jamais `q` (`/geo/cities`), mais un futur reverse proxy journalisera les chaînes de requête. | À traiter à la mise en place du proxy (masquer la query string). |
 | Consentements `AI` | Les anciennes lignes de type `AI` sont ignorées (développement seulement). | Accepté. |
 | Alerte e-mail | Aucun e-mail n'est envoyé lors d'une désactivation, demande d'effacement ou annulation. | Différé. |
-| Consentements : horodatage | Le « dernier » enregistrement se base sur `createdAt` pris avant le verrou : un écart d'horloge de quelques ms entre instances peut inverser deux PUT quasi simultanés (le drapeau suit alors le dernier commit). | Accepté. |
+| Consentements : horodatage | `createdAt` et l'id sont pris dans la transaction après le verrou, monotones par type (≥ précédent + 1 ms) : l'ordre de lecture est l'ordre de commit. | Résolu (0ac3cf6). |
