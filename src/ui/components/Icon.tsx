@@ -5,6 +5,8 @@
 // and is mirrored in RTL with `rtl:-scale-x-100`. Icons with no inline direction (eye, mail, clock, check...) are not.
 const PATHS = {
   back: ['M10 3L5 8l5 5'],
+  forward: ['M6 3l5 5-5 5'],
+  calendar: ['M2.5 3.5h11v10h-11z', 'M2.5 7h11M5.5 2v3M10.5 2v3'],
   check: ['M3 8.5l3.2 3.2L13 5'],
   warn: ['M8 2.2l6.2 11H1.8z', 'M8 6.6v3M8 11.7h.01'],
   info: ['M8 2.2a5.8 5.8 0 100 11.6A5.8 5.8 0 008 2.2z', 'M8 7.4v3.4M8 5.2h.01'],

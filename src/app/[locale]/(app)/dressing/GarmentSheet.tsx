@@ -115,6 +115,7 @@ export function GarmentSheet({ initial, catalog, lists, flash }: { initial: Garm
       </ul>
 
       <StatusSection garment={g} catalog={catalog} onChanged={setG} onUnauthorized={toLogin} />
+      <LastWorn garmentId={g.id} />
 
       <h2 className={SECTION}>{t('weather')}</h2>
       <dl className={`${CARD} grid grid-cols-1 gap-2 sm:grid-cols-2`}>
@@ -267,6 +268,37 @@ function StatusSection({ garment, catalog, onChanged, onUnauthorized }: { garmen
             <li key={e.id} className="flex flex-wrap justify-between gap-x-3 text-sm">
               <span className="font-semibold">{e.fromStatus ? t('transition', { from: st(e.fromStatus), to: st(e.toStatus) }) : t('created', { to: st(e.toStatus) })}{e.note && <span className="font-normal text-muted"> · <bdi>{e.note}</bdi></span>}</span>
               <time dateTime={e.at} className="text-muted" suppressHydrationWarning>{fmt(e.at)}</time>
+            </li>
+          ))}
+        </ol>
+      )}
+    </>
+  );
+}
+
+/** Last 3 distinct confirmed wear dates (wear records are the source of truth, never the status). */
+function LastWorn({ garmentId }: { garmentId: string }) {
+  const t = useTranslations('wardrobe.sheet');
+  const locale = useLocale();
+  const [items, setItems] = useState<{ wearRecordId: string; outfitId: string; localDate: string }[] | null>(null);
+  useEffect(() => {
+    api<{ items: { wearRecordId: string; outfitId: string; localDate: string }[] }>(`/garments/${garmentId}/wear-history?limit=3`)
+      .then(({ data }) => setItems(data.items))
+      .catch(() => setItems([]));
+  }, [garmentId]);
+  const fmt = (d: string) => new Intl.DateTimeFormat(`${locale}-u-nu-latn`, { dateStyle: 'medium', timeZone: 'UTC' }).format(new Date(`${d}T00:00:00Z`));
+  return (
+    <>
+      <h2 className={SECTION}>{t('lastWorn')}</h2>
+      {items === null ? (
+        <p className="text-sm text-muted" role="status">{t('historyLoading')}</p>
+      ) : items.length === 0 ? (
+        <p className="text-sm text-muted">{t('neverWorn')}</p>
+      ) : (
+        <ol className={`${CARD} flex flex-col gap-1`} data-testid="last-worn-dates">
+          {items.map((w) => (
+            <li key={w.wearRecordId}>
+              <Link href={`/${locale}/tenues/${w.outfitId}`} className="inline-flex min-h-11 items-center font-semibold text-primary underline">{fmt(w.localDate)}</Link>
             </li>
           ))}
         </ol>
