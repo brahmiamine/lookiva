@@ -123,3 +123,46 @@ route({
     409: problem('CUSTOM_SUBCATEGORY_IN_USE (no reassignTo, or a garment started using it meanwhile)'),
   },
 });
+
+const photoId = z.object({ id: z.uuid(), photoId: z.uuid() });
+const pht = ['wardrobe'];
+
+route({
+  method: 'get', path: '/api/v1/garments/{id}/photos', tags: pht, security: session, summary: 'Photo metadata, in position order (never storage keys)',
+  request: { params: id }, responses: { 200: json('Photos', s.photosResponse), ...authed, 404: NOT_FOUND },
+});
+route({
+  method: 'post', path: '/api/v1/garments/{id}/photos', tags: pht, security: session,
+  summary: 'Upload a photo (multipart/form-data, field `file`; optional `rotate`, `crop`). The type is detected from the bytes; the first photo is primary. The original is kept privately; optimized (max 1600 px) and thumbnail (max 400 px) WebP derivatives are stored without EXIF/GPS. Photos are never sent to any AI',
+  request: { headers: csrf, params: id, body: { content: { 'multipart/form-data': { schema: s.photoUploadBody } } } },
+  responses: {
+    201: json('Created', s.photoView), 400: BAD, ...authed, 404: NOT_FOUND,
+    409: problem('PHOTO_LIMIT_REACHED (5 photos per garment)'),
+    413: problem('PAYLOAD_TOO_LARGE (over 10 MiB; the body is cut off while streaming)'),
+    415: problem('UNSUPPORTED_IMAGE_FORMAT (not JPEG/PNG/WebP; HEIC refused) or MIME_MISMATCH (declared type differs from the bytes) or UNSUPPORTED_MEDIA_TYPE'),
+    422: problem('INVALID_IMAGE (corrupt, or above 50 megapixels)'),
+  },
+});
+route({
+  method: 'put', path: '/api/v1/garments/{id}/photos/{photoId}/primary', tags: pht, security: session, summary: 'Make this the primary photo (atomic; idempotent)',
+  request: { headers: csrf, params: photoId }, responses: { 200: json('Photo', s.photoView), ...authed, 404: NOT_FOUND },
+});
+route({
+  method: 'delete', path: '/api/v1/garments/{id}/photos/{photoId}', tags: pht, security: session,
+  summary: 'Delete a photo (row first, then storage objects no other photo references). Deleting the primary promotes the next photo',
+  request: { headers: csrf, params: photoId }, responses: { 204: { description: 'Deleted' }, ...authed, 404: NOT_FOUND },
+});
+route({
+  method: 'post', path: '/api/v1/garments/{id}/photos/{photoId}/cutout', tags: pht, security: session,
+  summary: 'Opt-in LOCAL background removal (no data leaves the server, no consent needed). On failure the photo is kept and cutoutStatus is FAILED',
+  request: { headers: csrf, params: photoId }, responses: { 200: json('Photo with cutoutStatus READY or FAILED', s.photoView), ...authed, 404: NOT_FOUND },
+});
+route({
+  method: 'get', path: '/api/v1/garments/{id}/photos/{photoId}/file', tags: pht, security: session,
+  summary: 'Streams one variant (thumb | optimized (default) | original | cutout) to the owner only: Cache-Control no-store, nosniff, inline. No public or durable URL exists',
+  request: { params: photoId, query: s.photoFileQuery },
+  responses: {
+    200: { description: 'Image bytes (WebP for thumb/optimized, original MIME for original, PNG for cutout)', content: { 'image/*': { schema: z.string() } } },
+    400: BAD, ...authed, 404: NOT_FOUND,
+  },
+});

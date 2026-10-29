@@ -3,6 +3,8 @@ import { withSession } from '@/modules/identity';
 import { systemClock } from '@/platform/clock/system';
 import { createDb } from '@/platform/db';
 import { getEnv } from '@/platform/env';
+import { WhiteKeyRemover } from '@/platform/background-remover/local';
+import { LocalObjectStorage } from '@/platform/storage/local';
 import { createLogger } from '@/platform/logger';
 import { createWardrobeHttp, type WardrobeHttp } from './http';
 
@@ -15,12 +17,14 @@ function wardrobe(): WardrobeHttp {
   const logger = createLogger({ level: env.LOG_LEVEL });
   const redis = new Redis(env.REDIS_URL, { maxRetriesPerRequest: 2 });
   redis.on('error', (err) => logger.error({ err }, 'redis error (wardrobe)'));
-  return (g.__lookivaWardrobe = createWardrobeHttp({ db: createDb(env.DATABASE_URL), redis, clock: systemClock, withSession, logger }));
+  return (g.__lookivaWardrobe = createWardrobeHttp({ db: createDb(env.DATABASE_URL), redis, clock: systemClock, withSession, logger, storage: new LocalObjectStorage(env.STORAGE_LOCAL_DIR), remover: new WhiteKeyRemover() }));
 }
 
 type Route = (req: Request) => Promise<Response>;
 type IdRoute = (req: Request, id: string) => Promise<Response>;
 const lazy = (pick: (w: WardrobeHttp) => Route): Route => (req) => pick(wardrobe())(req);
+type Id2Route = (req: Request, id: string, photoId: string) => Promise<Response>;
+const lazyId2 = (pick: (w: WardrobeHttp) => Id2Route): Id2Route => (req, id, photoId) => pick(wardrobe())(req, id, photoId);
 const lazyId = (pick: (w: WardrobeHttp) => IdRoute): IdRoute => (req, id) => pick(wardrobe())(req, id);
 
 /** Handlers for the thin route files under src/app/api/v1. */
@@ -35,6 +39,12 @@ export const wardrobeRoutes = {
   deleteGarment: lazyId((w) => w.deleteGarment),
   changeStatus: lazyId((w) => w.changeStatus),
   statusHistory: lazyId((w) => w.statusHistory),
+  listPhotos: lazyId((w) => w.listPhotos),
+  uploadPhoto: lazyId((w) => w.uploadPhoto),
+  setPrimaryPhoto: lazyId2((w) => w.setPrimaryPhoto),
+  deletePhoto: lazyId2((w) => w.deletePhoto),
+  cutoutPhoto: lazyId2((w) => w.cutoutPhoto),
+  photoFile: lazyId2((w) => w.photoFile),
   createCustomSubcategory: lazy((w) => w.createCustomSubcategory),
   listCustomSubcategories: lazy((w) => w.listCustomSubcategories),
   updateCustomSubcategory: lazyId((w) => w.updateCustomSubcategory),

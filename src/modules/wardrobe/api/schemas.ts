@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { AppError } from '@/platform/http/errors';
 import { CATEGORY_CODES, COLOR_CODES, SEASON_CODES, SHADE_CODES, STYLE_CODES, SUBTYPE_CODES } from '../domain/catalog';
 import { WEATHER_FIELDS } from '../domain/garment';
 import { GARMENT_STATUSES } from '../domain/status';
@@ -128,3 +129,18 @@ export const optionsResponse = z.object({
   styles: z.array(z.object({ code: z.string(), labels })),
   weather: z.record(z.string(), z.array(z.string())),
 });
+
+export const invalidVariant = () => new AppError('VALIDATION_ERROR', 400, 'Validation failed', [{ path: 'variant', message: 'variant must be thumb, optimized, original or cutout' }]);
+
+export const photoView = z.object({
+  id: z.uuid(), garmentId: z.uuid(), position: z.number().int(), isPrimary: z.boolean(),
+  cutoutStatus: z.enum(['READY', 'FAILED']).nullable(), mime: z.string(), bytes: z.number().int(),
+  width: z.number().int(), height: z.number().int(), sha256: z.string(), createdAt: z.iso.datetime(),
+});
+export const photosResponse = z.object({ items: z.array(photoView) });
+export const photoUploadBody = z.object({
+  file: z.string().describe('binary: JPEG, PNG or WebP, at most 10 MiB, at most 50 megapixels (HEIC is refused)'),
+  rotate: z.enum(['0', '90', '180', '270']).optional().describe('extra clockwise rotation, applied after the EXIF orientation'),
+  crop: z.string().optional().describe('JSON {"left","top","width","height"} in pixels of the oriented + rotated image'),
+});
+export const photoFileQuery = z.object({ variant: z.enum(['thumb', 'optimized', 'original', 'cutout']).optional() });

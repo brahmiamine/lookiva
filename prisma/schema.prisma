@@ -243,6 +243,7 @@ model Garment {
   seasons             GarmentSeason[]
   styles              GarmentStyle[]
   statusEvents        GarmentStatusEvent[]
+  photos              GarmentPhoto[]
 
   @@index([ownerId, deletedAt, id])
   @@index([ownerId, status])
@@ -297,4 +298,37 @@ model GarmentStatusEvent {
 
   @@index([garmentId, id])
   @@map("garment_status_events")
+}
+
+/// Photo of a garment. The three storage keys are private object keys; rows of the same owner MAY share keys after a
+/// duplication, so an object is deleted only when no row references its key any more.
+model GarmentPhoto {
+  id            String   @id @db.Char(36)
+  garmentId     String   @db.Char(36)
+  ownerId       String   @db.Char(36)
+  position      Int
+  /// 1 for the primary photo, NULL otherwise: the unique index makes "exactly one primary" a database guarantee.
+  primarySlot   Int?
+  originalKey   String   @db.VarChar(255)
+  optimizedKey  String   @db.VarChar(255)
+  thumbKey      String   @db.VarChar(255)
+  cutoutKey     String?  @db.VarChar(255)
+  /// READY | FAILED | NULL (never requested).
+  cutoutStatus  String?  @db.VarChar(8)
+  mime          String   @db.VarChar(32)
+  bytes         Int
+  width         Int
+  height        Int
+  sha256        String   @db.Char(64)
+  createdAt     DateTime @db.DateTime(3)
+  garment       Garment  @relation(fields: [garmentId], references: [id], onDelete: Cascade)
+
+  @@unique([garmentId, position])
+  @@unique([garmentId, primarySlot])
+  @@index([ownerId])
+  @@index([originalKey])
+  @@index([optimizedKey])
+  @@index([thumbKey])
+  @@index([cutoutKey])
+  @@map("garment_photos")
 }

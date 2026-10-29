@@ -35,6 +35,8 @@ const schema = z
     EMAIL_TRANSPORT: unsetIfEmpty(z.enum(['outbox', 'none']).optional()),
     // The only base of links sent by email (never Host/X-Forwarded-*) and the expected Origin of the CSRF check.
     APP_ORIGIN: unsetIfEmpty(origin.optional()),
+    // Private directory of the local object storage (photos). Outside public/, git-ignored (default ./.storage); mount a volume in production.
+    STORAGE_LOCAL_DIR: unsetIfEmpty(z.string().min(1).optional()),
   })
   .superRefine((env, ctx) => {
     const emailsPossible = (env.EMAIL_TRANSPORT ?? 'outbox') !== 'none';
@@ -56,7 +58,7 @@ const schema = z
       ctx.addIssue({ code: 'custom', path: ['EMAIL_TRANSPORT'], message: 'production needs an explicit transport (outbox is dev-only)' });
     }
   })
-  .transform((env) => ({ ...env, EMAIL_TRANSPORT: env.EMAIL_TRANSPORT ?? 'outbox' }));
+  .transform((env) => ({ ...env, EMAIL_TRANSPORT: env.EMAIL_TRANSPORT ?? 'outbox', STORAGE_LOCAL_DIR: env.STORAGE_LOCAL_DIR ?? '.storage' }));
 
 export type Env = z.infer<typeof schema>;
 

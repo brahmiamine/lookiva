@@ -139,6 +139,17 @@ Garde le détail dans [runbook §12](docs/foundation/runbook-local.md#12-dressin
 | `PATCH /api/v1/custom-subcategories/{id}` | Renomme (`If-Match`) | 409, 428 |
 | `DELETE /api/v1/custom-subcategories/{id}?reassignTo=` | Supprime ; si des vêtements l'utilisent, `reassignTo` (sous-type standard ou autre sous-catégorie perso de la même catégorie) est obligatoire, déplacement atomique | 409 `CUSTOM_SUBCATEGORY_IN_USE`, 400 |
 
+Photos (tranche 4b, [runbook §13](docs/foundation/runbook-local.md#13-dressing--photos-et-stockage-objet-privé-tranche-4b)) : stockage privé local (`STORAGE_LOCAL_DIR`), jamais d'URL publique.
+
+| Méthode et chemin | Rôle | Codes d'erreur notables |
+|---|---|---|
+| `GET /api/v1/garments/{id}/photos` | Métadonnées des photos (jamais les clés de stockage) | 404 |
+| `POST /api/v1/garments/{id}/photos` | Multipart `file` (+ `rotate`, `crop`) : JPEG/PNG/WebP, 10 Mio, 5 photos max ; la première est principale ; EXIF/GPS retirés des variantes | 409 `PHOTO_LIMIT_REACHED`, 413, 415, 422 |
+| `PUT /api/v1/garments/{id}/photos/{photoId}/primary` | Change la photo principale (atomique) | 404 |
+| `DELETE /api/v1/garments/{id}/photos/{photoId}` | Supprime la ligne puis les objets non référencés ; la suivante devient principale | 404 |
+| `GET /api/v1/garments/{id}/photos/{photoId}/file?variant=thumb\|optimized\|original\|cutout` | Diffuse les octets au propriétaire seul (`no-store`, `nosniff`) | 400, 404 |
+| `POST /api/v1/garments/{id}/photos/{photoId}/cutout` | Détourage local opt-in ; échec : `cutoutStatus: FAILED`, photo conservée | 404 |
+
 Cycle de vie du compte : la ré-authentification (mot de passe) est limitée à 5 essais/15 min par utilisateur ; tout échec est un 401 générique. Un compte `DISABLED` ou `DELETION_REQUESTED` ne peut pas se connecter (même 401 générique qu'un mot de passe faux). Il n'existe pas encore de réactivation d'un compte `DISABLED`.
 
 Toute requête POST/PUT/PATCH/DELETE vers ces routes exige `X-Requested-With: lookiva` (et un `Origin` égal à l'origine de l'application s'il est présent), sinon 403 `CSRF_REJECTED`.

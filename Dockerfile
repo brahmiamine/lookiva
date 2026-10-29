@@ -48,6 +48,8 @@ WORKDIR /app
 # Standalone output carries its own minimal node_modules; no .env is baked in.
 COPY --from=web-build --chown=node:node /app/.next/standalone ./
 COPY --from=web-build --chown=node:node /app/.next/static ./.next/static
+# Private photo storage: the named volume inherits this owner on first use.
+RUN mkdir -p /var/lib/lookiva/storage && chown node:node /var/lib/lookiva/storage
 USER node
 EXPOSE 3000
 CMD ["node", "server.js"]
