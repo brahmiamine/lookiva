@@ -200,6 +200,7 @@ export const outfitPatchBody = z
     status: z.enum(['DRAFT', 'PLANNED', 'CANCELLED']).optional(),
   })
   .refine((b) => Object.keys(b).length > 0, 'at least one field is required');
+export const garmentWearsPage = z.object({ items: z.array(z.object({ wearRecordId: z.uuid(), wornAt: iso, outfitId: z.uuid().nullable() })) });
 export const outfitListQuery = z.object({
   from: z.iso.datetime().optional(),
   to: z.iso.datetime().optional(),

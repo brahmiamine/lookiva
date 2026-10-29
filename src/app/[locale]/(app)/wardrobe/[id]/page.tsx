@@ -21,11 +21,12 @@ export default async function GarmentPage(props: { params: Promise<{ locale: str
   const { id } = await props.params;
   const locale = await pageLocale(props);
   await requireAccount(locale, 'onboarded');
-  const [catalog, { data: garment, etag }, photos, groups] = await Promise.all([
+  const [catalog, { data: garment, etag }, photos, groups, wears] = await Promise.all([
     loadCatalog(locale),
     getJsonWithEtag<Garment>((req) => wardrobeRoutes.getGarment(req, id), `/garments/${id}`, locale),
     getJson<{ items: Photo[] }>((req) => wardrobeRoutes.listPhotos(req, id), `/garments/${id}/photos`, locale),
     loadGroups(locale, id),
+    getJson<{ items: { wearRecordId: string; wornAt: string }[] }>((req) => wardrobeRoutes.garmentWears(req, id), `/garments/${id}/wears`, locale),
   ]);
 
   const category = catalog.categories.find((c) => c.code === garment.categoryCode);
@@ -83,6 +84,17 @@ export default async function GarmentPage(props: { params: Promise<{ locale: str
       <IntlProvider locale={locale} messages={pickMessages(locale, ['common', 'wardrobe'])}>
         <h2 className={SECTION}>{t('detail.status')}</h2>
         <GarmentActions garment={garment} etag={etag} statuses={catalog.statuses} />
+
+        <h2 className={SECTION}>{t('wears.title')}</h2>
+        {wears.items.length === 0 ? (
+          <p className="text-sm text-muted">{t('wears.none')}</p>
+        ) : (
+          <ul role="list" className="flex flex-col gap-1.5 text-[15px]">
+            {wears.items.slice(0, 3).map((w) => (
+              <li key={w.wearRecordId}>{new Intl.DateTimeFormat(`${locale}-u-nu-latn`, { dateStyle: 'medium', timeZone: 'UTC' }).format(new Date(w.wornAt))}</li>
+            ))}
+          </ul>
+        )}
 
         <h2 className={SECTION}>{t('edit.title')}</h2>
         <GarmentEditor garment={garment} etag={etag} weather={catalog.weather} weatherLabels={weatherLabels} />

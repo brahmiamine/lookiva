@@ -60,6 +60,9 @@ export function createOutfitHttp({ db, redis, clock, withSession, rateLimitPrefi
 
     get: (req: Request, id: string) => withSession(async (_r, ctx) => Response.json(await service.get(ctx.userId, id)))(req),
 
+    /** Wear history of one garment (the last 20 confirmed wears). Another user's garment simply has no rows for this owner. */
+    wears: (req: Request, id: string) => withSession(async (_r, ctx) => Response.json({ items: await service.wearsOf(ctx.userId, id) }))(req),
+
     /** Planning list: optional window on plannedFor and a status filter. Drafts without a date are included. */
     list: (req: Request) =>
       withSession(async (r, ctx) => {

@@ -70,6 +70,7 @@ export const wardrobeRoutes = {
   createOutfit: lazy((w) => w.outfits.create),
   getOutfit: lazyId((w) => w.outfits.get),
   listOutfits: lazy((w) => w.outfits.list),
+  garmentWears: lazyId((w) => w.outfits.wears),
   updateOutfit: lazyId((w) => w.outfits.update),
   confirmOutfitWorn: lazyId((w) => w.outfits.confirmWorn),
 };

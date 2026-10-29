@@ -7,6 +7,7 @@ export type OutfitItemView = { garmentId: string; name: string; categoryCode: st
 export type OutfitView = { id: string; name: string | null; status: OutfitStatus; plannedFor: string | null; occasion: string | null; version: number; wearRecordId: string | null; items: OutfitItemView[]; createdAt: string; updatedAt: string };
 export type OutfitPatch = { name?: string | null; occasion?: string | null; plannedFor?: Date | null; status?: PlanTarget };
 export type OutfitFilter = { from?: Date; to?: Date; status?: OutfitStatus };
+export type WearView = { wearRecordId: string; wornAt: string; outfitId: string | null };
 
 export type CreateOutfitInput = { name: string | null; garmentIds: string[] };
 export type ConfirmResult = { kind: 'OK'; outfit: OutfitView } | { kind: 'NOT_FOUND' } | { kind: 'ALREADY_WORN'; wearRecordId: string } | { kind: 'CANCELLED' } | { kind: 'GARMENT_UNAVAILABLE'; garmentIds: string[] };
@@ -17,6 +18,8 @@ export type OutfitStore = {
   get(owner: OwnerId, id: string): Promise<OutfitView | null>;
   confirmWorn(owner: OwnerId, id: string, now: Date, wearRecordId: string, newId: () => string): Promise<ConfirmResult>;
   list(owner: OwnerId, filter: OutfitFilter): Promise<OutfitView[]>;
+  /** Confirmed wears that included this garment, most recent first (snapshot rows; the garment itself is not read). */
+  wearsOf(owner: OwnerId, garmentId: string): Promise<WearView[]>;
   /** Version-guarded: null when the row changed since `expectedVersion` (the caller maps it to 409). */
   update(owner: OwnerId, id: string, expectedVersion: number, patch: OutfitPatch, now: Date): Promise<OutfitView | null>;
 };
@@ -38,6 +41,10 @@ export function createOutfitService({ outfits, now, newId }: OutfitServiceDeps) 
       const found = await outfits.get(owner, id);
       if (!found) throw new AppError('NOT_FOUND', 404, 'outfit not found');
       return found;
+    },
+
+    wearsOf(owner: OwnerId, garmentId: string): Promise<WearView[]> {
+      return outfits.wearsOf(owner, garmentId);
     },
 
     list(owner: OwnerId, filter: OutfitFilter): Promise<OutfitView[]> {

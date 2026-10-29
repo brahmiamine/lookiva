@@ -417,6 +417,10 @@
       "removed": "Groupe supprimé. Les vêtements ne sont pas touchés.",
       "renamed": "Groupe renommé.",
       "count": "{count} vêtement(s)"
+    },
+    "wears": {
+      "title": "Dernières utilisations",
+      "none": "Jamais porté pour l’instant."
     }
   }
 }

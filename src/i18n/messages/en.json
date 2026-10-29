@@ -417,6 +417,10 @@
       "removed": "Group deleted. Garments are untouched.",
       "renamed": "Group renamed.",
       "count": "{count} garment(s)"
+    },
+    "wears": {
+      "title": "Last worn",
+      "none": "Not worn yet."
     }
   }
 }

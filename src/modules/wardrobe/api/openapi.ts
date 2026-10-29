@@ -253,6 +253,7 @@ route({
     422: problem('IDEMPOTENCY_KEY_REUSED'),
   },
 });
+route({ method: 'get', path: '/api/v1/garments/{id}/wears', tags: outfits, security: session, summary: 'Confirmed wears of one garment, most recent first (last 20). Snapshot rows: a purged garment keeps its history elsewhere', request: { params: id }, responses: { 200: json('Wears', s.garmentWearsPage), 400: BAD, ...authed } });
 route({ method: 'get', path: '/api/v1/outfits', tags: outfits, security: session, summary: 'Outfits, optionally in a plannedFor window and by status (up to 100, earliest planned first). Drafts without a date are included', request: { query: s.outfitListQuery }, responses: { 200: json('Outfits', z.object({ items: z.array(s.outfitView) })), 400: BAD, ...authed } });
 route({
   method: 'patch', path: '/api/v1/outfits/{id}', tags: outfits, security: session,

@@ -1,7 +1,7 @@
 import { Prisma, type PrismaClient } from '@/generated/prisma/client';
 import type { OwnerId } from '@/platform/kernel';
 import { snapshotName, type OutfitStatus } from '../domain/outfit';
-import type { ConfirmResult, OutfitStore, OutfitView } from '../application/outfit-service';
+import type { ConfirmResult, OutfitStore, OutfitView, WearView } from '../application/outfit-service';
 
 const TX = { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted };
 
@@ -58,6 +58,16 @@ export function createPrismaOutfitStore(db: PrismaClient): OutfitStore {
       }, TX),
 
     get: (owner, id) => read(db, owner, id),
+
+    wearsOf: (owner, garmentId) =>
+      db.wearRecordItem
+        .findMany({
+          where: { garmentId, wearRecord: { ownerId: owner } },
+          orderBy: { wearRecord: { wornAt: 'desc' } },
+          take: 20,
+          select: { wearRecord: { select: { id: true, wornAt: true, outfitId: true } } },
+        })
+        .then((rows): WearView[] => rows.map((r) => ({ wearRecordId: r.wearRecord.id, wornAt: r.wearRecord.wornAt.toISOString(), outfitId: r.wearRecord.outfitId }))),
 
     list: (owner, f) =>
       db.outfit
