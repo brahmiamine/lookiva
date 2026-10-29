@@ -13,6 +13,7 @@ const invalid = (path: string, message: string) => new AppError('VALIDATION_ERRO
 const notFound = (what: string) => new AppError('NOT_FOUND', 404, `${what} not found`);
 const versionConflict = () => new AppError('VERSION_CONFLICT', 409, 'Resource version does not match the current one');
 
+const MAX_ITEMS = 12;
 export type Warning =
   | { code: 'MISSING_ROLE'; role: string }
   | { code: 'GARMENT_UNAVAILABLE'; garmentId: string; status: string }
@@ -66,7 +67,8 @@ export function createOutfitService(deps: { outfits: OutfitStore; wears: WearSto
   };
 
   /** Every item must be an own, non-trashed garment (404 naming it otherwise: foreign and unknown look alike). Availability is only a warning. */
-  async function assertItems(owner: OwnerId, items: ItemInput[]): Promise<void> {
+  async function assertItems(owner: OwnerId, items: ItemInput[], keep: Set<string> = new Set()): Promise<void> {
+    items = items.filter((i) => !keep.has(i.garmentId)); // trashed garments already in the outfit are tolerated (warning)
     const found = new Map((await garments.find(owner, items.map((i) => i.garmentId))).map((g) => [g.id, g]));
     const bad = items.flatMap((it, i) => (found.get(it.garmentId)?.trashed === false ? [] : [{ path: `items.${i}.garmentId`, message: `garment ${it.garmentId} not found` }]));
     if (bad.length) throw new AppError('NOT_FOUND', 404, 'Some garments were not found; nothing was changed', bad);
@@ -117,7 +119,7 @@ export function createOutfitService(deps: { outfits: OutfitStore; wears: WearSto
     if (!isEditable(cur.status)) throw new AppError('OUTFIT_NOT_EDITABLE', 409, `A ${cur.status} outfit can no longer be edited`);
     const { input, items } = change(cur);
     const data = resolve({ ...cur, startsAt: cur.startsAt ? new Date(cur.startsAt) : null, endsAt: cur.endsAt ? new Date(cur.endsAt) : null }, input);
-    if (items) await assertItems(owner, items);
+    if (items) await assertItems(owner, items, new Set(cur.items.map((i) => i.garmentId)));
     const next = await outfits.update(owner, id, cur.version, data, items, clock.now());
     if (!next) throw versionConflict();
     return decorate(owner, next);
@@ -131,20 +133,23 @@ export function createOutfitService(deps: { outfits: OutfitStore; wears: WearSto
     const ids = o.items.map((i) => i.garmentId);
     const refs = await garments.find(owner, ids);
     const out: Conflict[] = [];
+    const cache = new Map<string, Promise<string[]>>();
+    const suggest = (category: string) => cache.get(category) ?? (cache.set(category, garments.availableInCategory(owner, category, ids, 3)), cache.get(category) as Promise<string[]>);
     for (const g of refs) {
       if (g.trashed) out.push({ kind: 'GARMENT_TRASHED', garmentId: g.id, suggestions: [] });
       else if (g.status !== 'AVAILABLE') {
-        out.push({ kind: 'GARMENT_UNAVAILABLE', garmentId: g.id, status: g.status, suggestions: await garments.availableInCategory(owner, g.categoryCode, ids, 3) });
+        out.push({ kind: 'GARMENT_UNAVAILABLE', garmentId: g.id, status: g.status, suggestions: await suggest(g.categoryCode) });
       }
     }
     if (o.startsAt) {
       const me = { startsAt: new Date(o.startsAt), endsAt: o.endsAt ? new Date(o.endsAt) : null, localDate: o.localDate as string };
-      for (const n of await outfits.neighbors(owner, id, ids)) {
+      const day = 86_400_000;
+      for (const n of await outfits.neighbors(owner, id, ids, new Date(me.startsAt.getTime() - day), new Date(me.startsAt.getTime() + day))) {
         const kind = overlap(me, n);
         if (!kind) continue;
         for (const garmentId of n.garmentIds) {
           const g = refs.find((r) => r.id === garmentId);
-          out.push({ kind: kind === 'CERTAIN' ? 'OVERLAP_CERTAIN' : 'OVERLAP_POSSIBLE', garmentId, otherOutfitId: n.outfitId, suggestions: g ? await garments.availableInCategory(owner, g.categoryCode, ids, 3) : [] });
+          out.push({ kind: kind === 'CERTAIN' ? 'OVERLAP_CERTAIN' : 'OVERLAP_POSSIBLE', garmentId, otherOutfitId: n.outfitId, suggestions: g ? await suggest(g.categoryCode) : [] });
         }
       }
     }
@@ -161,13 +166,18 @@ export function createOutfitService(deps: { outfits: OutfitStore; wears: WearSto
     create,
     get: async (owner: OwnerId, id: string) => decorate(owner, await own(owner, id)),
     list: (owner: OwnerId, page: { limit: number; cursor?: { id: string } }, status?: OutfitStatus): Promise<Page<OutfitView>> => outfits.list(owner, { ...page, status }),
-    range: (owner: OwnerId, from: string, to: string, status?: OutfitStatus) => outfits.range(owner, from, to, status),
+    range: async (owner: OwnerId, from: string, to: string, status?: OutfitStatus) => {
+      if ((Date.parse(to) - Date.parse(from)) / 86_400_000 > 62) throw new AppError('RANGE_TOO_LARGE', 422, 'The date range may span at most 62 days');
+      const rows = await outfits.range(owner, from, to, status); // asks for 201
+      return { items: rows.slice(0, 200), truncated: rows.length > 200 };
+    },
 
     patch: (owner: OwnerId, id: string, ifMatch: string | null, input: OutfitInput) => mutate(owner, id, ifMatch, () => ({ input, items: input.items })),
 
     addItem: (owner: OwnerId, id: string, ifMatch: string | null, item: ItemInput) =>
       mutate(owner, id, ifMatch, (cur) => {
         if (cur.items.some((i) => i.garmentId === item.garmentId)) throw duplicateItem(item.garmentId);
+        if (cur.items.length >= MAX_ITEMS) throw new AppError('OUTFIT_FULL', 409, `An outfit holds at most ${MAX_ITEMS} garments`);
         return { input: {}, items: [...asInputs(cur), item] };
       }),
 
@@ -189,9 +199,10 @@ export function createOutfitService(deps: { outfits: OutfitStore; wears: WearSto
       }),
 
     /** DELETE semantic: CANCELLED, never a hard delete (a worn outfit keeps its history and cannot be cancelled). */
-    async cancel(owner: OwnerId, id: string): Promise<void> {
+    async cancel(owner: OwnerId, id: string, ifMatch: string | null): Promise<void> {
       const cur = await own(owner, id);
       if (cur.status === 'CANCELLED') return;
+      assertIfMatch(ifMatch, cur.version);
       if (cur.status === 'WORN') throw new AppError('OUTFIT_NOT_EDITABLE', 409, 'A worn outfit cannot be cancelled: invalidate its wear record first');
       if (!(await outfits.update(owner, id, cur.version, { status: 'CANCELLED' }, undefined, clock.now()))) throw versionConflict();
     },
@@ -213,6 +224,7 @@ export function createOutfitService(deps: { outfits: OutfitStore; wears: WearSto
         const g = refs.get(i.garmentId);
         return g ? [{ ...i, snapshot: toSnapshot(g) }] : [];
       });
+      if (!items.length) throw new AppError('OUTFIT_EMPTY', 409, 'None of the garments of this outfit exists any more');
       const r = await outfits.confirm(owner, id, req.expectedVersion, { id: newId(), confirmedAt: now, ...localParts(now, tz), timezone: tz, items }, now);
       if (!r.ok) {
         if (r.code === 'ALREADY_WORN') throw new AppError('ALREADY_WORN', 409, 'This outfit is already confirmed as worn');

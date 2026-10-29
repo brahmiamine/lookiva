@@ -60,7 +60,7 @@ export function createOutfitsHttp(deps: OutfitsHttpDeps) {
       const f = s.outfitListQuery.parse(Object.fromEntries(['status', 'from', 'to'].flatMap((k) => (q.has(k) ? [[k, q.get(k)]] : []))));
       if (f.from && f.to) {
         if (f.from > f.to) throw new AppError('VALIDATION_ERROR', 400, 'Validation failed', [{ path: 'to', message: 'to must not be before from' }]);
-        return Response.json({ items: await svc.range(ctx.userId, f.from, f.to, f.status) });
+        return Response.json(await svc.range(ctx.userId, f.from, f.to, f.status));
       }
       return Response.json(await svc.list(ctx.userId, parsePage(q), f.status));
     }),
@@ -72,7 +72,7 @@ export function createOutfitsHttp(deps: OutfitsHttpDeps) {
 
     cancelOutfit: (req: Request, id: string) =>
       write(async (_r, ctx) => {
-        await svc.cancel(ctx.userId, id);
+        await svc.cancel(ctx.userId, id, _r.headers.get('if-match'));
         return new Response(null, { status: 204 });
       })(req),
 

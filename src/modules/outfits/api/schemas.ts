@@ -70,7 +70,7 @@ export const outfitView = z.object({
   warnings: z.array(warning).optional(),
 });
 export const outfitsPage = z.object({ items: z.array(outfitView), nextCursor: z.string().optional() });
-export const outfitsRange = z.object({ items: z.array(outfitView) });
+export const outfitsRange = z.object({ items: z.array(outfitView), truncated: z.boolean() });
 const snapshot = z.object({
   nickname: z.string().nullable(), categoryCode: z.string(), subtypeCode: z.string().nullable(), customSubtypeLabel: z.string().nullable(),
   primaryColorCode: z.string(), extraColorCodes: z.array(z.string()),

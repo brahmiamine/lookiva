@@ -128,16 +128,17 @@ export function createPrismaOutfitStore(db: PrismaClient): OutfitStore {
         where: { ownerId, localDate: { gte: asDate(from) as Date, lte: asDate(to) as Date }, ...(status ? { status } : {}) },
         include: OUTFIT_INCLUDE,
         orderBy: [{ startsAt: 'asc' }, { id: 'asc' }],
-        take: 200,
+        take: 201,
       });
       return rows.map(toOutfit);
     },
 
-    async neighbors(ownerId, outfitId, garmentIds) {
+    async neighbors(ownerId, outfitId, garmentIds, from, to) {
       if (!garmentIds.length) return [];
       const rows = await db.outfit.findMany({
-        where: { ownerId, id: { not: outfitId }, status: { in: ['DRAFT', 'PLANNED'] }, startsAt: { not: null }, items: { some: { garmentId: { in: garmentIds } } } },
+        where: { ownerId, id: { not: outfitId }, status: { in: ['DRAFT', 'PLANNED'] }, startsAt: { gte: from, lte: to }, items: { some: { garmentId: { in: garmentIds } } } },
         include: { items: { where: { garmentId: { in: garmentIds } }, select: { garmentId: true } } },
+        orderBy: [{ startsAt: 'asc' }, { id: 'asc' }],
         take: 200,
       });
       return rows.map((r): Neighbor => ({

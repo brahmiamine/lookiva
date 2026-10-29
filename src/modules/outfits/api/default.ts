@@ -1,4 +1,6 @@
 import { Redis } from 'ioredis';
+import type { PrismaClient } from '@/generated/prisma/client';
+import { createLogger } from '@/platform/logger';
 import { createGarmentGateway } from '@/modules/wardrobe';
 import { withSession } from '@/modules/identity';
 import { systemClock } from '@/platform/clock/system';
@@ -6,14 +8,19 @@ import { createDb } from '@/platform/db';
 import { getEnv } from '@/platform/env';
 import { createOutfitsHttp, type OutfitsHttp } from './http';
 
-const g = globalThis as typeof globalThis & { __lookivaOutfits?: OutfitsHttp };
+const g = globalThis as typeof globalThis & { __lookivaOutfits?: OutfitsHttp; __lookivaDb?: PrismaClient; __lookivaRedis?: Redis };
 
 /** Process-wide outfits API built from the environment on first use (never at import or build time). */
 function outfits(): OutfitsHttp {
   if (g.__lookivaOutfits) return g.__lookivaOutfits;
   const env = getEnv();
-  const db = createDb(env.DATABASE_URL);
-  const redis = new Redis(env.REDIS_URL, { maxRetriesPerRequest: 2 });
+  const logger = createLogger({ level: env.LOG_LEVEL });
+  const db = (g.__lookivaDb ??= createDb(env.DATABASE_URL)); // shared with wardrobe: one pool per process
+  if (!g.__lookivaRedis) {
+    g.__lookivaRedis = new Redis(env.REDIS_URL, { maxRetriesPerRequest: 2 });
+    g.__lookivaRedis.on('error', (err) => logger.error({ err }, 'redis error (outfits)'));
+  }
+  const redis = g.__lookivaRedis;
   return (g.__lookivaOutfits = createOutfitsHttp({ db, redis, clock: systemClock, withSession, garments: createGarmentGateway(db, systemClock) }));
 }
 

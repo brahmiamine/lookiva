@@ -1,4 +1,5 @@
 import { Redis } from 'ioredis';
+import type { PrismaClient } from '@/generated/prisma/client';
 import type { OwnerId } from '@/platform/kernel';
 import { withSession } from '@/modules/identity';
 import { systemClock } from '@/platform/clock/system';
@@ -10,18 +11,31 @@ import { createLogger } from '@/platform/logger';
 import { createWardrobeHttp, type WardrobeHttp } from './http';
 import type { OrganizerHttp } from './organizer-http';
 
-const g = globalThis as typeof globalThis & { __lookivaWardrobe?: WardrobeHttp };
+const g = globalThis as typeof globalThis & { __lookivaWardrobe?: WardrobeHttp; __lookivaDb?: PrismaClient; __lookivaRedis?: Redis };
 
 /** Process-wide wardrobe API built from the environment on first use (never at import or build time). */
 function wardrobe(): WardrobeHttp {
   if (g.__lookivaWardrobe) return g.__lookivaWardrobe;
   const env = getEnv();
   const logger = createLogger({ level: env.LOG_LEVEL });
-  const redis = new Redis(env.REDIS_URL, { maxRetriesPerRequest: 2 });
-  redis.on('error', (err) => logger.error({ err }, 'redis error (wardrobe)'));
-  const db = createDb(env.DATABASE_URL);
+  if (!g.__lookivaRedis) {
+    g.__lookivaRedis = new Redis(env.REDIS_URL, { maxRetriesPerRequest: 2 });
+    g.__lookivaRedis.on('error', (err) => logger.error({ err }, 'redis error (wardrobe)'));
+  }
+  const redis = g.__lookivaRedis;
+  const db = (g.__lookivaDb ??= createDb(env.DATABASE_URL));
   // Outfits (which depend on wardrobe) are loaded lazily to keep the module graph acyclic at load time.
-  const usage = { check: async (o: OwnerId, ids: string[]) => (await import('@/modules/outfits')).createOutfitUsageChecker(db).check(o, ids) };
+  const usage = {
+    // Advisory only: a failing check degrades to "no warning" instead of failing the trash / delete.
+    check: async (o: OwnerId, ids: string[]) => {
+      try {
+        return await (await import('@/modules/outfits')).createOutfitUsageChecker(db).check(o, ids);
+      } catch (err) {
+        logger.error({ err }, 'outfit usage check failed');
+        return [];
+      }
+    },
+  };
   return (g.__lookivaWardrobe = createWardrobeHttp({ db, usage, redis, clock: systemClock, withSession, logger, storage: new LocalObjectStorage(env.STORAGE_LOCAL_DIR), remover: new WhiteKeyRemover(), limits: { photoQuotaBytes: env.PHOTO_QUOTA_BYTES } }));
 }
 

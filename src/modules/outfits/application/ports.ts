@@ -63,9 +63,10 @@ export interface OutfitStore {
   /** Compare-and-set on `expectedVersion`, only while DRAFT/PLANNED; `items` (when given) replaces the composition. null = moved or not editable. */
   update(ownerId: OwnerId, id: string, expectedVersion: number, data: Partial<OutfitData>, items: ItemInput[] | undefined, now: Date): Promise<OutfitView | null>;
   list(ownerId: OwnerId, p: { limit: number; cursor?: { id: string }; status?: OutfitStatus }): Promise<Page<OutfitView>>;
-  /** Outfits whose localDate lies in [from, to] (YYYY-MM-DD), chronological. At most 200. */
+  /** Outfits whose localDate lies in [from, to] (YYYY-MM-DD), chronological. Up to 201 rows (the caller flags truncation). */
   range(ownerId: OwnerId, from: string, to: string, status?: OutfitStatus): Promise<OutfitView[]>;
-  neighbors(ownerId: OwnerId, outfitId: string, garmentIds: string[]): Promise<Neighbor[]>;
+  /** Open outfits sharing a garment whose start lies in [from, to], by start. */
+  neighbors(ownerId: OwnerId, outfitId: string, garmentIds: string[], from: Date, to: Date): Promise<Neighbor[]>;
   /** ONE transaction: outfit -> WORN (CAS on version and DRAFT/PLANNED) + WearRecord + snapshots. Never touches a garment. */
   confirm(ownerId: OwnerId, id: string, expectedVersion: number, rec: WearRecordData, now: Date): Promise<ConfirmResult>;
 }

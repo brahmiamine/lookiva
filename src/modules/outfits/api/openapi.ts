@@ -47,9 +47,9 @@ route({
 });
 route({
   method: 'get', path: '/api/v1/outfits', tags: out, security: session,
-  summary: 'With `from` and `to` (local dates YYYY-MM-DD, inclusive; day and week views): outfits of that range in chronological order (max 200, no cursor). Without: newest first with cursor pagination. Filter by status',
+  summary: 'With `from` and `to` (local dates YYYY-MM-DD, inclusive; day and week views): outfits of that range in chronological order (span at most 62 days else 422 RANGE_TOO_LARGE; at most 200 rows, `truncated: true` when more exist). Without: newest first with cursor pagination. Filter by status',
   request: { query: z.object({ from: z.string().optional(), to: z.string().optional(), status: z.string().optional() }).extend(page.shape) },
-  responses: { 200: json('Outfits', s.outfitsPage), 400: BAD, ...authed },
+  responses: { 200: json('Outfits (range form: { items, truncated })', s.outfitsPage.or(s.outfitsRange)), 400: BAD, 422: problem('RANGE_TOO_LARGE'), ...authed },
 });
 route({ method: 'get', path: '/api/v1/outfits/last-worn', tags: out, security: session, summary: 'The last (default 3, max 10) outfits confirmed as worn, from ACTIVE wear records, newest first. Snapshots only: they survive garment edits, trash and purge and carry no photo', request: { query: z.object({ limit: z.number().int().min(1).max(10).optional() }) }, responses: { 200: json('Wear records', s.lastWornResponse), 400: BAD, ...authed } });
 route({ method: 'get', path: '/api/v1/outfits/{id}', tags: out, security: session, summary: 'One outfit with advisory `warnings` (missing roles, trashed or not AVAILABLE garments)', request: { params: id }, responses: { 200: json('Outfit', s.outfitView, true), ...authed, 404: NOT_FOUND } });
@@ -61,14 +61,14 @@ route({
 });
 route({
   method: 'delete', path: '/api/v1/outfits/{id}', tags: out, security: session,
-  summary: 'Cancel: status CANCELLED, never a hard delete (idempotent). A WORN outfit cannot be cancelled: invalidate its wear record first',
-  request: { headers: csrf, params: id }, responses: { 204: { description: 'Cancelled' }, ...authed, 404: NOT_FOUND, 409: problem('OUTFIT_NOT_EDITABLE (worn) or VERSION_CONFLICT') },
+  summary: 'Cancel (If-Match required): status CANCELLED, never a hard delete (idempotent). A WORN outfit cannot be cancelled: invalidate its wear record first',
+  request: { headers: ifMatch, params: id }, responses: { 204: { description: 'Cancelled' }, 428: MATCH, ...authed, 404: NOT_FOUND, 409: problem('OUTFIT_NOT_EDITABLE (worn) or VERSION_CONFLICT') },
 });
 route({
   method: 'post', path: '/api/v1/outfits/{id}/items', tags: out, security: session,
   summary: 'Add a garment with its role (own, not trashed; any availability status is only a warning)',
   request: { headers: ifMatch, params: id, body: body(s.itemInput) },
-  responses: { 201: json('Updated outfit (new ETag)', s.outfitView, true), 400: BAD, ...authed, 404: NOT_FOUND, 409: problem('GARMENT_ALREADY_IN_OUTFIT, VERSION_CONFLICT or OUTFIT_NOT_EDITABLE'), 428: MATCH },
+  responses: { 201: json('Updated outfit (new ETag)', s.outfitView, true), 400: BAD, ...authed, 404: NOT_FOUND, 409: problem('GARMENT_ALREADY_IN_OUTFIT, OUTFIT_FULL (12 garments), VERSION_CONFLICT or OUTFIT_NOT_EDITABLE'), 428: MATCH },
 });
 route({
   method: 'put', path: '/api/v1/outfits/{id}/items/{garmentId}', tags: out, security: session,
@@ -92,7 +92,7 @@ route({
   request: { headers: idempotency, params: id, body: body(s.confirmBody) },
   responses: {
     201: json('Confirmed', s.confirmResponse), ...IDEM, ...authed, 404: NOT_FOUND,
-    409: problem('ALREADY_WORN (second confirmation with another key), VERSION_CONFLICT, OUTFIT_NOT_EDITABLE (cancelled) or IDEMPOTENCY_IN_PROGRESS'),
+    409: problem('ALREADY_WORN (second confirmation with another key), VERSION_CONFLICT, OUTFIT_NOT_EDITABLE (cancelled), OUTFIT_EMPTY (no garment left) or IDEMPOTENCY_IN_PROGRESS'),
   },
 });
 route({

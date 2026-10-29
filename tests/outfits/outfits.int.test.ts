@@ -458,3 +458,50 @@ describe('security: owner scope on every endpoint', () => {
     expect((await h.o.create(ocookie, { items: [{ garmentId: top.id, role: 'TOP' }] })).status).toBe(404);
   });
 });
+
+describe('review fixes', () => {
+  it('caps_an_outfit_at_12_garments_and_tolerates_trashed_garments_already_inside', async () => {
+    const { h, u, cookie, top } = await setup();
+    const o = await h.o.create(cookie, { items: [{ garmentId: top.id, role: 'TOP' }] });
+    let tag = etag(o);
+    for (let i = 0; i < 11; i++) {
+      const g = await u.garment();
+      const r = await h.o.addItem(cookie, o.body?.id as string, { garmentId: g.id, role: 'OTHER' }, tag);
+      expect(r.status).toBe(201);
+      tag = etag(r);
+    }
+    const extra = await u.garment();
+    expect((await h.o.addItem(cookie, o.body?.id as string, { garmentId: extra.id, role: 'OTHER' }, tag)).body).toMatchObject({ code: 'OUTFIT_FULL' });
+    // trashed garment already inside does not block other edits
+    await h.api.deleteGarment(cookie, top.id);
+    const cur = (await h.o.get(cookie, o.body?.id as string)).body as Json;
+    const patched = await h.o.patch(cookie, cur.id, { title: 'still editable', items: cur.items.map((i: Json) => ({ garmentId: i.garmentId, role: i.role })) }, `W/"v${cur.version}"`);
+    expect(patched.status).toBe(200);
+    expect(patched.body?.warnings).toContainEqual({ code: 'GARMENT_TRASHED', garmentId: top.id });
+  });
+
+  it('date_range_is_capped_at_62_days_and_flags_truncation', async () => {
+    const { h, cookie } = await setup();
+    expect((await h.o.list(cookie, '?from=2026-01-01&to=2026-12-31')).body).toMatchObject({ code: 'RANGE_TOO_LARGE' });
+    const ok = await h.o.list(cookie, '?from=2026-11-01&to=2026-12-02');
+    expect(ok.body).toMatchObject({ items: [], truncated: false });
+  });
+
+  it('cancel_requires_if_match', async () => {
+    const { h, cookie, planned } = await setup();
+    const o = await planned();
+    expect((await h.o.cancel(cookie, o.id, '')).status).toBe(428);
+    expect((await h.o.cancel(cookie, o.id, 'W/"v9"')).status).toBe(409);
+    expect((await h.o.cancel(cookie, o.id)).status).toBe(204);
+  });
+
+  it('confirm_with_no_resolvable_garment_is_409_not_an_empty_record', async () => {
+    let blind = false;
+    const s = await setup({ wrap: (real): GarmentGateway => ({ ...real, find: async (o, ids) => (blind ? [] : real.find(o, ids)) }) });
+    const o = await s.planned();
+    blind = true;
+    const r = await s.h.o.confirm(s.cookie, o.id, { expectedVersion: 1 });
+    expect(r.body).toMatchObject({ code: 'OUTFIT_EMPTY' });
+    expect(await db.wearRecord.count({ where: { outfitId: o.id } })).toBe(0);
+  });
+});

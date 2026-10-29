@@ -26571,7 +26571,7 @@
             "sessionCookie": []
           }
         ],
-        "summary": "With `from` and `to` (local dates YYYY-MM-DD, inclusive; day and week views): outfits of that range in chronological order (max 200, no cursor). Without: newest first with cursor pagination. Filter by status",
+        "summary": "With `from` and `to` (local dates YYYY-MM-DD, inclusive; day and week views): outfits of that range in chronological order (span at most 62 days else 422 RANGE_TOO_LARGE; at most 200 rows, `truncated: true` when more exist). Without: newest first with cursor pagination. Filter by status",
         "parameters": [
           {
             "schema": {
@@ -26618,174 +26618,346 @@
         ],
         "responses": {
           "200": {
-            "description": "Outfits",
+            "description": "Outfits (range form: { items, truncated })",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "items": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "string",
-                            "format": "uuid"
-                          },
-                          "title": {
-                            "type": [
-                              "string",
-                              "null"
-                            ]
-                          },
-                          "status": {
-                            "type": "string",
-                            "enum": [
-                              "DRAFT",
-                              "PLANNED",
-                              "WORN",
-                              "CANCELLED"
-                            ]
-                          },
-                          "occasion": {
-                            "type": [
-                              "string",
-                              "null"
-                            ]
-                          },
-                          "startsAt": {
-                            "type": [
-                              "string",
-                              "null"
-                            ]
-                          },
-                          "endsAt": {
-                            "type": [
-                              "string",
-                              "null"
-                            ]
-                          },
-                          "localDate": {
-                            "type": [
-                              "string",
-                              "null"
-                            ]
-                          },
-                          "localTime": {
-                            "type": [
-                              "string",
-                              "null"
-                            ]
-                          },
-                          "timezone": {
-                            "type": [
-                              "string",
-                              "null"
-                            ]
-                          },
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "items": {
+                          "type": "array",
                           "items": {
-                            "type": "array",
-                            "items": {
-                              "type": "object",
-                              "properties": {
-                                "garmentId": {
-                                  "type": "string",
-                                  "format": "uuid"
-                                },
-                                "role": {
-                                  "type": "string",
-                                  "enum": [
-                                    "TOP",
-                                    "BOTTOM",
-                                    "ONE_PIECE",
-                                    "OUTERWEAR",
-                                    "SHOES",
-                                    "ACCESSORY",
-                                    "OTHER"
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "title": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "DRAFT",
+                                  "PLANNED",
+                                  "WORN",
+                                  "CANCELLED"
+                                ]
+                              },
+                              "occasion": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "startsAt": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "endsAt": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "localDate": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "localTime": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "timezone": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "items": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "garmentId": {
+                                      "type": "string",
+                                      "format": "uuid"
+                                    },
+                                    "role": {
+                                      "type": "string",
+                                      "enum": [
+                                        "TOP",
+                                        "BOTTOM",
+                                        "ONE_PIECE",
+                                        "OUTERWEAR",
+                                        "SHOES",
+                                        "ACCESSORY",
+                                        "OTHER"
+                                      ]
+                                    },
+                                    "position": {
+                                      "type": "integer"
+                                    }
+                                  },
+                                  "required": [
+                                    "garmentId",
+                                    "role",
+                                    "position"
                                   ]
-                                },
-                                "position": {
-                                  "type": "integer"
                                 }
                               },
-                              "required": [
-                                "garmentId",
-                                "role",
-                                "position"
-                              ]
-                            }
-                          },
-                          "activeWearRecordId": {
-                            "type": [
-                              "string",
-                              "null"
-                            ],
-                            "format": "uuid"
-                          },
-                          "version": {
-                            "type": "integer"
-                          },
-                          "createdAt": {
-                            "type": "string"
-                          },
-                          "updatedAt": {
-                            "type": "string"
-                          },
-                          "warnings": {
-                            "type": "array",
-                            "items": {
-                              "type": "object",
-                              "properties": {
-                                "code": {
-                                  "type": "string",
-                                  "enum": [
-                                    "MISSING_ROLE",
-                                    "GARMENT_UNAVAILABLE",
-                                    "GARMENT_TRASHED"
-                                  ]
-                                },
-                                "role": {
-                                  "type": "string"
-                                },
-                                "garmentId": {
-                                  "type": "string",
-                                  "format": "uuid"
-                                },
-                                "status": {
-                                  "type": "string"
-                                }
+                              "activeWearRecordId": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ],
+                                "format": "uuid"
                               },
-                              "required": [
-                                "code"
-                              ]
-                            }
+                              "version": {
+                                "type": "integer"
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              },
+                              "updatedAt": {
+                                "type": "string"
+                              },
+                              "warnings": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "code": {
+                                      "type": "string",
+                                      "enum": [
+                                        "MISSING_ROLE",
+                                        "GARMENT_UNAVAILABLE",
+                                        "GARMENT_TRASHED"
+                                      ]
+                                    },
+                                    "role": {
+                                      "type": "string"
+                                    },
+                                    "garmentId": {
+                                      "type": "string",
+                                      "format": "uuid"
+                                    },
+                                    "status": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "code"
+                                  ]
+                                }
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "title",
+                              "status",
+                              "occasion",
+                              "startsAt",
+                              "endsAt",
+                              "localDate",
+                              "localTime",
+                              "timezone",
+                              "items",
+                              "activeWearRecordId",
+                              "version",
+                              "createdAt",
+                              "updatedAt"
+                            ]
                           }
                         },
-                        "required": [
-                          "id",
-                          "title",
-                          "status",
-                          "occasion",
-                          "startsAt",
-                          "endsAt",
-                          "localDate",
-                          "localTime",
-                          "timezone",
-                          "items",
-                          "activeWearRecordId",
-                          "version",
-                          "createdAt",
-                          "updatedAt"
-                        ]
-                      }
+                        "nextCursor": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "items"
+                      ]
                     },
-                    "nextCursor": {
-                      "type": "string"
+                    {
+                      "type": "object",
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "title": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "DRAFT",
+                                  "PLANNED",
+                                  "WORN",
+                                  "CANCELLED"
+                                ]
+                              },
+                              "occasion": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "startsAt": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "endsAt": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "localDate": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "localTime": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "timezone": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "items": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "garmentId": {
+                                      "type": "string",
+                                      "format": "uuid"
+                                    },
+                                    "role": {
+                                      "type": "string",
+                                      "enum": [
+                                        "TOP",
+                                        "BOTTOM",
+                                        "ONE_PIECE",
+                                        "OUTERWEAR",
+                                        "SHOES",
+                                        "ACCESSORY",
+                                        "OTHER"
+                                      ]
+                                    },
+                                    "position": {
+                                      "type": "integer"
+                                    }
+                                  },
+                                  "required": [
+                                    "garmentId",
+                                    "role",
+                                    "position"
+                                  ]
+                                }
+                              },
+                              "activeWearRecordId": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ],
+                                "format": "uuid"
+                              },
+                              "version": {
+                                "type": "integer"
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              },
+                              "updatedAt": {
+                                "type": "string"
+                              },
+                              "warnings": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "code": {
+                                      "type": "string",
+                                      "enum": [
+                                        "MISSING_ROLE",
+                                        "GARMENT_UNAVAILABLE",
+                                        "GARMENT_TRASHED"
+                                      ]
+                                    },
+                                    "role": {
+                                      "type": "string"
+                                    },
+                                    "garmentId": {
+                                      "type": "string",
+                                      "format": "uuid"
+                                    },
+                                    "status": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "code"
+                                  ]
+                                }
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "title",
+                              "status",
+                              "occasion",
+                              "startsAt",
+                              "endsAt",
+                              "localDate",
+                              "localTime",
+                              "timezone",
+                              "items",
+                              "activeWearRecordId",
+                              "version",
+                              "createdAt",
+                              "updatedAt"
+                            ]
+                          }
+                        },
+                        "truncated": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "truncated"
+                      ]
                     }
-                  },
-                  "required": [
-                    "items"
                   ]
                 }
               }
@@ -26849,6 +27021,62 @@
           },
           "401": {
             "description": "UNAUTHENTICATED (no, unknown, revoked or expired session)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "RANGE_TOO_LARGE",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -28387,7 +28615,7 @@
             "sessionCookie": []
           }
         ],
-        "summary": "Cancel: status CANCELLED, never a hard delete (idempotent). A WORN outfit cannot be cancelled: invalidate its wear record first",
+        "summary": "Cancel (If-Match required): status CANCELLED, never a hard delete (idempotent). A WORN outfit cannot be cancelled: invalidate its wear record first",
         "parameters": [
           {
             "schema": {
@@ -28407,6 +28635,14 @@
             },
             "required": true,
             "name": "X-Requested-With",
+            "in": "header"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "If-Match",
             "in": "header"
           }
         ],
@@ -28528,6 +28764,62 @@
           },
           "409": {
             "description": "OUTFIT_NOT_EDITABLE (worn) or VERSION_CONFLICT",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "IF_MATCH_REQUIRED",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -29052,7 +29344,7 @@
             }
           },
           "409": {
-            "description": "GARMENT_ALREADY_IN_OUTFIT, VERSION_CONFLICT or OUTFIT_NOT_EDITABLE",
+            "description": "GARMENT_ALREADY_IN_OUTFIT, OUTFIT_FULL (12 garments), VERSION_CONFLICT or OUTFIT_NOT_EDITABLE",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -31234,7 +31526,7 @@
             }
           },
           "409": {
-            "description": "ALREADY_WORN (second confirmation with another key), VERSION_CONFLICT, OUTFIT_NOT_EDITABLE (cancelled) or IDEMPOTENCY_IN_PROGRESS",
+            "description": "ALREADY_WORN (second confirmation with another key), VERSION_CONFLICT, OUTFIT_NOT_EDITABLE (cancelled), OUTFIT_EMPTY (no garment left) or IDEMPOTENCY_IN_PROGRESS",
             "content": {
               "application/problem+json": {
                 "schema": {

@@ -23,7 +23,10 @@ export function outfitsHarness(opts: { wrap?: (real: GarmentGateway) => GarmentG
     list: (c: string | undefined, q = '') => call(http.listOutfits, `/outfits${q}`, c),
     get: (c: string | undefined, id: string) => call((r) => http.getOutfit(r, id), `/outfits/${id}`, c),
     patch: (c: string | undefined, id: string, body: unknown, ifMatch?: string) => call((r) => http.patchOutfit(r, id), `/outfits/${id}`, c, { method: 'PATCH', body, headers: im(ifMatch) }),
-    cancel: (c: string | undefined, id: string) => call((r) => http.cancelOutfit(r, id), `/outfits/${id}`, c, { method: 'DELETE' }),
+    cancel: async (c: string | undefined, id: string, ifMatch = 'auto') => {
+      const m = ifMatch === 'auto' ? ((await call((r) => http.getOutfit(r, id), `/outfits/${id}`, c)).headers.get('etag') ?? undefined) : ifMatch === '' ? undefined : ifMatch;
+      return call((r) => http.cancelOutfit(r, id), `/outfits/${id}`, c, { method: 'DELETE', headers: im(m) });
+    },
     addItem: (c: string | undefined, id: string, body: unknown, ifMatch?: string) => call((r) => http.addItem(r, id), `/outfits/${id}/items`, c, { method: 'POST', body, headers: im(ifMatch) }),
     removeItem: (c: string | undefined, id: string, gid: string, ifMatch?: string) => call((r) => http.removeItem(r, id, gid), `/outfits/${id}/items/${gid}`, c, { method: 'DELETE', headers: im(ifMatch) }),
     replaceItem: (c: string | undefined, id: string, gid: string, body: unknown, ifMatch?: string) => call((r) => http.replaceItem(r, id, gid), `/outfits/${id}/items/${gid}`, c, { method: 'PUT', body, headers: im(ifMatch) }),
