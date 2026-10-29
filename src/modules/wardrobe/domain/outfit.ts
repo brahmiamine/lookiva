@@ -14,3 +14,15 @@ export const canConfirmWorn = (status: OutfitStatus): boolean => status === 'DRA
 export function snapshotName(g: { nickname: string | null; customLabel: string | null; subtypeCode: string | null; categoryCode: string }): string {
   return g.nickname ?? g.customLabel ?? g.subtypeCode ?? g.categoryCode;
 }
+
+export type PlanTarget = 'DRAFT' | 'PLANNED' | 'CANCELLED';
+
+/**
+ * Planning may change a DRAFT or PLANNED outfit only. Planning needs a start time. WORN is reached by confirmation only,
+ * and a WORN or CANCELLED outfit is locked. Returns the refusal code, or null when the change is allowed.
+ */
+export function planningError(from: OutfitStatus, to: PlanTarget | null, plannedFor: Date | null): 'OUTFIT_LOCKED' | 'PLANNED_NEEDS_START' | null {
+  if (from === 'WORN' || from === 'CANCELLED') return 'OUTFIT_LOCKED';
+  if (to === 'PLANNED' && plannedFor === null) return 'PLANNED_NEEDS_START';
+  return null;
+}

@@ -253,3 +253,13 @@ route({
     422: problem('IDEMPOTENCY_KEY_REUSED'),
   },
 });
+route({ method: 'get', path: '/api/v1/outfits', tags: outfits, security: session, summary: 'Outfits, optionally in a plannedFor window and by status (up to 100, earliest planned first). Drafts without a date are included', request: { query: s.outfitListQuery }, responses: { 200: json('Outfits', z.object({ items: z.array(s.outfitView) })), 400: BAD, ...authed } });
+route({
+  method: 'patch', path: '/api/v1/outfits/{id}', tags: outfits, security: session,
+  summary: 'Plan or cancel an outfit: name, occasion, plannedFor (UTC) and status DRAFT, PLANNED or CANCELLED. Needs If-Match; refused once WORN or CANCELLED',
+  request: { params: id, headers: ifMatch, body: body(s.outfitPatchBody) },
+  responses: {
+    200: json('Updated (ETag)', s.outfitView, true), 400: BAD, ...authed, 404: NOT_FOUND,
+    409: problem('VERSION_CONFLICT, OUTFIT_LOCKED or PLANNED_NEEDS_START'), 428: problem('IF_MATCH_REQUIRED'),
+  },
+});

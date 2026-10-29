@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canConfirmWorn, snapshotName } from '@/modules/wardrobe/domain/outfit';
+import { canConfirmWorn, planningError, snapshotName } from '@/modules/wardrobe/domain/outfit';
 
 describe('outfit wear rules', () => {
   it('only_draft_or_planned_can_be_confirmed_worn', () => {
@@ -15,5 +15,14 @@ describe('outfit wear rules', () => {
     expect(snapshotName({ ...base, nickname: null, customLabel: 'Marcel' })).toBe('Marcel');
     expect(snapshotName({ ...base, nickname: null })).toBe('TSHIRT');
     expect(snapshotName({ customLabel: null, subtypeCode: null, nickname: null, categoryCode: 'TOP' })).toBe('TOP');
+  });
+
+  it('planning_is_refused_once_worn_or_cancelled_and_planned_needs_a_start', () => {
+    const at = new Date('2026-11-02T18:00:00Z');
+    expect(planningError('DRAFT', 'PLANNED', at)).toBeNull();
+    expect(planningError('DRAFT', 'PLANNED', null)).toBe('PLANNED_NEEDS_START');
+    expect(planningError('PLANNED', 'CANCELLED', null)).toBeNull();
+    expect(planningError('WORN', 'PLANNED', at)).toBe('OUTFIT_LOCKED');
+    expect(planningError('CANCELLED', null, at)).toBe('OUTFIT_LOCKED');
   });
 });

@@ -16,6 +16,8 @@ const toView = (o: Row): OutfitView => ({
   id: o.id,
   name: o.name,
   status: o.status as OutfitStatus,
+  plannedFor: o.plannedFor?.toISOString() ?? null,
+  occasion: o.occasion,
   version: o.version,
   wearRecordId: o.wears[0]?.id ?? null,
   items: o.items.map((i) => ({
@@ -56,6 +58,28 @@ export function createPrismaOutfitStore(db: PrismaClient): OutfitStore {
       }, TX),
 
     get: (owner, id) => read(db, owner, id),
+
+    list: (owner, f) =>
+      db.outfit
+        .findMany({ where: { ownerId: owner, status: f.status, plannedFor: { gte: f.from, lt: f.to } }, orderBy: [{ plannedFor: 'asc' }, { createdAt: 'asc' }], include: INCLUDE, take: 100 })
+        .then((rows) => rows.map(toView)),
+
+    /** One guarded UPDATE: the version in the WHERE clause makes a lost race a null, never a silent overwrite. */
+    update: (owner, id, expectedVersion, patch, now) =>
+      db.$transaction(async (tx) => {
+        const moved = await tx.outfit.updateMany({
+          where: { id, ownerId: owner, version: expectedVersion },
+          data: {
+            ...(patch.name !== undefined && { name: patch.name }),
+            ...(patch.occasion !== undefined && { occasion: patch.occasion }),
+            ...(patch.plannedFor !== undefined && { plannedFor: patch.plannedFor }),
+            ...(patch.status !== undefined && { status: patch.status }),
+            version: { increment: 1 },
+            updatedAt: now,
+          },
+        });
+        return moved.count === 1 ? read(tx, owner, id) : null;
+      }, TX),
 
     /**
      * One transaction: the outfit moves to WORN with a version bump and one WearRecord snapshot is written. Garment rows are

@@ -192,8 +192,22 @@ export const createOutfitBody = z.strictObject({
   name: text(80).nullish().transform((v) => v ?? null),
   garmentIds: z.array(z.uuid()).max(MAX_OUTFIT_ITEMS),
 });
+export const outfitPatchBody = z
+  .strictObject({
+    name: text(80).nullable().optional(),
+    occasion: text(40).nullable().optional(),
+    plannedFor: z.iso.datetime().nullable().optional().transform((v) => (v === undefined ? undefined : v === null ? null : new Date(v))),
+    status: z.enum(['DRAFT', 'PLANNED', 'CANCELLED']).optional(),
+  })
+  .refine((b) => Object.keys(b).length > 0, 'at least one field is required');
+export const outfitListQuery = z.object({
+  from: z.iso.datetime().optional(),
+  to: z.iso.datetime().optional(),
+  status: z.enum(OUTFIT_STATUSES).optional(),
+});
+
 export const outfitView = z.object({
-  id: z.uuid(), name: z.string().nullable(), status: z.enum(OUTFIT_STATUSES), version: z.number().int(),
+  id: z.uuid(), name: z.string().nullable(), status: z.enum(OUTFIT_STATUSES), plannedFor: iso.nullable(), occasion: z.string().nullable(), version: z.number().int(),
   wearRecordId: z.uuid().nullable(),
   items: z.array(z.object({ garmentId: z.uuid(), name: z.string(), categoryCode: z.string(), colorCode: z.string() })),
   createdAt: iso, updatedAt: iso,

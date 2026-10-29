@@ -435,6 +435,8 @@ model Outfit {
   ownerId   String       @db.Char(36)
   name      String?      @db.VarChar(80)
   status    String       @default("DRAFT") @db.VarChar(16)
+  plannedFor DateTime?   @db.DateTime(3)
+  occasion  String?      @db.VarChar(40)
   version   Int          @default(1)
   createdAt DateTime     @db.DateTime(3)
   updatedAt DateTime     @db.DateTime(3)
@@ -443,6 +445,7 @@ model Outfit {
   wears     WearRecord[]
 
   @@index([ownerId, status])
+  @@index([ownerId, plannedFor])
   @@map("outfits")
 }
 

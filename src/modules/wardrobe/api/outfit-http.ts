@@ -10,7 +10,8 @@ import type { Logger } from '@/platform/logger';
 import type { OwnerId } from '@/platform/kernel';
 import { createOutfitService, type ConfirmResult } from '../application/outfit-service';
 import { createPrismaOutfitStore } from '../infrastructure/prisma-outfit-store';
-import { createOutfitBody } from './schemas';
+import { createOutfitBody, outfitListQuery, outfitPatchBody } from './schemas';
+import { withEtag } from './respond';
 import { newId } from '@/platform/http/ids';
 
 type SessionCtx = { requestId: string; log: Logger; userId: OwnerId; sessionId: string };
@@ -58,6 +59,20 @@ export function createOutfitHttp({ db, redis, clock, withSession, rateLimitPrefi
     }),
 
     get: (req: Request, id: string) => withSession(async (_r, ctx) => Response.json(await service.get(ctx.userId, id)))(req),
+
+    /** Planning list: optional window on plannedFor and a status filter. Drafts without a date are included. */
+    list: (req: Request) =>
+      withSession(async (r, ctx) => {
+        const p = new URL(r.url).searchParams;
+        const f = outfitListQuery.parse(Object.fromEntries(['from', 'to', 'status'].flatMap((k) => (p.has(k) ? [[k, p.get(k)]] : []))));
+        return Response.json({ items: await service.list(ctx.userId, { from: f.from ? new Date(f.from) : undefined, to: f.to ? new Date(f.to) : undefined, status: f.status }) });
+      })(req),
+
+    update: (req: Request, id: string) =>
+      write(async (r, ctx) => {
+        const body = await readJson(r, outfitPatchBody);
+        return withEtag(await service.update(ctx.userId, id, r.headers.get('if-match'), body));
+      })(req),
 
     confirmWorn: (req: Request, id: string) =>
       write(async (r, ctx) => {

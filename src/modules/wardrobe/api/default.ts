@@ -69,5 +69,7 @@ export const wardrobeRoutes = {
   deleteCustomSubcategory: lazyId((w) => w.deleteCustomSubcategory),
   createOutfit: lazy((w) => w.outfits.create),
   getOutfit: lazyId((w) => w.outfits.get),
+  listOutfits: lazy((w) => w.outfits.list),
+  updateOutfit: lazyId((w) => w.outfits.update),
   confirmOutfitWorn: lazyId((w) => w.outfits.confirmWorn),
 };
