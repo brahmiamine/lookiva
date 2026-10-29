@@ -26,7 +26,7 @@ describe('base components', () => {
     expect(button.className).toContain('min-h-11');
     expect(button.className).toContain('min-w-11');
     expect(button.getAttribute('type')).toBe('button');
-    expect(screen.getByLabelText('Name').className).toContain('min-h-11');
+    expect(screen.getByLabelText('Name').className).toContain('min-h-13');
   });
 
   it('textfield_label_is_associated_and_error_has_role_alert', () => {
