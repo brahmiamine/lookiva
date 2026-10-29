@@ -7,6 +7,7 @@ export type OutfitItemView = { garmentId: string; name: string; categoryCode: st
 export type OutfitView = { id: string; name: string | null; status: OutfitStatus; plannedFor: string | null; occasion: string | null; version: number; wearRecordId: string | null; items: OutfitItemView[]; createdAt: string; updatedAt: string };
 export type OutfitPatch = { name?: string | null; occasion?: string | null; plannedFor?: Date | null; status?: PlanTarget };
 export type OutfitFilter = { from?: Date; to?: Date; status?: OutfitStatus };
+export type MarkResult = { kind: 'OK'; changedIds: string[]; unchangedIds: string[] } | { kind: 'NOT_FOUND' } | { kind: 'NOT_IN_WEAR'; garmentIds: string[] } | { kind: 'GARMENT_UNAVAILABLE'; garmentIds: string[] };
 export type WearView = { wearRecordId: string; wornAt: string; outfitId: string | null };
 
 export type CreateOutfitInput = { name: string | null; garmentIds: string[] };
@@ -20,6 +21,8 @@ export type OutfitStore = {
   list(owner: OwnerId, filter: OutfitFilter): Promise<OutfitView[]>;
   /** Confirmed wears that included this garment, most recent first (snapshot rows; the garment itself is not read). */
   wearsOf(owner: OwnerId, garmentId: string): Promise<WearView[]>;
+  /** Optional laundry step: only the listed garments of this wear move to TO_WASH; the wear record is never touched. */
+  markToWash(owner: OwnerId, wearRecordId: string, garmentIds: string[], now: Date, newId: () => string): Promise<MarkResult>;
   /** Version-guarded: null when the row changed since `expectedVersion` (the caller maps it to 409). */
   update(owner: OwnerId, id: string, expectedVersion: number, patch: OutfitPatch, now: Date): Promise<OutfitView | null>;
 };
@@ -41,6 +44,12 @@ export function createOutfitService({ outfits, now, newId }: OutfitServiceDeps) 
       const found = await outfits.get(owner, id);
       if (!found) throw new AppError('NOT_FOUND', 404, 'outfit not found');
       return found;
+    },
+
+    /** Laundry is always explicit: the caller lists the garments, nothing is ticked by default. */
+    async markToWash(owner: OwnerId, wearRecordId: string, garmentIds: string[]): Promise<MarkResult> {
+      if (garmentIds.length === 0) throw new AppError('VALIDATION_ERROR', 400, 'Validation failed', [{ path: 'garmentIds', message: 'choose at least one garment' }]);
+      return outfits.markToWash(owner, wearRecordId, garmentIds, now(), newId);
     },
 
     wearsOf(owner: OwnerId, garmentId: string): Promise<WearView[]> {

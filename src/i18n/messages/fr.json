@@ -457,7 +457,14 @@
       "locked": "Cette tenue n’est plus modifiable.",
       "pieces": "Pièces",
       "noPieces": "Aucune pièce.",
-      "wornAt": "Portée le {date}"
+      "wornAt": "Portée le {date}",
+      "wash": {
+        "title": "Lavage (facultatif)",
+        "lead": "Cochez seulement les pièces à mettre en lavage. Rien n’est coché par défaut, et le port reste enregistré tel quel.",
+        "submit": "Mettre les pièces cochées à laver",
+        "done": "{count} pièce(s) passée(s) à laver.",
+        "nothing": "Cochez au moins une pièce."
+      }
     }
   }
 }

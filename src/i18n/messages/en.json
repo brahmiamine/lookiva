@@ -457,7 +457,14 @@
       "locked": "This outfit can no longer be changed.",
       "pieces": "Pieces",
       "noPieces": "No pieces.",
-      "wornAt": "Worn on {date}"
+      "wornAt": "Worn on {date}",
+      "wash": {
+        "title": "Laundry (optional)",
+        "lead": "Tick only the pieces to send to laundry. Nothing is ticked by default, and the wear record stays as it is.",
+        "submit": "Send ticked pieces to laundry",
+        "done": "{count} piece(s) sent to laundry.",
+        "nothing": "Tick at least one piece."
+      }
     }
   }
 }

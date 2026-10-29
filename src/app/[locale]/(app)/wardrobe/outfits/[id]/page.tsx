@@ -8,6 +8,7 @@ import { pageLocale, titleFrom } from '../../../../page-helpers';
 import { getJson, requireAccount } from '../../../server-api';
 import { H1, LEAD, SECTION } from '../../../styles';
 import { OutfitActions } from './OutfitActions';
+import { WashPanel } from './WashPanel';
 
 export const generateMetadata = titleFrom('wardrobe.outfits.title');
 
@@ -49,6 +50,7 @@ export default async function OutfitPage(props: { params: Promise<{ locale: stri
 
       <IntlProvider locale={locale} messages={pickMessages(locale, ['common', 'wardrobe'])}>
         <OutfitActions outfit={o} open={isOpen} />
+        {o.wearRecordId && <WashPanel wearRecordId={o.wearRecordId} items={o.items.map((i) => ({ garmentId: i.garmentId, name: i.name }))} />}
       </IntlProvider>
     </main>
   );

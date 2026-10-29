@@ -200,6 +200,7 @@ export const outfitPatchBody = z
     status: z.enum(['DRAFT', 'PLANNED', 'CANCELLED']).optional(),
   })
   .refine((b) => Object.keys(b).length > 0, 'at least one field is required');
+export const markToWashBody = z.strictObject({ garmentIds: z.array(z.uuid()).min(1).max(MAX_OUTFIT_ITEMS).refine((a) => new Set(a).size === a.length, 'garment ids must be unique') });
 export const garmentWearsPage = z.object({ items: z.array(z.object({ wearRecordId: z.uuid(), wornAt: iso, outfitId: z.uuid().nullable() })) });
 export const outfitListQuery = z.object({
   from: z.iso.datetime().optional(),

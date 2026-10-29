@@ -8,9 +8,9 @@ import { canonicalJson, readIdempotencyKey, requestHash } from '@/platform/http/
 import { createRateLimiter } from '@/platform/rate-limit';
 import type { Logger } from '@/platform/logger';
 import type { OwnerId } from '@/platform/kernel';
-import { createOutfitService, type ConfirmResult } from '../application/outfit-service';
+import { createOutfitService, type ConfirmResult, type MarkResult } from '../application/outfit-service';
 import { createPrismaOutfitStore } from '../infrastructure/prisma-outfit-store';
-import { createOutfitBody, outfitListQuery, outfitPatchBody } from './schemas';
+import { createOutfitBody, markToWashBody, outfitListQuery, outfitPatchBody } from './schemas';
 import { withEtag } from './respond';
 import { newId } from '@/platform/http/ids';
 
@@ -59,6 +59,24 @@ export function createOutfitHttp({ db, redis, clock, withSession, rateLimitPrefi
     }),
 
     get: (req: Request, id: string) => withSession(async (_r, ctx) => Response.json(await service.get(ctx.userId, id)))(req),
+
+    /** Laundry step after a wear: explicit garment ids only. Idempotency-Key, one transaction, the wear record stays. */
+    markToWash: (req: Request, id: string) =>
+      write(async (r, ctx) => {
+        const key = readIdempotencyKey(r);
+        const body = await readJson(r, markToWashBody);
+        const res = await withIdempotency(
+          db,
+          { userId: ctx.userId, key, requestHash: requestHash(r.method, new URL(r.url).pathname, canonicalJson(body)) },
+          async () => ({ status: 200, body: await service.markToWash(ctx.userId, id, body.garmentIds) }),
+          { onPersistError: (err) => ctx.log.error({ err }, 'idempotency result not persisted') },
+        );
+        const out = res.body as MarkResult;
+        if (out.kind === 'NOT_FOUND') throw new AppError('NOT_FOUND', 404, 'wear record not found');
+        if (out.kind === 'NOT_IN_WEAR') throw new AppError('GARMENT_NOT_IN_WEAR', 409, 'some garments were not part of this wear', out.garmentIds.map((g) => ({ path: 'garmentIds', message: `garment ${g} was not worn` })));
+        if (out.kind === 'GARMENT_UNAVAILABLE') throw new AppError('GARMENT_UNAVAILABLE', 409, 'some garments are in the trash', out.garmentIds.map((g) => ({ path: 'garmentIds', message: `garment ${g} is trashed` })));
+        return Response.json(out);
+      })(req),
 
     /** Wear history of one garment (the last 20 confirmed wears). Another user's garment simply has no rows for this owner. */
     wears: (req: Request, id: string) => withSession(async (_r, ctx) => Response.json({ items: await service.wearsOf(ctx.userId, id) }))(req),

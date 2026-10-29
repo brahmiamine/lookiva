@@ -264,3 +264,9 @@ route({
     409: problem('VERSION_CONFLICT, OUTFIT_LOCKED or PLANNED_NEEDS_START'), 428: problem('IF_MATCH_REQUIRED'),
   },
 });
+route({
+  method: 'post', path: '/api/v1/wear-records/{id}/mark-to-wash', tags: outfits, security: session,
+  summary: 'Optional laundry step: the listed garments of one wear become TO_WASH. Nothing is ticked by default; the wear record is never changed',
+  request: { params: id, headers: idempotency, body: body(s.markToWashBody) },
+  responses: { 200: json('changedIds and unchangedIds', z.object({ kind: z.literal('OK'), changedIds: z.array(z.uuid()), unchangedIds: z.array(z.uuid()) })), 400: BAD, ...authed, 404: NOT_FOUND, 409: problem('GARMENT_NOT_IN_WEAR or GARMENT_UNAVAILABLE (in the trash)') },
+});

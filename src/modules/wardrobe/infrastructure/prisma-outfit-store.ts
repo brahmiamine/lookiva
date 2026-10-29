@@ -1,7 +1,7 @@
 import { Prisma, type PrismaClient } from '@/generated/prisma/client';
 import type { OwnerId } from '@/platform/kernel';
 import { snapshotName, type OutfitStatus } from '../domain/outfit';
-import type { ConfirmResult, OutfitStore, OutfitView, WearView } from '../application/outfit-service';
+import type { ConfirmResult, MarkResult, OutfitStore, OutfitView, WearView } from '../application/outfit-service';
 
 const TX = { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted };
 
@@ -58,6 +58,31 @@ export function createPrismaOutfitStore(db: PrismaClient): OutfitStore {
       }, TX),
 
     get: (owner, id) => read(db, owner, id),
+
+    /**
+     * One transaction for the laundry step only: each ticked garment must belong to this wear and be live. Changed rows get a
+     * status event. The wear record and its snapshot are not written.
+     */
+    markToWash: (owner, wearRecordId, garmentIds, now, newId) =>
+      db.$transaction(async (tx): Promise<MarkResult> => {
+        const wear = await tx.wearRecord.findFirst({ where: { id: wearRecordId, ownerId: owner }, select: { items: { select: { garmentId: true } } } });
+        if (!wear) return { kind: 'NOT_FOUND' };
+        const inWear = new Set(wear.items.map((i) => i.garmentId));
+        const outside = garmentIds.filter((g) => !inWear.has(g));
+        if (outside.length > 0) return { kind: 'NOT_IN_WEAR', garmentIds: outside };
+
+        const live = await tx.garment.findMany({ where: { id: { in: garmentIds }, ownerId: owner, deletedAt: null }, select: { id: true, status: true } });
+        const missing = garmentIds.filter((g) => !live.some((l) => l.id === g));
+        if (missing.length > 0) return { kind: 'GARMENT_UNAVAILABLE', garmentIds: missing };
+
+        const changing = live.filter((g) => g.status !== 'TO_WASH');
+        for (const g of changing) {
+          // The status guard turns a concurrent change into a no-op for this row, never a silent overwrite.
+          const moved = await tx.garment.updateMany({ where: { id: g.id, ownerId: owner, status: g.status }, data: { status: 'TO_WASH', version: { increment: 1 }, updatedAt: now } });
+          if (moved.count === 1) await tx.garmentStatusEvent.create({ data: { id: newId(), garmentId: g.id, ownerId: owner, fromStatus: g.status, toStatus: 'TO_WASH', source: 'WEAR_WASH', at: now } });
+        }
+        return { kind: 'OK', changedIds: changing.map((g) => g.id), unchangedIds: live.filter((g) => g.status === 'TO_WASH').map((g) => g.id) };
+      }, TX),
 
     wearsOf: (owner, garmentId) =>
       db.wearRecordItem
