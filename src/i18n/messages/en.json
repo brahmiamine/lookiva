@@ -398,6 +398,17 @@
           "OUTER": "Outer layer"
         }
       }
+    },
+    "organize": {
+      "title": "Tags, collections and sets",
+      "tags": "Tags",
+      "collections": "Collections",
+      "sets": "Sets",
+      "name": "Group name",
+      "create": "Create",
+      "member": "In this group",
+      "none": "No group yet.",
+      "updated": "Groups updated."
     }
   }
 }

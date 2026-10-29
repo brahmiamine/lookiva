@@ -26,7 +26,11 @@ export type Garment = {
   recommendable: boolean;
   version: number;
 };
-export type CustomSubcategory = { id: string; label: string; parentSubtypeCode: string };
+/** Tag, collection or garment set. `garments` lists every member, trashed ones included. */
+export type Organizer = { id: string; name: string; garments: { id: string; trashed: boolean }[] };
+export type GroupKind = 'tags' | 'collections' | 'garment-sets';
+export type GroupSet = { kind: GroupKind; items: { id: string; name: string; member: boolean }[] };
+export type CustomSubcategory ={ id: string; label: string; parentSubtypeCode: string };
 export type Photo ={ id: string; isPrimary: boolean; cutoutStatus: 'READY' | 'FAILED' | null };
 export type Catalog = {
   categories: (Coded & { subtypes: Coded[] })[];

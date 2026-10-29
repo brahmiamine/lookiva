@@ -11,6 +11,8 @@ import { loadCatalog } from '../catalog';
 import { H1, LEAD, SECTION } from '../../styles';
 import { GarmentActions } from './GarmentActions';
 import { GarmentEditor } from './GarmentEditor';
+import { Organizers } from './Organizers';
+import { loadGroups } from './groups';
 import { Photos } from './Photos';
 
 export const generateMetadata = titleFrom('wardrobe.title');
@@ -19,10 +21,11 @@ export default async function GarmentPage(props: { params: Promise<{ locale: str
   const { id } = await props.params;
   const locale = await pageLocale(props);
   await requireAccount(locale, 'onboarded');
-  const [catalog, { data: garment, etag }, photos] = await Promise.all([
+  const [catalog, { data: garment, etag }, photos, groups] = await Promise.all([
     loadCatalog(locale),
     getJsonWithEtag<Garment>((req) => wardrobeRoutes.getGarment(req, id), `/garments/${id}`, locale),
     getJson<{ items: Photo[] }>((req) => wardrobeRoutes.listPhotos(req, id), `/garments/${id}/photos`, locale),
+    loadGroups(locale, id),
   ]);
 
   const category = catalog.categories.find((c) => c.code === garment.categoryCode);
@@ -83,6 +86,9 @@ export default async function GarmentPage(props: { params: Promise<{ locale: str
 
         <h2 className={SECTION}>{t('edit.title')}</h2>
         <GarmentEditor garment={garment} etag={etag} weather={catalog.weather} weatherLabels={weatherLabels} />
+
+        <h2 className={SECTION}>{t('organize.title')}</h2>
+        <Organizers garmentId={garment.id} groups={groups} />
 
         <h2 className={SECTION}>{t('detail.photos')}</h2>
         <Photos garmentId={garment.id} initial={photos.items} />

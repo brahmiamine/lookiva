@@ -398,6 +398,17 @@
           "OUTER": "Couche extérieure"
         }
       }
+    },
+    "organize": {
+      "title": "Étiquettes, collections et ensembles",
+      "tags": "Étiquettes",
+      "collections": "Collections",
+      "sets": "Ensembles",
+      "name": "Nom du groupe",
+      "create": "Créer",
+      "member": "Dans ce groupe",
+      "none": "Aucun groupe pour l’instant.",
+      "updated": "Groupes mis à jour."
     }
   }
 }
