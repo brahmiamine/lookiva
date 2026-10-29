@@ -18,6 +18,7 @@ export const LIMITS = {
   // re-authentication (password re-check on deactivate/deletion): per user, whatever the client address
   reauthUser: { name: 'reauth:user', max: 5, windowMs: 15 * MIN },
   exportUser: { name: 'export:user', max: 3, windowMs: 24 * HOUR },
+  consentUser: { name: 'consent:user', max: 30, windowMs: MIN },
   geoCitiesUser: { name: 'geo-cities:user', max: 30, windowMs: MIN },
 } as const satisfies Record<string, Limit>;
 

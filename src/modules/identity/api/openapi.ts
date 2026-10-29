@@ -38,6 +38,7 @@ const route = ({ idempotent, ...r }: RouteDoc & { idempotent?: boolean }) =>
     },
   });
 
+const RATE = 'RATE_LIMITED (Retry-After header; per user)';
 const authed = {
   401: problem('UNAUTHENTICATED (no, unknown, revoked or expired session)'),
   403: problem('CSRF_REJECTED on unsafe methods'),
@@ -140,36 +141,36 @@ route({
   method: 'get', path: '/api/v1/geo/cities', tags, security: session,
   summary: 'City candidates for onboarding (max 5, names in the user\'s locale; 30 requests/min/user; q is never logged)',
   request: { query: s.citiesQuery },
-  responses: { 200: json('Candidates, best first (timezone, latitude, longitude pre-filled)', s.citiesResponse), 400: problem('VALIDATION_ERROR (q is 2..80 characters)'), ...authed },
+  responses: { 200: json('Candidates, best first (timezone, latitude, longitude pre-filled)', s.citiesResponse), 429: problem(RATE),  400: problem('VALIDATION_ERROR (q is 2..80 characters)'), ...authed },
 });
 route({
   method: 'post', path: '/api/v1/me/deactivate', tags, security: session,
   summary: 'Deactivate the account (status DISABLED, every session revoked). Re-authentication: current password',
   request: { headers: csrf, body: body(s.reauthBody) },
-  responses: { 204: { description: 'Deactivated; cookie cleared' }, 400: problem('VALIDATION_ERROR'), ...authed, 401: problem('UNAUTHENTICATED or INVALID_CREDENTIALS (wrong password; rate limited per user)') },
+  responses: { 204: { description: 'Deactivated; cookie cleared' }, 429: problem(RATE), 400: problem('VALIDATION_ERROR'), ...authed, 401: problem('UNAUTHENTICATED or INVALID_CREDENTIALS (wrong password; rate limited per user)') },
 });
 route({
   method: 'post', path: '/api/v1/me/deletion-request', tags, security: session,
   summary: 'Request account deletion (DELETION_REQUESTED, every session revoked, idempotent). Backups are NOT purged immediately',
   request: { headers: csrf, body: body(s.reauthBody) },
-  responses: { 202: json('Pending request (same one when repeated)', s.deletionRequestResponse), 400: problem('VALIDATION_ERROR'), ...authed, 401: problem('UNAUTHENTICATED or INVALID_CREDENTIALS (wrong password; rate limited per user)') },
+  responses: { 202: json('Pending request (same one when repeated)', s.deletionRequestResponse), 429: problem(RATE), 400: problem('VALIDATION_ERROR'), ...authed, 401: problem('UNAUTHENTICATED or INVALID_CREDENTIALS (wrong password; rate limited per user)') },
 });
 route({
   method: 'delete', path: '/api/v1/me/deletion-request', tags,
   summary: 'Cancel a PENDING deletion request. No session exists any more, so the body carries email + password (login limits apply)',
   request: { headers: csrf, body: body(s.loginBody) },
   responses: {
-    200: json('Cancelled; the account is back to its previous status and the owner can sign in again', s.deletionCancelledResponse),
+    200: json('Cancelled; the account is back to its previous status (ACTIVE, or DISABLED if it was disabled before: then it still cannot sign in)', s.deletionCancelledResponse),
     ...common,
-    401: problem('INVALID_CREDENTIALS (unknown email or wrong password)'),
-    404: problem('NOT_FOUND (correct credentials but no pending request)'),
+    401: problem('INVALID_CREDENTIALS (unknown email, wrong password, or an account not awaiting deletion)'),
+    404: problem('NOT_FOUND (DELETION_REQUESTED account without a pending request)'),
   },
 });
 route({
   method: 'post', path: '/api/v1/me/export-requests', tags, security: session,
   summary: 'Record a data export request (3/day/user). Nothing is generated yet',
   request: { headers: csrf },
-  responses: { 202: json('Request recorded, status PENDING', s.exportRequestView), ...authed },
+  responses: { 202: json('Request recorded, status PENDING', s.exportRequestView), 429: problem(RATE), ...authed },
 });
 route({
   method: 'get', path: '/api/v1/me/export-requests', tags, security: session,
@@ -184,7 +185,7 @@ route({
 });
 route({
   method: 'put', path: '/api/v1/me/consents/{kind}', tags, security: session,
-  summary: 'Grant or withdraw a consent: appends a record and keeps aiEnabled/learningEnabled equal in the same transaction. No kind covers photo recognition: photos never go to an AI',
+  summary: 'Grant or withdraw a consent (30/min/user): appends a record and keeps aiEnabled/learningEnabled equal in the same transaction. No kind covers photo recognition: photos never go to an AI',
   request: { headers: csrf, params: z.object({ kind: z.enum(CONSENT_KINDS) }), body: body(s.consentBody) },
-  responses: { 200: json('Recorded consent', s.consentView), 400: problem('VALIDATION_ERROR'), ...authed, 404: problem('NOT_FOUND (unknown kind)') },
+  responses: { 200: json('Recorded consent', s.consentView), 429: problem(RATE), 400: problem('VALIDATION_ERROR'), ...authed, 404: problem('NOT_FOUND (unknown kind)') },
 });

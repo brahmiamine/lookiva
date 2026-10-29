@@ -7,10 +7,9 @@
 -- Rollback:
 --   DROP TABLE deletion_requests, export_requests;
 --   DELETE FROM _prisma_migrations WHERE migration_name = '20261030090000_account_lifecycle';
--- Consequence: pending deletion and export requests are lost. A user left in status DELETION_REQUESTED keeps that status
--- and cannot sign in: restore it first with
---   UPDATE users SET status = 'ACTIVE' WHERE status = 'DELETION_REQUESTED';
--- (before dropping, use deletion_requests.previousStatus if some of them were DISABLED).
+-- Consequence: pending deletion and export requests are lost. A user left in status DELETION_REQUESTED cannot sign in:
+-- restore the remembered status BEFORE dropping the table with
+--   UPDATE users u JOIN deletion_requests d ON d.userId = u.id AND d.status = 'PENDING' SET u.status = d.previousStatus;
 -- CreateTable
 CREATE TABLE `deletion_requests` (
     `id` CHAR(36) NOT NULL,

@@ -5332,6 +5332,62 @@
               }
             }
           },
+          "429": {
+            "description": "RATE_LIMITED (Retry-After header; per user)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          },
           "503": {
             "description": "EMAIL_TRANSPORT_UNAVAILABLE (no email transport configured) or RATE_LIMITER_UNAVAILABLE",
             "content": {
@@ -5608,6 +5664,62 @@
           },
           "413": {
             "description": "PAYLOAD_TOO_LARGE (body over 16 KiB)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED (Retry-After header; per user)",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -6019,6 +6131,62 @@
               }
             }
           },
+          "429": {
+            "description": "RATE_LIMITED (Retry-After header; per user)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          },
           "503": {
             "description": "EMAIL_TRANSPORT_UNAVAILABLE (no email transport configured) or RATE_LIMITER_UNAVAILABLE",
             "content": {
@@ -6122,7 +6290,7 @@
         },
         "responses": {
           "200": {
-            "description": "Cancelled; the account is back to its previous status and the owner can sign in again",
+            "description": "Cancelled; the account is back to its previous status (ACTIVE, or DISABLED if it was disabled before: then it still cannot sign in)",
             "content": {
               "application/json": {
                 "schema": {
@@ -6199,7 +6367,7 @@
             }
           },
           "401": {
-            "description": "INVALID_CREDENTIALS (unknown email or wrong password)",
+            "description": "INVALID_CREDENTIALS (unknown email, wrong password, or an account not awaiting deletion)",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -6311,7 +6479,7 @@
             }
           },
           "404": {
-            "description": "NOT_FOUND (correct credentials but no pending request)",
+            "description": "NOT_FOUND (DELETION_REQUESTED account without a pending request)",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -6651,6 +6819,62 @@
           },
           "403": {
             "description": "CSRF_REJECTED on unsafe methods",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED (Retry-After header; per user)",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -7305,7 +7529,7 @@
             "sessionCookie": []
           }
         ],
-        "summary": "Grant or withdraw a consent: appends a record and keeps aiEnabled/learningEnabled equal in the same transaction. No kind covers photo recognition: photos never go to an AI",
+        "summary": "Grant or withdraw a consent (30/min/user): appends a record and keeps aiEnabled/learningEnabled equal in the same transaction. No kind covers photo recognition: photos never go to an AI",
         "parameters": [
           {
             "schema": {
@@ -7612,6 +7836,62 @@
           },
           "413": {
             "description": "PAYLOAD_TOO_LARGE (body over 16 KiB)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code",
+                    "detail",
+                    "requestId"
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED (Retry-After header; per user)",
             "content": {
               "application/problem+json": {
                 "schema": {

@@ -117,11 +117,11 @@ Sessions opaques côté serveur (pas de JWT ni d'Auth.js). Détails, limites et 
 | `GET /api/v1/geo/cities?q=` | Candidats de ville (max 5, noms dans la langue de l'utilisateur, fuseau/latitude/longitude pré-remplis) ; 30 requêtes/min/utilisateur ; `q` (2 à 80 caractères) n'est jamais journalisé ; géocodeur factice, aucun fournisseur externe | 400, 401, 429 |
 | `POST /api/v1/me/deactivate` | Désactive le compte (`DISABLED`, toutes les sessions révoquées) ; mot de passe courant dans le corps | 401 `INVALID_CREDENTIALS` (mauvais mot de passe), 429 |
 | `POST /api/v1/me/deletion-request` | Demande d'effacement (`DELETION_REQUESTED`, sessions révoquées, idempotent) ; mot de passe dans le corps ; 202 : les sauvegardes ne sont PAS purgées immédiatement | 401, 429 |
-| `DELETE /api/v1/me/deletion-request` | Annule une demande `PENDING` ; sans session (toutes révoquées) : e-mail + mot de passe dans le corps, limites de login | 401 `INVALID_CREDENTIALS`, 404 (rien en attente), 429 |
+| `DELETE /api/v1/me/deletion-request` | Annule une demande `PENDING` ; sans session (toutes révoquées) : e-mail + mot de passe dans le corps, limites de login | 401 `INVALID_CREDENTIALS` (aussi pour un compte `ACTIVE`/`DISABLED` : la route ne révèle pas le statut), 404 (`DELETION_REQUESTED` sans demande en attente), 429 |
 | `POST /api/v1/me/export-requests` | Enregistre une demande d'export (202, `PENDING`, 3/jour/utilisateur) ; rien n'est généré | 401, 429 |
 | `GET /api/v1/me/export-requests` | Ses propres demandes d'export (pagination `limit`/`cursor`) | 401 |
 | `GET /api/v1/me/consents` | Dernier consentement par type (`AI_RECOMMENDATIONS`, `LEARNING`, `CLOUD_BACKGROUND_REMOVAL`) | 401 |
-| `PUT /api/v1/me/consents/{kind}` | `{ "granted": bool }` : ajoute un `ConsentRecord` et aligne `aiEnabled`/`learningEnabled` dans la même transaction ; aucun type ne couvre la reconnaissance de photos (les photos ne vont jamais à une IA) | 400, 404 (type inconnu) |
+| `PUT /api/v1/me/consents/{kind}` | `{ "granted": bool }` : ajoute un `ConsentRecord` et aligne `aiEnabled`/`learningEnabled` dans la même transaction ; aucun type ne couvre la reconnaissance de photos (les photos ne vont jamais à une IA) ; 30 requêtes/min/utilisateur | 400, 404 (type inconnu), 429 |
 
 Cycle de vie du compte : la ré-authentification (mot de passe) est limitée à 5 essais/15 min par utilisateur ; tout échec est un 401 générique. Un compte `DISABLED` ou `DELETION_REQUESTED` ne peut pas se connecter (même 401 générique qu'un mot de passe faux). Il n'existe pas encore de réactivation d'un compte `DISABLED`.
 

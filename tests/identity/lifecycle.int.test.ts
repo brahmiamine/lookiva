@@ -106,6 +106,17 @@ describe('deletion request', () => {
     expect(await db.deletionRequest.count({ where: { userId: a.userId } })).toBe(1);
   });
 
+  it('two_concurrent_store_requests_leave_exactly_one_pending_row', async () => {
+    const h = harness();
+    const a = await h.signedIn();
+    const store = createPrismaIdentityStore(db);
+    const owner = asOwnerId(a.userId);
+    const [x, y] = await Promise.all([store.requestDeletion(owner, newId(), new Date()), store.requestDeletion(owner, newId(), new Date())]);
+    expect(x).not.toBeNull();
+    expect(y).toEqual(x);
+    expect(await db.deletionRequest.count({ where: { userId: a.userId, status: 'PENDING' } })).toBe(1);
+  });
+
   it('two_concurrent_requests_leave_exactly_one_pending_row', async () => {
     const h = harness();
     const a = await h.signedIn();
@@ -129,8 +140,8 @@ describe('DELETE /me/deletion-request (cancel)', () => {
       expect.objectContaining({ status: 'CANCELLED', cancelledAt: expect.any(Date) }),
     ]);
     expect((await h.api.login(a.email, PASSWORD)).status).toBe(200);
-    // a second cancel finds nothing pending
-    expect((await h.api.cancelDeletion(a.email, PASSWORD)).body).toMatchObject({ status: 404, code: 'NOT_FOUND' });
+    // a second cancel: the account is ACTIVE again, so the generic 401
+    expect((await h.api.cancelDeletion(a.email, PASSWORD)).body).toMatchObject({ status: 401, code: 'INVALID_CREDENTIALS' });
   });
 
   it('restores_the_remembered_previous_status', async () => {
@@ -165,9 +176,23 @@ describe('DELETE /me/deletion-request (cancel)', () => {
     expect(await statusOf(a.userId)).toBe('DELETION_REQUESTED');
   });
 
-  it('with_correct_credentials_but_nothing_pending_is_404', async () => {
+  it('active_and_disabled_accounts_get_the_same_generic_401_as_an_unknown_email', async () => {
     const h = harness();
     const a = await h.signedIn();
+    const unknown = await h.api.cancelDeletion(h.newEmail('ghost'), PASSWORD);
+    const active = await h.api.cancelDeletion(a.email, PASSWORD);
+    expect(active.body).toMatchObject({ status: 401, code: 'INVALID_CREDENTIALS' });
+    expect(shape(active.body)).toEqual(shape(unknown.body));
+    await db.user.update({ where: { id: a.userId }, data: { status: 'DISABLED' } });
+    const disabled = await h.api.cancelDeletion(a.email, PASSWORD);
+    expect(shape(disabled.body)).toEqual(shape(unknown.body));
+    expect(await statusOf(a.userId)).toBe('DISABLED');
+  });
+
+  it('deletion_requested_without_a_pending_row_is_404', async () => {
+    const h = harness();
+    const a = await h.signedIn();
+    await db.user.update({ where: { id: a.userId }, data: { status: 'DELETION_REQUESTED' } });
     expect((await h.api.cancelDeletion(a.email, PASSWORD)).body).toMatchObject({ status: 404, code: 'NOT_FOUND' });
   });
 });

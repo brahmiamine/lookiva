@@ -61,6 +61,28 @@ describe('consents', () => {
     expect(((await h.api.consents(cookie)).body?.items as Item[])[2]).toMatchObject({ kind: 'CLOUD_BACKGROUND_REMOVAL', granted: true });
   });
 
+  it('put_is_limited_to_30_per_minute_per_user', async () => {
+    const h = harness();
+    const a = await h.signedIn();
+    const b = await h.signedIn();
+    for (let i = 0; i < 30; i++) expect((await h.api.setConsent(a.cookie, 'CLOUD_BACKGROUND_REMOVAL', { granted: i % 2 === 0 })).status).toBe(200);
+    const limited = await h.api.setConsent(a.cookie, 'LEARNING', { granted: true });
+    expect(limited.body).toMatchObject({ status: 429, code: 'RATE_LIMITED' });
+    expect(limited.headers.get('retry-after')).toMatch(/^\d+$/);
+    expect((await h.api.setConsent(b.cookie, 'LEARNING', { granted: true })).status).toBe(200);
+  });
+
+  it('concurrent_puts_never_leave_the_flag_different_from_the_latest_record', async () => {
+    const h = harness();
+    const { cookie } = await h.signedIn();
+    for (let round = 0; round < 5; round++) {
+      await Promise.all([true, false, true, false].map((granted) => h.api.setConsent(cookie, 'LEARNING', { granted })));
+      const flag = (await h.api.prefs(cookie)).body?.learningEnabled;
+      const latest = ((await h.api.consents(cookie)).body?.items as Item[])[1]?.granted;
+      expect(flag).toBe(latest);
+    }
+  });
+
   it('rejects_unknown_kinds_photo_kinds_and_bad_bodies', async () => {
     const h = harness();
     const { cookie } = await h.signedIn();

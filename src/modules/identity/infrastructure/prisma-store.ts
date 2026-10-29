@@ -2,7 +2,7 @@ import { Prisma, type PrismaClient } from '@/generated/prisma/client';
 import { newId } from '@/platform/http/ids';
 import { encodeCursor } from '@/platform/http/pagination';
 import type { ConsentState, IdentityStore, Preferences } from '../application/ports';
-import { CONSENT_KINDS, CONSENT_PREFERENCE, isConsentKind, type ConsentKind } from '../domain/consents';
+import { CONSENT_KINDS, CONSENT_PREFERENCE, isConsentKind } from '../domain/consents';
 
 // READ COMMITTED: no gap locks, so concurrent sign-ups/token issues on the same secondary indexes cannot deadlock
 // (seen under REPEATABLE READ as P2034). Every guard below is an UPDATE ... WHERE on the current row, which reads the
@@ -246,6 +246,8 @@ export function createPrismaIdentityStore(db: PrismaClient, hooks: { whileCreden
 
     recordConsent: (ownerId, kind, granted, now) =>
       db.$transaction(async (tx) => {
+        // Row lock first: concurrent PUTs for one user serialise, so the flag always equals the latest record.
+        await tx.$queryRaw`SELECT userId FROM user_preferences WHERE userId = ${ownerId} FOR UPDATE`;
         await tx.consentRecord.create({ data: { id: newId(), userId: ownerId, kind, granted, createdAt: now } });
         const flag = kind === 'AI_RECOMMENDATIONS' || kind === 'LEARNING' ? CONSENT_PREFERENCE[kind] : null;
         // Only a real change bumps the version (the ETag of the preferences stays stable on a repeated PUT).
@@ -253,12 +255,11 @@ export function createPrismaIdentityStore(db: PrismaClient, hooks: { whileCreden
         return { kind, granted, updatedAt: now };
       }, TX),
     async latestConsents(ownerId) {
-      const rows = await db.consentRecord.findMany({ where: { userId: ownerId }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] });
-      const seen = new Map<ConsentKind, ConsentState>();
-      for (const r of rows) {
-        if (isConsentKind(r.kind) && !seen.has(r.kind)) seen.set(r.kind, { kind: r.kind, granted: r.granted, updatedAt: r.createdAt });
-      }
-      return CONSENT_KINDS.flatMap((k) => seen.get(k) ?? []);
+      // One indexed lookup per kind (userId, kind, createdAt): bounded whatever the history length.
+      const rows = await Promise.all(
+        CONSENT_KINDS.map((kind) => db.consentRecord.findFirst({ where: { userId: ownerId, kind }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] })),
+      );
+      return rows.flatMap((r) => (r && isConsentKind(r.kind) ? [{ kind: r.kind, granted: r.granted, updatedAt: r.createdAt } satisfies ConsentState] : []));
     },
 
     async getPreferences(ownerId) {

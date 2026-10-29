@@ -65,6 +65,17 @@ describe('identity route files', () => {
     }
   });
 
+  it('openapi_documents_429_with_retry_after_on_the_rate_limited_routes', () => {
+    const doc = buildOpenApi();
+    const limited: [string, string][] = [
+      ['geo/cities', 'get'], ['me/deactivate', 'post'], ['me/deletion-request', 'post'], ['me/export-requests', 'post'], ['me/consents/{kind}', 'put'],
+    ];
+    for (const [path, m] of limited) {
+      const op = (doc.paths?.[`/api/v1/${path}`] as Record<string, { responses: Record<string, unknown> }>)[m];
+      expect(JSON.stringify(op?.responses['429']), `${m} ${path}`).toContain('RATE_LIMITED');
+    }
+  });
+
   it('openapi_documents_503_everywhere_and_idempotency_conflicts_where_a_key_is_used', () => {
     const doc = buildOpenApi();
     for (const [path, methods] of Object.entries(ROUTES)) {

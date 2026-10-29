@@ -280,13 +280,15 @@ export function createIdentityService(d: IdentityServiceDeps) {
 
     /**
      * Sessions are revoked by the request, so cancelling proves the account with email + password instead (like login:
-     * every failure is the generic 401). A correct password with nothing pending is 404.
+     * every failure is the generic 401). Only a DELETION_REQUESTED account that has no PENDING row answers 404.
      */
     async cancelDeletion(input: { email: string; password: string }): Promise<void> {
       const user = await d.store.findUserByEmail(normalized(input.email));
       const encoded = user ? await d.store.getPasswordHash(user.id) : null;
       const ok = await d.hasher.verify(input.password, encoded);
       if (!user || !ok || !encoded) throw INVALID_CREDENTIALS();
+      // Any other status (ACTIVE, DISABLED) is indistinguishable from a wrong password: this route is no status probe.
+      if (user.status !== 'DELETION_REQUESTED') throw INVALID_CREDENTIALS();
       if (!(await d.store.cancelDeletion(user.id as OwnerId, now()))) throw new AppError('NOT_FOUND', 404, 'No pending deletion request');
       await d.audit.record({ actorId: user.id, action: 'identity.deletion_cancelled' });
     },

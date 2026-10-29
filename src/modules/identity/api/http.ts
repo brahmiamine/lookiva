@@ -233,6 +233,7 @@ export function createIdentityHttp(deps: IdentityHttpDeps) {
     setConsent: (req: Request, kind: string) =>
       withSession(async (_req, ctx) => {
         if (!isConsentKind(kind)) throw new AppError('NOT_FOUND', 404, 'Unknown consent kind');
+        await limiter.consume(LIMITS.consentUser, `user:${ctx.userId}`, clock.now());
         const { granted } = await readJson(req, s.consentBody);
         return Response.json(await svcOf().setConsent(ctx.userId, kind, granted));
       })(req),
