@@ -159,7 +159,23 @@ Tranche 4c : duplication, actions groupées, corbeille, étiquettes/collections/
 | `GET /api/v1/garments/trash` · `POST /api/v1/garments/{id}/restore` | Corbeille (`purgeAfter`), restauration tant que `purgeAfter` > maintenant | 404, 409 `CUSTOM_SUBCATEGORY_MISSING`, 410 `TRASH_EXPIRED` |
 | `/api/v1/tags`, `/collections`, `/garment-sets` (+ `/{id}/garments`, `/{id}/garments/{garmentId}`) | CRUD (`name` unique par utilisateur, `If-Match`), rattacher/détacher des vêtements (ordre conservé, vêtements en corbeille signalés `trashed`) | 404, 409 `NAME_ALREADY_USED` |
 
-La purge quotidienne (`wardrobe-purge`, tâche répétée BullMQ du worker) supprime les vêtements dont `purgeAfter` est passé, puis les objets photo non référencés. Le worker doit partager `STORAGE_LOCAL_DIR` avec le web. `GarmentUsageChecker` (par défaut : aucun avertissement) alimente `warnings` à la suppression ; les tenues arrivent en phase 05. Contrat d'archive `lookiva-archive` v1 : `prevalidateArchive(json)` (sans écriture).
+La purge quotidienne (`wardrobe-purge`, tâche répétée BullMQ du worker) supprime les vêtements dont `purgeAfter` est passé, puis les objets photo non référencés. Le worker doit partager `STORAGE_LOCAL_DIR` avec le web. `GarmentUsageChecker` (implémenté par le module `outfits` : vêtements présents dans des tenues DRAFT/PLANNED) alimente `warnings` à la suppression et à la suppression groupée. Contrat d'archive `lookiva-archive` v1 : `prevalidateArchive(json)` (sans écriture).
+
+## Tenues, modèles, port réel (module `outfits`, phase 05 backend)
+
+Détail : [runbook §14](docs/foundation/runbook-local.md#14-tenues-modèles-port-réel-et-lavage-facultatif-phase-05-backend). Session obligatoire (401), données du propriétaire seul (404 sinon), écritures 120/min/utilisateur (429). `Idempotency-Key` requis sur les POST marqués (IK) ; `If-Match` (ETag `W/"v<version>"`) sur les modifications.
+
+| Route | Rôle | Erreurs |
+|---|---|---|
+| `POST` (IK) / `GET /api/v1/outfits` | Crée (brouillon incomplet permis ; PLANNED = `startsAt` ISO avec offset + `timezone` IANA + `occasion`) ; liste `?from=&to=` (dates locales, ordre chronologique, plusieurs tenues par jour) sinon curseur | 400, 404 (vêtement inconnu/étranger/en corbeille), 409/422 idempotence |
+| `GET/PATCH/DELETE /api/v1/outfits/{id}` | Fiche + `warnings` (rôles manquants, vêtement indisponible/en corbeille : jamais bloquants) ; `DELETE` = statut CANCELLED | 404, 409 `OUTFIT_NOT_EDITABLE`/`VERSION_CONFLICT`, 428 |
+| `POST /api/v1/outfits/{id}/items` · `PUT/DELETE .../items/{garmentId}` | Ajouter / remplacer / retirer un vêtement (`If-Match`) | 404, 409 `GARMENT_ALREADY_IN_OUTFIT` |
+| `GET /api/v1/outfits/{id}/conflicts` | Chevauchement certain / possible, vêtement indisponible + remplaçants `AVAILABLE` de même catégorie ; jamais bloquant | 404 |
+| `POST /api/v1/outfits/{id}/confirm-worn` (IK) | `{ expectedVersion }` : UNE transaction tenue WORN + WearRecord + instantané ; ne change aucun état de vêtement | 409 `ALREADY_WORN`/`VERSION_CONFLICT` |
+| `POST /api/v1/wear-records/{id}/mark-to-wash` (IK) | Étape facultative séparée : `{ garmentIds, expectedVersions? }` ; résultat `marked` / `skipped` / `failed` par id, jamais de rollback du port | 409 `WEAR_RECORD_INVALIDATED` |
+| `GET /api/v1/wear-records/{id}` · `POST .../invalidate` | Instantané ; correction auditée (`reason`, `If-Match`) qui libère la tenue | 409 `ALREADY_INVALIDATED` |
+| `GET /api/v1/outfits/last-worn?limit=3` · `GET /api/v1/garments/{id}/wear-history?limit=3` | Derniers ports (instantanés, sans photo) ; dernières dates par vêtement | 400, 404 |
+| `/api/v1/outfit-templates` (+ `/{id}`, `POST /{id}/instantiate` (IK), `POST /api/v1/outfits/{id}/save-as-template` (IK)) | Modèles indépendants de toute date ; l'instanciation ne modifie pas le modèle | 404, 409 |
 
 Cycle de vie du compte : la ré-authentification (mot de passe) est limitée à 5 essais/15 min par utilisateur ; tout échec est un 401 générique. Un compte `DISABLED` ou `DELETION_REQUESTED` ne peut pas se connecter (même 401 générique qu'un mot de passe faux). Il n'existe pas encore de réactivation d'un compte `DISABLED`.
 

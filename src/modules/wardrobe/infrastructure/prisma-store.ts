@@ -147,7 +147,7 @@ export function createPrismaGarmentStore(db: PrismaClient): GarmentStore {
       return ok ? read(ownerId, id) : null;
     },
 
-    async changeStatus(ownerId, id, expectedVersion, to, note, now) {
+    async changeStatus(ownerId, id, expectedVersion, to, note, now, source = 'MANUAL') {
       const ok = await db.$transaction(async (tx) => {
         const cur = await tx.garment.findFirst({ where: { id, ownerId, version: expectedVersion, deletedAt: null }, select: { status: true } });
         if (!cur) return false;
@@ -156,7 +156,7 @@ export function createPrismaGarmentStore(db: PrismaClient): GarmentStore {
           data: { status: to, version: { increment: 1 }, updatedAt: now },
         });
         if (count !== 1) return false;
-        await tx.garmentStatusEvent.create({ data: { id: newId(), garmentId: id, ownerId, fromStatus: cur.status, toStatus: to, note, at: now } });
+        await tx.garmentStatusEvent.create({ data: { id: newId(), garmentId: id, ownerId, fromStatus: cur.status, toStatus: to, source, note, at: now } });
         return true;
       }, TX);
       return ok ? read(ownerId, id) : null;

@@ -1,4 +1,5 @@
 import { Redis } from 'ioredis';
+import type { OwnerId } from '@/platform/kernel';
 import { withSession } from '@/modules/identity';
 import { systemClock } from '@/platform/clock/system';
 import { createDb } from '@/platform/db';
@@ -18,7 +19,10 @@ function wardrobe(): WardrobeHttp {
   const logger = createLogger({ level: env.LOG_LEVEL });
   const redis = new Redis(env.REDIS_URL, { maxRetriesPerRequest: 2 });
   redis.on('error', (err) => logger.error({ err }, 'redis error (wardrobe)'));
-  return (g.__lookivaWardrobe = createWardrobeHttp({ db: createDb(env.DATABASE_URL), redis, clock: systemClock, withSession, logger, storage: new LocalObjectStorage(env.STORAGE_LOCAL_DIR), remover: new WhiteKeyRemover(), limits: { photoQuotaBytes: env.PHOTO_QUOTA_BYTES } }));
+  const db = createDb(env.DATABASE_URL);
+  // Outfits (which depend on wardrobe) are loaded lazily to keep the module graph acyclic at load time.
+  const usage = { check: async (o: OwnerId, ids: string[]) => (await import('@/modules/outfits')).createOutfitUsageChecker(db).check(o, ids) };
+  return (g.__lookivaWardrobe = createWardrobeHttp({ db, usage, redis, clock: systemClock, withSession, logger, storage: new LocalObjectStorage(env.STORAGE_LOCAL_DIR), remover: new WhiteKeyRemover(), limits: { photoQuotaBytes: env.PHOTO_QUOTA_BYTES } }));
 }
 
 type Route = (req: Request) => Promise<Response>;

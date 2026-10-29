@@ -7,3 +7,5 @@ export type { GarmentView } from './application/ports';
 export { ARCHIVE_FORMAT, ARCHIVE_VERSION, prevalidateArchive, type ArchiveReport, type ArchiveError } from './api/archive';
 export { noUsage, type GarmentUsageChecker, type UsageWarning } from './application/ports';
 export { createWardrobePurge } from './api/purge-job';
+export { createPrismaGarmentGateway as createGarmentGateway } from './infrastructure/prisma-gateway';
+export type { GarmentGateway, GarmentRef, SetStatusResult } from './application/ports';
