@@ -43,6 +43,9 @@ services:
       APP_ORIGIN: http://localhost:${WEB_HOST_PORT:-3000}
       # Local stack only: no reverse proxy in front, so every client shares one rate-limit bucket (accepted here).
       TRUST_PROXY_ACK_SINGLE_BUCKET: "true"
+      STORAGE_LOCAL_DIR: /var/lib/lookiva/storage
+    volumes:
+      - storage-data:/var/lib/lookiva/storage
     depends_on:
       db:
         condition: service_healthy
@@ -75,6 +78,9 @@ services:
       APP_ORIGIN: http://localhost:${WEB_HOST_PORT:-3000}
       # Local stack only: no reverse proxy in front, so every client shares one rate-limit bucket (accepted here).
       TRUST_PROXY_ACK_SINGLE_BUCKET: "true"
+      STORAGE_LOCAL_DIR: /var/lib/lookiva/storage
+    volumes:
+      - storage-data:/var/lib/lookiva/storage
     ports:
       - "127.0.0.1:${WEB_HOST_PORT:-3000}:3000"
     depends_on:
@@ -95,3 +101,4 @@ networks:
 
 volumes:
   db-data: {}
+  storage-data: {}

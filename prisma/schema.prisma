@@ -56,13 +56,18 @@ model User {
   updatedAt       DateTime   @updatedAt @db.DateTime(3)
   version         Int        @default(1)
 
-  credential       Credential?
-  tokens           EmailToken[]
-  sessions         SessionRegistry[]
-  preferences      UserPreferences?
-  consents         ConsentRecord[]
-  deletionRequests DeletionRequest[]
-  exportRequests   ExportRequest[]
+  credential          Credential?
+  tokens              EmailToken[]
+  sessions            SessionRegistry[]
+  preferences         UserPreferences?
+  consents            ConsentRecord[]
+  deletionRequests    DeletionRequest[]
+  exportRequests      ExportRequest[]
+  garments            Garment[]
+  customSubcategories CustomSubcategory[]
+  tags                Tag[]
+  collections         Collection[]
+  garmentSets         GarmentSet[]
 
   @@map("users")
 }
@@ -184,4 +189,238 @@ model OutboxMessage {
 
   @@index([to, createdAt])
   @@map("outbox_messages")
+}
+
+// ---------------------------------------------------------------- wardrobe (phase 04)
+// Status, weather fields, categories, colors... are VarChar validated by the domain constants (src/modules/wardrobe/domain),
+// not DB enums: changing a list never needs a migration.
+
+model CustomSubcategory {
+  id                String    @id @db.Char(36)
+  ownerId           String    @db.Char(36)
+  label             String    @db.VarChar(60)
+  /// NFKC + trim + lowercase of label; the unique key per owner.
+  labelNormalized   String    @db.VarChar(60)
+  /// Standard subtype this custom one specialises (its category is derived from the catalog).
+  parentSubtypeCode String    @db.VarChar(48)
+  version           Int       @default(1)
+  createdAt         DateTime  @db.DateTime(3)
+  updatedAt         DateTime  @db.DateTime(3)
+  owner             User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  garments          Garment[]
+
+  @@unique([ownerId, labelNormalized])
+  @@map("custom_subcategories")
+}
+
+model Garment {
+  id                  String               @id @db.Char(36)
+  ownerId             String               @db.Char(36)
+  nickname            String?              @db.VarChar(80)
+  categoryCode        String               @db.VarChar(32)
+  /// Exactly one of subtypeCode / customSubcategoryId is set.
+  subtypeCode         String?              @db.VarChar(48)
+  customSubcategoryId String?              @db.Char(36)
+  primaryColorCode    String               @db.VarChar(24)
+  primaryShade        String?              @db.VarChar(16)
+  purchasePrice       Decimal?             @db.Decimal(10, 2)
+  purchaseCurrency    String?              @db.Char(3)
+  purchasedOn         DateTime?            @db.Date
+  purchaseStore       String?              @db.VarChar(120)
+  notes               String?              @db.VarChar(2000)
+  warmth              String               @default("UNKNOWN") @db.VarChar(16)
+  rain                String               @default("UNKNOWN") @db.VarChar(16)
+  windproof           String               @default("UNKNOWN") @db.VarChar(16)
+  breathability       String               @default("UNKNOWN") @db.VarChar(16)
+  layering            String               @default("UNKNOWN") @db.VarChar(16)
+  status              String               @default("AVAILABLE") @db.VarChar(16)
+  version             Int                  @default(1)
+  /// Soft delete (trash): purgeAfter = deletedAt + 30 days.
+  deletedAt           DateTime?            @db.DateTime(3)
+  purgeAfter          DateTime?            @db.DateTime(3)
+  createdAt           DateTime             @db.DateTime(3)
+  updatedAt           DateTime             @db.DateTime(3)
+  owner               User                 @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  customSubcategory   CustomSubcategory?   @relation(fields: [customSubcategoryId], references: [id], onDelete: Restrict)
+  colors              GarmentColor[]
+  seasons             GarmentSeason[]
+  styles              GarmentStyle[]
+  statusEvents        GarmentStatusEvent[]
+  photos              GarmentPhoto[]
+  tagLinks            GarmentTag[]
+  collectionLinks     CollectionGarment[]
+  setItems            GarmentSetItem[]
+
+  @@index([ownerId, deletedAt, id])
+  @@index([ownerId, status])
+  @@index([ownerId, categoryCode])
+  @@index([customSubcategoryId])
+  @@index([purgeAfter])
+  @@map("garments")
+}
+
+/// Extra (non primary) colors of a garment.
+model GarmentColor {
+  garmentId String  @db.Char(36)
+  position  Int
+  colorCode String  @db.VarChar(24)
+  shade     String? @db.VarChar(16)
+  garment   Garment @relation(fields: [garmentId], references: [id], onDelete: Cascade)
+
+  @@id([garmentId, position])
+  @@index([colorCode])
+  @@map("garment_colors")
+}
+
+model GarmentSeason {
+  garmentId String  @db.Char(36)
+  code      String  @db.VarChar(16)
+  garment   Garment @relation(fields: [garmentId], references: [id], onDelete: Cascade)
+
+  @@id([garmentId, code])
+  @@map("garment_seasons")
+}
+
+model GarmentStyle {
+  garmentId String  @db.Char(36)
+  code      String  @db.VarChar(24)
+  garment   Garment @relation(fields: [garmentId], references: [id], onDelete: Cascade)
+
+  @@id([garmentId, code])
+  @@map("garment_styles")
+}
+
+/// Append-only status history (the current status lives on Garment; both change in one transaction).
+model GarmentStatusEvent {
+  id         String   @id @db.Char(36)
+  garmentId  String   @db.Char(36)
+  ownerId    String   @db.Char(36)
+  fromStatus String?  @db.VarChar(16)
+  toStatus   String   @db.VarChar(16)
+  source     String   @default("MANUAL") @db.VarChar(16)
+  note       String?  @db.VarChar(500)
+  at         DateTime @db.DateTime(3)
+  garment    Garment  @relation(fields: [garmentId], references: [id], onDelete: Cascade)
+
+  @@index([garmentId, id])
+  @@map("garment_status_events")
+}
+
+/// Photo of a garment. The three storage keys are private object keys; rows of the same owner MAY share keys after a
+/// duplication, so an object is deleted only when no row references its key any more.
+model GarmentPhoto {
+  id           String   @id @db.Char(36)
+  garmentId    String   @db.Char(36)
+  ownerId      String   @db.Char(36)
+  position     Int
+  /// 1 for the primary photo, NULL otherwise: the unique index makes "exactly one primary" a database guarantee.
+  primarySlot  Int?
+  originalKey  String   @db.VarChar(255)
+  optimizedKey String   @db.VarChar(255)
+  thumbKey     String   @db.VarChar(255)
+  cutoutKey    String?  @db.VarChar(255)
+  /// READY | FAILED | NULL (never requested).
+  cutoutStatus String?  @db.VarChar(8)
+  mime         String   @db.VarChar(32)
+  bytes        Int
+  width        Int
+  height       Int
+  sha256       String   @db.Char(64)
+  createdAt    DateTime @db.DateTime(3)
+  garment      Garment  @relation(fields: [garmentId], references: [id], onDelete: Cascade)
+
+  @@unique([garmentId, position])
+  @@unique([garmentId, primarySlot])
+  @@index([ownerId])
+  @@index([originalKey])
+  @@index([optimizedKey])
+  @@index([thumbKey])
+  @@index([cutoutKey])
+  @@map("garment_photos")
+}
+
+/// Phase 04 slice 4c: tags, collections and garment sets. Owner scoped, independent from outfits.
+
+model Tag {
+  id              String       @id @db.Char(36)
+  ownerId         String       @db.Char(36)
+  label           String       @db.VarChar(40)
+  labelNormalized String       @db.VarChar(40)
+  version         Int          @default(1)
+  createdAt       DateTime     @db.DateTime(3)
+  updatedAt       DateTime     @db.DateTime(3)
+  owner           User         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  items           GarmentTag[]
+
+  @@unique([ownerId, labelNormalized])
+  @@map("tags")
+}
+
+/// Ordered membership; links vanish with the group or when the garment is purged (a trashed garment stays linked).
+model GarmentTag {
+  tagId     String  @db.Char(36)
+  garmentId String  @db.Char(36)
+  position  Int
+  tag       Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  garment   Garment @relation(fields: [garmentId], references: [id], onDelete: Cascade)
+
+  @@id([tagId, garmentId])
+  @@index([garmentId])
+  @@map("garment_tags")
+}
+
+model Collection {
+  id             String              @id @db.Char(36)
+  ownerId        String              @db.Char(36)
+  name           String              @db.VarChar(60)
+  nameNormalized String              @db.VarChar(60)
+  version        Int                 @default(1)
+  createdAt      DateTime            @db.DateTime(3)
+  updatedAt      DateTime            @db.DateTime(3)
+  owner          User                @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  items          CollectionGarment[]
+
+  @@unique([ownerId, nameNormalized])
+  @@map("collections")
+}
+
+/// Ordered membership; links vanish with the group or when the garment is purged (a trashed garment stays linked).
+model CollectionGarment {
+  collectionId String     @db.Char(36)
+  garmentId    String     @db.Char(36)
+  position     Int
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  garment      Garment    @relation(fields: [garmentId], references: [id], onDelete: Cascade)
+
+  @@id([collectionId, garmentId])
+  @@index([garmentId])
+  @@map("collection_garments")
+}
+
+model GarmentSet {
+  id             String           @id @db.Char(36)
+  ownerId        String           @db.Char(36)
+  name           String           @db.VarChar(60)
+  nameNormalized String           @db.VarChar(60)
+  version        Int              @default(1)
+  createdAt      DateTime         @db.DateTime(3)
+  updatedAt      DateTime         @db.DateTime(3)
+  owner          User             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  items          GarmentSetItem[]
+
+  @@unique([ownerId, nameNormalized])
+  @@map("garment_sets")
+}
+
+/// Ordered membership; links vanish with the group or when the garment is purged (a trashed garment stays linked).
+model GarmentSetItem {
+  setId     String     @db.Char(36)
+  garmentId String     @db.Char(36)
+  position  Int
+  set       GarmentSet @relation(fields: [setId], references: [id], onDelete: Cascade)
+  garment   Garment    @relation(fields: [garmentId], references: [id], onDelete: Cascade)
+
+  @@id([setId, garmentId])
+  @@index([garmentId])
+  @@map("garment_set_items")
 }

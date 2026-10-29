@@ -1,4 +1,4 @@
-import { Worker } from 'bullmq';
+import { Queue, Worker } from 'bullmq';
 import { Redis } from 'ioredis';
 
 export type Handlers = Record<string, (payload: unknown) => Promise<void>>;
@@ -7,6 +7,8 @@ export type Handlers = Record<string, (payload: unknown) => Promise<void>>;
 export async function startWorker(deps: {
   redisUrl: string;
   handlers: Handlers;
+  /** Repeatable jobs: one BullMQ job scheduler per entry (upserted, so a restart never duplicates it). The queue must have a handler. */
+  schedules?: { queue: string; everyMs: number }[];
   /** Receives connection and worker errors (an EventEmitter 'error' without a listener would crash the process). */
   onError: (err: unknown) => void;
 }): Promise<{ close(): Promise<void> }> {
@@ -19,9 +21,14 @@ export async function startWorker(deps: {
     return w;
   });
   await Promise.all(workers.map((w) => w.waitUntilReady()));
+  const queues = (deps.schedules ?? []).map((sc) => ({ sc, q: new Queue(sc.queue, { connection }) }));
+  for (const { sc, q } of queues) {
+    q.on('error', deps.onError);
+    await q.upsertJobScheduler(`${sc.queue}-repeat`, { every: sc.everyMs }, { name: sc.queue, data: {}, opts: { removeOnComplete: { age: 86_400 }, removeOnFail: { age: 604_800 } } });
+  }
   return {
     async close() {
-      await Promise.all(workers.map((w) => w.close()));
+      await Promise.all([...workers.map((w) => w.close()), ...queues.map(({ q }) => q.close())]);
       connection.disconnect();
     },
   };
