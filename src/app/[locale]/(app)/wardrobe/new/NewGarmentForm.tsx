@@ -7,19 +7,21 @@ import { BLOCK, Button } from '@/ui/components/Button';
 import { Notice } from '@/ui/components/Notice';
 import { TextField } from '@/ui/components/TextField';
 import { useErrorNotice, useFocusOn, type NoticeData } from '@/ui/form-helpers';
-import { emptyGarmentForm, labelOf, toCreateBody, type Catalog, type Garment, type GarmentForm } from '@/ui/wardrobe';
+import { emptyGarmentForm, labelOf, toCreateBody, type Catalog, type CustomSubcategory, type Garment, type GarmentForm } from '@/ui/wardrobe';
 import { FIELD } from '../../styles';
 
 const SELECT = 'min-h-13 rounded-card border-[1.5px] border-border bg-surface px-3.5 text-base text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary';
 const CHECK = 'flex min-h-11 items-center gap-2.5 rounded-card border-[1.5px] border-border bg-surface px-3 has-[:checked]:border-2 has-[:checked]:border-primary has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-primary';
 
 /** Creation form. Only the fields the user must or may fill; weather and purchase details are added on the garment page later. */
-export function NewGarmentForm({ catalog }: { catalog: Catalog }) {
+export function NewGarmentForm({ catalog, customs }: { catalog: Catalog; customs: CustomSubcategory[] }) {
   const t = useTranslations('wardrobe.new');
+  const tErr = useTranslations('wardrobe.errors');
   const locale = useLocale();
   const router = useRouter();
   const genericNotice = useErrorNotice();
   const [form, setForm] = useState<GarmentForm>(emptyGarmentForm);
+  const [customName, setCustomName] = useState('');
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<NoticeData | null>(null);
   const noticeRef = useRef<HTMLDivElement>(null);
@@ -31,6 +33,25 @@ export function NewGarmentForm({ catalog }: { catalog: Catalog }) {
   const set = <K extends keyof GarmentForm>(k: K, v: GarmentForm[K]) => setForm((f) => ({ ...f, [k]: v }));
   const toggle = (k: 'seasons' | 'styles', code: string) =>
     set(k, form[k].includes(code) ? form[k].filter((x) => x !== code) : [...form[k], code]);
+
+  // The new subcategory is attached to the subtype above and selected at once; the refresh brings it into the options.
+  async function createCustom() {
+    const label = customName.trim();
+    if (!label || !form.subtypeCode || busy) return;
+    setBusy(true);
+    setNotice(null);
+    try {
+      const r = await api<CustomSubcategory>('/custom-subcategories', { method: 'POST', body: { label, parentSubtypeCode: form.subtypeCode } });
+      setForm((f) => ({ ...f, customId: r.data.id }));
+      setCustomName('');
+      setNotice({ tone: 'success', title: t('customCreated') });
+      router.refresh();
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) return router.replace(`/${locale}/login`);
+      setNotice(err instanceof ApiError && err.code === 'CUSTOM_SUBCATEGORY_EXISTS' ? { tone: 'warning', title: tErr('customExists') } : genericNotice(err));
+    }
+    setBusy(false);
+  }
 
   async function save(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -55,7 +76,7 @@ export function NewGarmentForm({ catalog }: { catalog: Catalog }) {
 
       <label className={FIELD}>
         <span className="text-sm font-bold">{t('category')}</span>
-        <select required className={SELECT} value={form.categoryCode} onChange={(e) => setForm((f) => ({ ...f, categoryCode: e.target.value, subtypeCode: '' }))}>
+        <select required className={SELECT} value={form.categoryCode} onChange={(e) => setForm((f) => ({ ...f, categoryCode: e.target.value, subtypeCode: '', customId: '' }))}>
           <option value="">{t('choose')}</option>
           {catalog.categories.map((cat) => (
             <option key={cat.code} value={cat.code}>
@@ -67,7 +88,7 @@ export function NewGarmentForm({ catalog }: { catalog: Catalog }) {
 
       <label className={FIELD}>
         <span className="text-sm font-bold">{t('subtype')}</span>
-        <select required disabled={!form.categoryCode} className={SELECT} value={form.subtypeCode} onChange={(e) => set('subtypeCode', e.target.value)}>
+        <select required disabled={!form.categoryCode} className={SELECT} value={form.subtypeCode} onChange={(e) => setForm((f) => ({ ...f, subtypeCode: e.target.value, customId: '' }))}>
           <option value="">{form.categoryCode ? t('choose') : t('pickCategoryFirst')}</option>
           {subtypes.map((s) => (
             <option key={s.code} value={s.code}>
@@ -76,6 +97,33 @@ export function NewGarmentForm({ catalog }: { catalog: Catalog }) {
           ))}
         </select>
       </label>
+
+      {form.subtypeCode && (
+        <div className="flex flex-col gap-2">
+          <label className={FIELD}>
+            <span className="text-sm font-bold">{t('customLabel')}</span>
+            <select className={SELECT} value={form.customId} onChange={(e) => set('customId', e.target.value)}>
+              <option value="">{t('customNone')}</option>
+              {customs
+                .filter((cu) => cu.parentSubtypeCode === form.subtypeCode)
+                .map((cu) => (
+                  <option key={cu.id} value={cu.id}>
+                    {cu.label}
+                  </option>
+                ))}
+            </select>
+          </label>
+          <div className="flex items-end gap-2">
+            <div className="flex-1">
+              <TextField label={t('customName')} maxLength={60} value={customName} onChange={(e) => setCustomName(e.target.value)} />
+            </div>
+            <Button variant="outline" className="min-h-13" onClick={createCustom} aria-disabled={busy || !customName.trim() || undefined}>
+              {t('customCreate')}
+            </Button>
+          </div>
+          <p className="text-sm text-muted">{t('customHint')}</p>
+        </div>
+      )}
 
       <label className={FIELD}>
         <span className="text-sm font-bold">{t('color')}</span>

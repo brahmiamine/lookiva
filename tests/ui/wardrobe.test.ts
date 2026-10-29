@@ -4,8 +4,14 @@ import { emptyGarmentForm, garmentName, labelOf, statusTone, toCreateBody, type 
 describe('wardrobe form model', () => {
   it('create_body_trims_blank_text_to_null_and_leaves_weather_to_server', () => {
     const body = toCreateBody({ ...emptyGarmentForm, categoryCode: 'TOP', subtypeCode: 'TSHIRT', colorCode: 'BLUE', nickname: '  ', notes: ' soft ', seasons: ['SUMMER'] });
-    expect(body).toEqual({ categoryCode: 'TOP', subtypeCode: 'TSHIRT', primaryColor: { code: 'BLUE', shade: null }, nickname: null, seasons: ['SUMMER'], styles: [], notes: 'soft' });
+    expect(body).toEqual({ categoryCode: 'TOP', subtypeCode: 'TSHIRT', customSubcategoryId: null, primaryColor: { code: 'BLUE', shade: null }, nickname: null, seasons: ['SUMMER'], styles: [], notes: 'soft' });
     expect(body).not.toHaveProperty('warmth');
+  });
+
+  it('custom_subcategory_replaces_the_standard_subtype', () => {
+    const body = toCreateBody({ ...emptyGarmentForm, categoryCode: 'TOP', subtypeCode: 'TSHIRT', customId: 'b3f1c2d4-0000-4000-8000-000000000001', colorCode: 'BLUE' });
+    expect(body.subtypeCode).toBeNull();
+    expect(body.customSubcategoryId).toBe('b3f1c2d4-0000-4000-8000-000000000001');
   });
 
   it('only_available_is_green_and_unknown_status_is_neutral', () => {

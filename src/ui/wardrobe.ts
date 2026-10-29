@@ -17,7 +17,8 @@ export type Garment = {
   recommendable: boolean;
   version: number;
 };
-export type Photo = { id: string; isPrimary: boolean; cutoutStatus: 'READY' | 'FAILED' | null };
+export type CustomSubcategory = { id: string; label: string; parentSubtypeCode: string };
+export type Photo ={ id: string; isPrimary: boolean; cutoutStatus: 'READY' | 'FAILED' | null };
 export type Catalog = {
   categories: (Coded & { subtypes: Coded[] })[];
   colors: (Coded & { hex: string })[];
@@ -45,14 +46,15 @@ export type Tone = 'success' | 'warning' | 'info' | 'danger' | 'neutral';
 const TONES: Record<string, Tone> = { AVAILABLE: 'success', TO_WASH: 'warning', WASHING: 'info', DRYING: 'info', IN_REPAIR: 'danger', LENT: 'neutral' };
 export const statusTone = (code: string): Tone => TONES[code] ?? 'neutral';
 
-export type GarmentForm = { categoryCode: string; subtypeCode: string; colorCode: string; nickname: string; seasons: string[]; styles: string[]; notes: string };
-export const emptyGarmentForm: GarmentForm = { categoryCode: '', subtypeCode: '', colorCode: '', nickname: '', seasons: [], styles: [], notes: '' };
+export type GarmentForm = { categoryCode: string; subtypeCode: string; customId: string; colorCode: string; nickname: string; seasons: string[]; styles: string[]; notes: string };
+export const emptyGarmentForm: GarmentForm = { categoryCode: '', subtypeCode: '', customId: '', colorCode: '', nickname: '', seasons: [], styles: [], notes: '' };
 
-/** Body of POST /garments. Blank text becomes null; weather fields are left to the server default (UNKNOWN). */
+/** Body of POST /garments. A custom subcategory replaces the standard subtype (the server accepts one or the other). Blank text becomes null; weather fields are left to the server default (UNKNOWN). */
 export function toCreateBody(f: GarmentForm) {
   return {
     categoryCode: f.categoryCode,
-    subtypeCode: f.subtypeCode || null,
+    subtypeCode: f.customId ? null : f.subtypeCode || null,
+    customSubcategoryId: f.customId || null,
     primaryColor: { code: f.colorCode, shade: null },
     nickname: f.nickname.trim() || null,
     seasons: f.seasons,
