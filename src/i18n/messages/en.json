@@ -188,7 +188,7 @@
     "gpsDeniedTitle": "Location not used",
     "gpsDeniedText": "Permission denied or unavailable: no problem, search for your city above or enter it by hand.",
     "gpsOkTitle": "Location added",
-    "gpsOkText": "It will refine the weather. Please still choose your city.",
+    "gpsOkText": "It will complete a city typed by hand below. A suggested city keeps its own position.",
     "manualTitle": "My city is not in the list",
     "manualCity": "City",
     "timezone": "Time zone",

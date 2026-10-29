@@ -188,7 +188,7 @@
     "gpsDeniedTitle": "Position non utilisée",
     "gpsDeniedText": "Autorisation refusée ou indisponible : aucun problème, cherchez votre ville ci-dessus ou saisissez-la à la main.",
     "gpsOkTitle": "Position ajoutée",
-    "gpsOkText": "Elle affinera la météo. Choisissez quand même votre ville.",
+    "gpsOkText": "Elle complétera la ville saisie à la main ci-dessous. Une ville proposée garde sa propre position.",
     "manualTitle": "Ma ville n’est pas dans la liste",
     "manualCity": "Ville",
     "timezone": "Fuseau horaire",

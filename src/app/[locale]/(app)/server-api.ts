@@ -26,8 +26,15 @@ export type PreferencesView = {
   version: number;
 };
 
+/** Layout-level guard of the whole (app) group: no valid session => login, whatever page is added later. */
+export async function requireSession(locale: Locale): Promise<void> {
+  const res = await get(identityRoutes.me, '/me');
+  if (res.status === 401) redirect(`/${locale}/login`);
+  if (!res.ok) throw new Error(`session check unavailable (${res.status})`);
+}
+
 /**
- * Guard of every (app) page. No session => login. `onboarded` pages send unfinished accounts to onboarding;
+ * Per-page guard of every (app) page (also returns the preferences). No session => login. `onboarded` pages send unfinished accounts to onboarding;
  * the onboarding page sends finished accounts to their profile. Any other failure goes to the error boundary.
  */
 export async function requireAccount(locale: Locale, need: 'onboarded' | 'onboarding') {

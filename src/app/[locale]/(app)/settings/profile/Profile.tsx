@@ -79,9 +79,14 @@ export function Profile({ initial, etag: initialEtag, timeZones, pendingExportAt
   const [passwordError, setPasswordError] = useState<string>();
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [deleted, setDeleted] = useState(false);
+  const [deleteNotice, setDeleteNotice] = useState<NoticeData | null>(null);
+  const [cityError, setCityError] = useState<string>();
+  const cityRef = useRef<HTMLInputElement>(null);
   const noticeRef = useRef<HTMLDivElement>(null);
   const deletedRef = useRef<HTMLHeadingElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
+  const deleteNoticeRef = useRef<HTMLDivElement>(null);
+  useFocusOn(deleteNoticeRef, deleteNotice);
   useFocusOn(noticeRef, notice);
   useFocusOn(deletedRef, deleted);
 
@@ -93,11 +98,17 @@ export function Profile({ initial, etag: initialEtag, timeZones, pendingExportAt
   async function save(e: FormEvent) {
     e.preventDefault();
     if (busy) return;
+    // A city can be changed, never removed (the API requires a non-empty name): flag it instead of sending a patch.
+    if (!form.cityName.trim()) {
+      setCityError(c('required'));
+      cityRef.current?.focus();
+      return;
+    }
+    setCityError(undefined);
     // Only what changed; a hand-edited city drops the coordinates and country that came with the previous one.
     const patch: Record<string, unknown> = {};
     for (const k of Object.keys(form) as (keyof Form)[]) if (form[k] !== saved[k]) patch[k] = form[k];
     if ('cityName' in patch) Object.assign(patch, { countryCode: null, latitude: null, longitude: null });
-    if (!form.cityName.trim()) delete patch.cityName;
     if (!Object.keys(patch).length) return;
     setBusy(true);
     setNotice(null);
@@ -137,6 +148,8 @@ export function Profile({ initial, etag: initialEtag, timeZones, pendingExportAt
       return;
     }
     setDeleteBusy(true);
+    setPasswordError(undefined);
+    setDeleteNotice(null);
     try {
       await api('/me/deletion-request', { method: 'POST', body: { password } });
       setPassword('');
@@ -144,9 +157,10 @@ export function Profile({ initial, etag: initialEtag, timeZones, pendingExportAt
       setDeleted(true);
     } catch (err) {
       setPassword('');
-      if (err instanceof ApiError && err.code === 'INVALID_CREDENTIALS') setPasswordError(t('wrongPassword'));
-      else setPasswordError(genericNotice(err).title);
-      passwordRef.current?.focus();
+      if (err instanceof ApiError && err.code === 'INVALID_CREDENTIALS') {
+        setPasswordError(t('wrongPassword'));
+        passwordRef.current?.focus();
+      } else if (!unauthorized(err)) setDeleteNotice(genericNotice(err)); // 429, 503, network: not the password's fault
     }
     setDeleteBusy(false);
   }
@@ -205,7 +219,7 @@ export function Profile({ initial, etag: initialEtag, timeZones, pendingExportAt
               ))}
             </select>
           </div>
-          <TextField label={t('city')} autoComplete="address-level2" value={form.cityName} onChange={(e) => set('cityName', e.target.value)} />
+          <TextField ref={cityRef} label={t('city')} autoComplete="address-level2" required value={form.cityName} onChange={(e) => set('cityName', e.target.value)} error={cityError} />
           <div className={FIELD}>
             <label htmlFor={`${ids}-tz`} className="text-sm font-bold">
               {t('timezone')}
@@ -279,7 +293,7 @@ export function Profile({ initial, etag: initialEtag, timeZones, pendingExportAt
           {exportNotice && <Notice {...exportNotice} />}
         </div>
         <div className={`${CARD} flex flex-col gap-2 p-3.5`}>
-          <Button variant="danger" className={BLOCK} onClick={() => (setPasswordError(undefined), setDeleting(true))} aria-describedby={`${ids}-del`}>
+          <Button variant="danger" className={BLOCK} onClick={() => (setPasswordError(undefined), setDeleteNotice(null), setDeleting(true))} aria-describedby={`${ids}-del`}>
             <Icon name="trash" />
             {t('delete')}
           </Button>
@@ -291,6 +305,7 @@ export function Profile({ initial, etag: initialEtag, timeZones, pendingExportAt
 
       <Dialog open={deleting} onOpenChange={setDeleting} title={t('deleteTitle')} closeLabel={c('close')} description={t('deleteConfirmText')}>
         <form noValidate onSubmit={requestDeletion} className="flex flex-col gap-3">
+          {deleteNotice && <Notice ref={deleteNoticeRef} role="alert" {...deleteNotice} />}
           <PasswordField
             ref={passwordRef}
             label={c('password')}

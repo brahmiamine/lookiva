@@ -39,6 +39,7 @@ export function Onboarding({ initialStep, timeZones, savedTimeZone }: { initialS
   const [notice, setNotice] = useState<NoticeData | null>(null);
   const [busy, setBusy] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
+  const manualRef = useRef(''); // read by the search effect without re-running it
   const noticeRef = useRef<HTMLDivElement>(null);
   useFocusOn(noticeRef, notice);
   const ids = useId();
@@ -61,7 +62,8 @@ export function Onboarding({ initialStep, timeZones, savedTimeZone }: { initialS
         .then(({ data }) => {
           if (ctl.signal.aborted) return;
           setResults(data.items);
-          setPicked(data.items.length ? 0 : null);
+          // Never take over a city the user already typed by hand: they pick a suggestion explicitly then.
+          setPicked(data.items.length && !manualRef.current.trim() ? 0 : null);
           setSearchState('idle');
         })
         .catch(() => !ctl.signal.aborted && (setResults([]), setSearchState('error')));
@@ -104,7 +106,8 @@ export function Onboarding({ initialStep, timeZones, savedTimeZone }: { initialS
     }
     setCityError(undefined);
     const body = candidate
-      ? { locale, cityName: candidate.name, countryCode: candidate.countryCode, timezone: candidate.timezone, ...(coords ?? { latitude: candidate.latitude, longitude: candidate.longitude }) }
+      ? // A suggested city keeps its own coordinates; the device position only completes a hand-typed city.
+        { locale, cityName: candidate.name, countryCode: candidate.countryCode, timezone: candidate.timezone, latitude: candidate.latitude, longitude: candidate.longitude }
       : { locale, cityName: manual, timezone, ...(coords ?? {}) };
     setBusy(true);
     setNotice(null);
@@ -221,7 +224,11 @@ export function Onboarding({ initialStep, timeZones, savedTimeZone }: { initialS
 
       <h2 className={SECTION}>{t('manualTitle')}</h2>
       <div className="flex flex-col gap-3.5">
-        <TextField label={t('manualCity')} autoComplete="address-level2" value={manualCity} onChange={(e) => (setManualCity(e.target.value), e.target.value.trim() && setPicked(null))} />
+        <TextField label={t('manualCity')} autoComplete="address-level2" value={manualCity} onChange={(e) => {
+            manualRef.current = e.target.value;
+            setManualCity(e.target.value);
+            if (e.target.value.trim()) setPicked(null);
+          }} />
         <div className={FIELD}>
           <label htmlFor={`${ids}-tz`} className="text-sm font-bold">
             {t('timezone')}

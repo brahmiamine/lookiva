@@ -37,6 +37,8 @@ export function Sessions({ initial }: { initial: SessionItem[] }) {
   const [notice, setNotice] = useState<(NoticeData & { role: 'status' | 'alert' }) | null>(null);
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [revoking, setRevoking] = useState<string[]>([]);
+  const pending = useRef(new Set<string>()); // synchronous guard (state updates land after the second click)
   const noticeRef = useRef<HTMLDivElement>(null);
   useFocusOn(noticeRef, notice);
 
@@ -53,15 +55,23 @@ export function Sessions({ initial }: { initial: SessionItem[] }) {
   const toLogin = () => router.replace(`/${locale}/login`);
 
   async function revoke(s: SessionItem) {
-    try {
-      await api(`/me/sessions/${s.id}`, { method: 'DELETE' });
+    if (pending.current.has(s.id)) return; // double click: one DELETE per row
+    pending.current.add(s.id);
+    setRevoking((ids) => [...ids, s.id]);
+    const done = () => {
       setItems((list) => list.filter((x) => x.id !== s.id));
       setNotice({ tone: 'success', role: 'status', title: t('revokedTitle'), text: t('revokedText', { device: device(s.userAgent) }) });
+    };
+    try {
+      await api(`/me/sessions/${s.id}`, { method: 'DELETE' });
+      done();
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) return toLogin();
-      if (e instanceof ApiError && e.status === 404) setItems((list) => list.filter((x) => x.id !== s.id)); // already gone
-      setNotice({ ...genericNotice(e), role: 'alert' });
+      if (e instanceof ApiError && e.status === 404) done(); // already revoked (elsewhere or by a retry): same outcome
+      else setNotice({ ...genericNotice(e), role: 'alert' });
     }
+    pending.current.delete(s.id);
+    setRevoking((ids) => ids.filter((x) => x !== s.id));
   }
 
   async function logoutAll() {
@@ -101,7 +111,7 @@ export function Sessions({ initial }: { initial: SessionItem[] }) {
                 {t('lastSeen', { when: relative(locale, s.lastSeenAt) })}
               </p>
               {!s.current && (
-                <Button variant="danger" className="mt-2 self-start text-sm" onClick={() => revoke(s)} aria-label={t('revokeLabel', { device: device(s.userAgent) })}>
+                <Button variant="danger" className="mt-2 self-start text-sm" onClick={() => revoke(s)} aria-disabled={revoking.includes(s.id) || undefined} aria-label={t('revokeLabel', { device: device(s.userAgent) })}>
                   {t('revoke')}
                 </Button>
               )}
