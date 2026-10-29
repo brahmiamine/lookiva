@@ -328,6 +328,16 @@
       "restore": "Restore",
       "purgeOn": "Permanently deleted on {date}",
       "restored": "Garment restored."
+    },
+    "bulk": {
+      "select": "Select {name}",
+      "selected": "{count} selected",
+      "status": "Change status",
+      "apply": "Apply",
+      "delete": "Move to trash",
+      "applied": "{count} garment(s) updated.",
+      "deleted": "{count} garment(s) moved to trash.",
+      "noSelection": "Select at least one garment."
     }
   }
 }

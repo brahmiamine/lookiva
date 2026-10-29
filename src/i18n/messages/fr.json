@@ -328,6 +328,16 @@
       "restore": "Restaurer",
       "purgeOn": "Suppression définitive le {date}",
       "restored": "Vêtement restauré."
+    },
+    "bulk": {
+      "select": "Sélectionner {name}",
+      "selected": "{count} sélectionné(s)",
+      "status": "Changer le statut",
+      "apply": "Appliquer",
+      "delete": "Mettre à la corbeille",
+      "applied": "{count} vêtement(s) mis à jour.",
+      "deleted": "{count} vêtement(s) mis à la corbeille.",
+      "noSelection": "Sélectionnez au moins un vêtement."
     }
   }
 }

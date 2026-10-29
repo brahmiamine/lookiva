@@ -2,13 +2,11 @@ import Link from 'next/link';
 import { wardrobeRoutes } from '@/modules/wardrobe';
 import { getMessage } from '@/i18n/messages';
 import { EmptyState } from '@/ui/components/EmptyState';
-import { GarmentCard } from '@/ui/components/GarmentCard';
-import { GarmentStatusBadge } from '@/ui/components/GarmentStatusBadge';
-import { Gallery } from '@/ui/components/Gallery';
 import { garmentName, labelOf, type Garment } from '@/ui/wardrobe';
 import { pageLocale, titleFrom } from '../../page-helpers';
 import { getJson, requireAccount } from '../server-api';
 import { loadCatalog } from './catalog';
+import { GalleryList } from './GalleryList';
 import { CARD, H1, LEAD } from '../styles';
 
 export const generateMetadata = titleFrom('wardrobe.title');
@@ -99,13 +97,10 @@ export default async function WardrobePage(props: { params: Promise<{ locale: st
       {items.length === 0 ? (
         <EmptyState title={filtered ? t('emptyFiltered') : t('empty')} description={filtered ? undefined : t('emptyText')} />
       ) : (
-        <Gallery>
-          {items.map((g) => (
-            <Link key={g.id} href={`/${locale}/wardrobe/${g.id}`} className="flex w-full rounded-card focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
-              <GarmentCard name={garmentName(g, catalog, locale)} badge={<GarmentStatusBadge status={g.status} label={labelOf(catalog.statuses.find((s) => s.code === g.status)?.labels, locale)} />} />
-            </Link>
-          ))}
-        </Gallery>
+        <GalleryList
+          items={items.map((g) => ({ id: g.id, name: garmentName(g, catalog, locale), version: g.version, status: g.status, statusLabel: labelOf(catalog.statuses.find((s) => s.code === g.status)?.labels, locale) }))}
+          statuses={catalog.statuses.map((s) => ({ code: s.code, label: labelOf(s.labels, locale) }))}
+        />
       )}
     </main>
   );
