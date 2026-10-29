@@ -2,7 +2,7 @@ import { Prisma, type PrismaClient } from '@/generated/prisma/client';
 import { newId } from '@/platform/http/ids';
 import { encodeCursor } from '@/platform/http/pagination';
 import type { ConsentState, IdentityStore, Preferences } from '../application/ports';
-import { CONSENT_KINDS, CONSENT_PREFERENCE, isConsentKind } from '../domain/consents';
+import { CONSENT_KINDS, CONSENT_PREFERENCE, isConsentKind, type ConsentKind } from '../domain/consents';
 
 // READ COMMITTED: no gap locks, so concurrent sign-ups/token issues on the same secondary indexes cannot deadlock
 // (seen under REPEATABLE READ as P2034). Every guard below is an UPDATE ... WHERE on the current row, which reads the
@@ -32,6 +32,21 @@ const toPreferences = (r: PrefRow): Preferences => ({
   onboardingCompletedAt: r.onboardingCompletedAt,
   version: r.version,
 });
+
+type Tx = Parameters<Parameters<PrismaClient['$transaction']>[0]>[0];
+
+/**
+ * Appends a consent row (the only writer of consent_records). Row lock on user_preferences first: concurrent writers of one
+ * user serialise, so the flag always equals the latest record. createdAt is taken under the lock and is strictly after the
+ * previous record of this kind, so the reader's order (createdAt desc) is the commit order whatever the caller's clock.
+ */
+async function appendConsent(tx: Tx, ownerId: string, kind: ConsentKind, granted: boolean, now: Date): Promise<Date> {
+  await tx.$queryRaw`SELECT userId FROM user_preferences WHERE userId = ${ownerId} FOR UPDATE`;
+  const prev = await tx.consentRecord.findFirst({ where: { userId: ownerId, kind }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], select: { createdAt: true } });
+  const createdAt = prev && prev.createdAt >= now ? new Date(prev.createdAt.getTime() + 1) : now;
+  await tx.consentRecord.create({ data: { id: newId(), userId: ownerId, kind, granted, createdAt } });
+  return createdAt;
+}
 
 /** `hooks.whileCredentialLocked` is a test seam: it runs inside the login transaction while the row lock is held. */
 export function createPrismaIdentityStore(db: PrismaClient, hooks: { whileCredentialLocked?: () => Promise<void> } = {}): IdentityStore {
@@ -194,6 +209,9 @@ export function createPrismaIdentityStore(db: PrismaClient, hooks: { whileCreden
       const { count } = await db.sessionRegistry.updateMany({ where: { id: sessionId, userId: ownerId, revokedAt: null }, data: { revokedAt: now } });
       return count === 1;
     },
+    async revokeSessionByTokenHash(tokenHash, now) {
+      await db.sessionRegistry.updateMany({ where: { tokenHash, revokedAt: null }, data: { revokedAt: now } });
+    },
     async revokeAllSessions(ownerId, now) {
       await db.sessionRegistry.updateMany({ where: { userId: ownerId, revokedAt: null }, data: { revokedAt: now } });
     },
@@ -246,13 +264,7 @@ export function createPrismaIdentityStore(db: PrismaClient, hooks: { whileCreden
 
     recordConsent: (ownerId, kind, granted, now) =>
       db.$transaction(async (tx) => {
-        // Row lock first: concurrent PUTs for one user serialise, so the flag always equals the latest record.
-        await tx.$queryRaw`SELECT userId FROM user_preferences WHERE userId = ${ownerId} FOR UPDATE`;
-        // createdAt is taken under the lock and is strictly after the previous record of this kind, so the reader's order
-        // (createdAt desc) is exactly the commit order and never depends on the uuid or on the caller's clock.
-        const prev = await tx.consentRecord.findFirst({ where: { userId: ownerId, kind }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], select: { createdAt: true } });
-        const createdAt = prev && prev.createdAt >= now ? new Date(prev.createdAt.getTime() + 1) : now;
-        await tx.consentRecord.create({ data: { id: newId(), userId: ownerId, kind, granted, createdAt } });
+        const createdAt = await appendConsent(tx, ownerId, kind, granted, now);
         const flag = kind === 'AI_RECOMMENDATIONS' || kind === 'LEARNING' ? CONSENT_PREFERENCE[kind] : null;
         // Only a real change bumps the version (the ETag of the preferences stays stable on a repeated PUT).
         if (flag) await tx.userPreferences.updateMany({ where: { userId: ownerId, [flag]: { not: granted } }, data: { [flag]: granted, version: { increment: 1 } } });
@@ -278,7 +290,7 @@ export function createPrismaIdentityStore(db: PrismaClient, hooks: { whileCreden
         });
         if (count !== 1) return null;
         if (consents.length > 0) {
-          await tx.consentRecord.createMany({ data: consents.map((c) => ({ id: newId(), userId: ownerId, ...c, createdAt: now })) });
+          for (const c of consents) await appendConsent(tx, ownerId, c.kind, c.granted, now);
         }
         return toPreferences(await tx.userPreferences.findUniqueOrThrow({ where: { userId: ownerId } }));
       }, TX),

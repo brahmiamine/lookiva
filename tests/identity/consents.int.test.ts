@@ -101,6 +101,21 @@ describe('consents', () => {
     }
   });
 
+  it('a_patch_right_after_a_put_in_the_same_instant_is_the_latest_record', async () => {
+    const h = harness();
+    const { userId } = await h.signedIn();
+    const store = createPrismaIdentityStore(db);
+    const owner = asOwnerId(userId);
+    const now = new Date();
+    for (let i = 0; i < 6; i++) {
+      await store.recordConsent(owner, 'AI_RECOMMENDATIONS', true, now); // may be bumped to now+k ms
+      const prefs = (await store.getPreferences(owner)) as { version: number };
+      await store.updatePreferences(owner, prefs.version, { aiEnabled: false }, [{ kind: 'AI_RECOMMENDATIONS', granted: false }], now);
+      expect((await store.latestConsents(owner))[0]?.granted).toBe(false);
+      expect((await store.getPreferences(owner))?.aiEnabled).toBe(false);
+    }
+  });
+
   it('rejects_unknown_kinds_photo_kinds_and_bad_bodies', async () => {
     const h = harness();
     const { cookie } = await h.signedIn();

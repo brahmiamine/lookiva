@@ -29,6 +29,8 @@ export function withApi(handler: Handler, deps: { logger?: Logger } = {}): (req:
       const inner = await handler(req, { requestId, log });
       const res = new Response(inner.body, inner);
       res.headers.set('X-Request-Id', requestId);
+      // No API answer is storable by a browser or shared cache (private data, Set-Cookie on login).
+      res.headers.set('Cache-Control', 'no-store');
       return res;
     } catch (err) {
       const appErr = toAppError(err);
@@ -40,7 +42,7 @@ export function withApi(handler: Handler, deps: { logger?: Logger } = {}): (req:
       }
       return Response.json(toProblem(appErr, requestId), {
         status: appErr.status,
-        headers: { ...appErr.headers, 'Content-Type': 'application/problem+json', 'X-Request-Id': requestId },
+        headers: { ...appErr.headers, 'Content-Type': 'application/problem+json', 'X-Request-Id': requestId, 'Cache-Control': 'no-store' },
       });
     }
   };

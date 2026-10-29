@@ -57,8 +57,8 @@ Convention : `Critère → Commande/test → Résultat → Preuve`. « Réussi (
 
 `.superpowers/sdd/2026-10-28-phase-02-foundation/phase03-final-review.md` (hors dépôt, `.superpowers/` est ignoré). Verdict : **avec corrections**, 0 critique.
 
-- **I-1 (à corriger avant signature)** : aucune réponse API authentifiée ni la réponse de login (`Set-Cookie`) ne porte `Cache-Control: no-store` (Next 16 n'en ajoute pas aux route handlers dynamiques). **Non corrigé à ce commit.**
-- Mineurs M-1 à M-7 : voir le fichier de revue (session précédente non révoquée au login, horodatage consentement via PATCH, préfixe `__Host-`, cookie non effacé sur logout 401, e-mail absent du test de logs, runbook §9 obsolète sur `AI` et sur l'I2 résiduel, ledger `progress.md` sans phase 03).
+- **I-1 (à corriger avant signature)** : aucune réponse API authentifiée ni la réponse de login (`Set-Cookie`) ne porte `Cache-Control: no-store` (Next 16 n'en ajoute pas aux route handlers dynamiques). **Corrigé après cette revue** : `Cache-Control: no-store` est posé par `withApi` sur toute réponse `/api/v1` (test `every_api_answer_is_no_store...`).
+- Mineurs : M-1 (login révoque la session présentée), M-2 (horodatage monotone aussi via PATCH), M-4 (logout 401 efface le cookie), M-5 (e-mail dans le test des journaux) et M-6 (runbook §9/§10) sont corrigés ; M-3 (`__Host-`) et M-7 restent ouverts (décision du propriétaire, runbook §10). Détail du fichier de revue (session précédente non révoquée au login, horodatage consentement via PATCH, préfixe `__Host-`, cookie non effacé sur logout 401, e-mail absent du test de logs, runbook §9 obsolète sur `AI` et sur l'I2 résiduel, ledger `progress.md` sans phase 03).
 
 ## Décisions prises en cours de phase (rulings des implémenteurs/revues)
 
@@ -100,6 +100,6 @@ I2 résiduel ; N4 `purgeEmailTokens` non planifié ; N6 ; N7 (NTP) ; M1, M2, M5,
 - [ ] Remplacement d'Auth.js (plan T03) par des sessions opaques serveur ; approbation technique ADR-02.
 - [ ] Fournisseur e-mail transactionnel et domaine/DNS (aucun choisi ; production en 503).
 - [ ] Limite résiduelle I2 (réinscription avant clic) acceptée ou conception plus forte exigée.
-- [ ] Correction I-1 (`Cache-Control: no-store`) avant signature CP-03.
+- [x] Correction I-1 (`Cache-Control: no-store`) : implémentée et testée ; reste à vérifier par le propriétaire avec le reste de CP-03 (aucune validation propriétaire revendiquée).
 
 **Demande explicite : validation CP-03 par le propriétaire avant la phase 04.**

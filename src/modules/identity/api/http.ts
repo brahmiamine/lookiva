@@ -94,14 +94,22 @@ export function createIdentityHttp(deps: IdentityHttpDeps) {
       return fn(req, svc, ctx.log);
     }, opts);
 
-  const withSession = (handler: SessionHandler): Handler =>
+  /** `clearCookieOn401`: logout routes expire the cookie even when the session is already dead. */
+  const withSession = (handler: SessionHandler, o: { clearCookieOn401?: boolean } = {}): Handler =>
     withApi(async (req, ctx) => {
       const svc = ready();
       assertCsrf(req, config);
-      const token = readSessionCookie(req);
-      if (!token) throw new AppError('UNAUTHENTICATED', 401, 'Authentication required');
-      const { userId, sessionId } = await svc.authenticate(token);
-      return handler(req, { ...ctx, userId, sessionId });
+      try {
+        const token = readSessionCookie(req);
+        if (!token) throw new AppError('UNAUTHENTICATED', 401, 'Authentication required');
+        const { userId, sessionId } = await svc.authenticate(token);
+        return await handler(req, { ...ctx, userId, sessionId });
+      } catch (e) {
+        if (o.clearCookieOn401 && e instanceof AppError && e.status === 401) {
+          throw new AppError(e.code, 401, e.message, e.errors, { ...e.headers, 'Set-Cookie': clearSessionCookie(config.production) });
+        }
+        throw e;
+      }
     }, opts);
 
   const idempotent = async (req: Request, scope: OwnerId, hashed: unknown, log: Logger, run: () => Promise<void>, status: number, body: { status: string }) => {
@@ -156,19 +164,19 @@ export function createIdentityHttp(deps: IdentityHttpDeps) {
       await limit(req, LIMITS.loginIp); // before the body: an IP over its budget costs no parsing
       const { email, password } = await readJson(req, s.loginBody);
       await limit(req, LIMITS.loginIpEmail, normalizeEmail(email));
-      const r = await svc.login({ email, password, userAgent: req.headers.get('user-agent') });
+      const r = await svc.login({ email, password, userAgent: req.headers.get('user-agent'), presentedToken: readSessionCookie(req) });
       return Response.json({ user: r.user }, { headers: { 'Set-Cookie': sessionCookie(r.token, config.production) } });
     }),
 
     logout: withSession(async (_req, ctx) => {
       await svcOf().logout(ctx.userId, ctx.sessionId);
       return new Response(null, { status: 204, headers: { 'Set-Cookie': clearSessionCookie(config.production) } });
-    }),
+    }, { clearCookieOn401: true }),
 
     logoutAll: withSession(async (_req, ctx) => {
       await svcOf().logoutAll(ctx.userId);
       return new Response(null, { status: 204, headers: { 'Set-Cookie': clearSessionCookie(config.production) } });
-    }),
+    }, { clearCookieOn401: true }),
 
     forgotPassword: publicRoute(async (req, svc, log) => {
       const body = await readJson(req, s.emailBody);

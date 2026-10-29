@@ -374,6 +374,49 @@ describe('csrf', () => {
   });
 });
 
+describe('final review fixes', () => {
+  it('every_api_answer_is_no_store_including_login_logout_errors_and_private_reads', async () => {
+    const h = harness();
+    const { email, cookie } = await h.signedIn();
+    const login = await h.api.login(email, PASSWORD);
+    const answers = [
+      login,
+      await h.api.login(email, 'wrong password words'),
+      await h.api.me(cookie),
+      await h.api.sessions(cookie),
+      await h.api.prefs(cookie),
+      await h.api.consents(cookie),
+      await h.api.exports(cookie),
+      await h.api.me(undefined),
+      await h.api.logout(cookie),
+    ];
+    for (const r of answers) expect(r.headers.get('cache-control'), `${r.status}`).toBe('no-store');
+  });
+
+  it('login_revokes_the_session_the_browser_already_presented', async () => {
+    const h = harness();
+    const { email, cookie: old } = await h.signedIn();
+    const res = await h.send(h.http.login, h.request('/auth/login', { body: { email, password: PASSWORD }, cookie: old }));
+    expect(res.status).toBe(200);
+    expect((await h.api.me(old)).status).toBe(401);
+    expect((await h.api.me(h.cookieOf(res.headers))).status).toBe(200);
+  });
+
+  it('logout_and_logout_all_with_a_dead_session_still_clear_the_cookie', async () => {
+    const h = harness();
+    const { cookie } = await h.signedIn();
+    await h.api.logout(cookie);
+    for (const call of [h.api.logout, h.api.logoutAll]) {
+      const r = await call(cookie);
+      expect(r.status).toBe(401);
+      expect(r.headers.getSetCookie().join(';')).toContain('lookiva_session=; ');
+      expect(r.headers.getSetCookie().join(';')).toContain('Max-Age=0');
+    }
+    const none = await h.send(h.http.logout, h.request('/auth/logout', { method: 'POST' }));
+    expect(none.headers.getSetCookie().join(';')).toContain('Max-Age=0');
+  });
+});
+
 describe('cookies, secrets and wiring', () => {
   it('session_cookie_flags_in_dev_have_no_secure', async () => {
     const h = harness({ production: false });
@@ -412,8 +455,8 @@ describe('cookies, secrets and wiring', () => {
     const resetToken = await h.lastToken(email);
     await h.api.reset(resetToken, `${secret} v2`);
     const logs = h.logs();
-    const bodies = h.responses.filter((r) => !r.includes('set-cookie')).join('\n');
-    for (const s of [secret, 'secret-ish', verifyToken, resetToken, cookie]) {
+    const bodies = h.responses.filter((r) => !r.includes('set-cookie') && !r.includes(`"email":"${email}"`)).join('\n');
+    for (const s of [secret, 'secret-ish', verifyToken, resetToken, cookie, email]) {
       expect(logs, s).not.toContain(s);
       expect(bodies, s).not.toContain(s);
     }

@@ -160,7 +160,7 @@ export function createIdentityService(d: IdentityServiceDeps) {
     },
 
     /** 401 INVALID_CREDENTIALS for unknown email, wrong password or a non-active account; 403 only after a correct password. */
-    async login(input: { email: string; password: string; userAgent: string | null }) {
+    async login(input: { email: string; password: string; userAgent: string | null; presentedToken?: string | null }) {
       const user = await d.store.findUserByEmail(normalized(input.email));
       const encoded = user ? await d.store.getPasswordHash(user.id) : null;
       const ok = await d.hasher.verify(input.password, encoded);
@@ -181,6 +181,8 @@ export function createIdentityService(d: IdentityServiceDeps) {
       });
       // The password changed since we checked it (concurrent reset): the old password no longer opens a session.
       if (!created) throw INVALID_CREDENTIALS();
+      // The browser's previous cookie is about to be overwritten: that session would otherwise live on, unreachable.
+      if (input.presentedToken) await d.store.revokeSessionByTokenHash(d.tokens.hash(input.presentedToken), t);
       if (d.hasher.needsRehash(encoded)) {
         await d.store.rehashPassword(user.id, encoded, await d.hasher.hash(input.password)); // CAS: never reverts a reset
       }

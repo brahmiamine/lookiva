@@ -102,6 +102,8 @@ export interface IdentityStore {
   listSessions(ownerId: OwnerId, q: { activeSince: Date; now: Date; limit: number; cursor?: { id: string } }): Promise<Page<SessionRecord>>;
   /** False when the session does not exist, belongs to someone else or is already revoked. */
   revokeSession(ownerId: OwnerId, sessionId: string, now: Date): Promise<boolean>;
+  /** Revokes whichever live session owns this token hash (a browser replacing its own cookie at login). */
+  revokeSessionByTokenHash(tokenHash: string, now: Date): Promise<void>;
   revokeAllSessions(ownerId: OwnerId, now: Date): Promise<void>;
 
   /** ACTIVE -> DISABLED and every session revoked, atomically; false when the account was not ACTIVE. */
