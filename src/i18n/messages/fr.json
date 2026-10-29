@@ -980,6 +980,7 @@
       "missing": "Éléments à compléter : {roles}",
       "assumptions": "{count, plural, one {# caractéristique inconnue} other {# caractéristiques inconnues}}",
       "exhausted": "Il n’y a pas d’autres propositions différentes pour le moment.",
+      "more": "Autre proposition",
       "save": "Planifier cette tenue",
       "saved": "Tenue planifiée.",
       "occasions": {

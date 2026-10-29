@@ -980,6 +980,7 @@
       "missing": "Could add: {roles}",
       "assumptions": "{count, plural, one {# unknown garment detail} other {# unknown garment details}}",
       "exhausted": "There are no more distinct suggestions right now.",
+      "more": "More suggestions",
       "save": "Plan this outfit",
       "saved": "Outfit planned.",
       "occasions": {

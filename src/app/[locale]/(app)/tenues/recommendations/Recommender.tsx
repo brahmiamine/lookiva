@@ -47,6 +47,7 @@ export function Recommender({ catalog, timezone, initialDate }: { catalog: Catal
   const [error, setError] = useState(false);
   const [saved, setSaved] = useState(false);
   const createKey = useRef('');
+  const sessionIntent = useRef('');
   const toLogin = useCallback(() => router.replace(`/${locale}/login`), [router, locale]);
   const { garments, load } = useGarments(toLogin);
 
@@ -63,11 +64,13 @@ export function Recommender({ catalog, timezone, initialDate }: { catalog: Catal
     setSaved(false);
     setSelected(null);
     createKey.current = '';
+    const intent = `${date}|${from}|${to}|${occasion}`;
     try {
       const response = await api<Result>('/recommendations/outfits', {
         method: 'POST',
-        body: { date, from, to, occasion, count: 3, useAi: false },
+        body: { date, from, to, occasion, count: 3, useAi: false, ...(sessionIntent.current === intent && result ? { sessionId: result.sessionId } : {}) },
       });
+      sessionIntent.current = intent;
       setResult(response.data);
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) toLogin();
@@ -160,7 +163,8 @@ export function Recommender({ catalog, timezone, initialDate }: { catalog: Catal
             ))}
           </ol>
           {result.exhausted && <p className="mt-3 text-sm text-muted">{t('exhausted')}</p>}
-          {selected !== null && <Button variant="primary" className="mt-4 w-full" onClick={() => void saveProposal()} disabled={busy}>{busy ? t('working') : t('save')}</Button>}
+          <Button variant="secondary" className="mt-4 w-full" onClick={() => void generate()} disabled={busy}>{busy ? t('working') : t('more')}</Button>
+          {selected !== null && <Button variant="primary" className="mt-2 w-full" onClick={() => void saveProposal()} disabled={busy}>{busy ? t('working') : t('save')}</Button>}
           {saved && <p role="status" className="mt-3 text-sm text-success">{t('saved')}</p>}
         </section>
       )}
