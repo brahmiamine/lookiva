@@ -345,6 +345,59 @@
       "applied": "{count} garment(s) updated.",
       "deleted": "{count} garment(s) moved to trash.",
       "noSelection": "Select at least one garment."
+    },
+    "edit": {
+      "title": "Edit details",
+      "nickname": "Nickname",
+      "notes": "Notes",
+      "price": "Purchase price",
+      "currency": "Currency (ISO, e.g. EUR)",
+      "purchasedOn": "Purchase date",
+      "store": "Store",
+      "save": "Save",
+      "saved": "Details updated.",
+      "weather": "Weather"
+    },
+    "weather": {
+      "field": {
+        "warmth": "Warmth",
+        "rain": "Rain",
+        "windproof": "Windproof",
+        "breathability": "Breathability",
+        "layering": "Layering"
+      },
+      "value": {
+        "warmth": {
+          "UNKNOWN": "Unknown",
+          "LIGHT": "Light",
+          "MEDIUM": "Medium",
+          "WARM": "Warm",
+          "VERY_WARM": "Very warm"
+        },
+        "rain": {
+          "UNKNOWN": "Unknown",
+          "NONE": "None",
+          "RESISTANT": "Resistant",
+          "WATERPROOF": "Waterproof"
+        },
+        "windproof": {
+          "UNKNOWN": "Unknown",
+          "YES": "Windproof",
+          "NO": "No"
+        },
+        "breathability": {
+          "UNKNOWN": "Unknown",
+          "LOW": "Low",
+          "MEDIUM": "Medium",
+          "HIGH": "High"
+        },
+        "layering": {
+          "UNKNOWN": "Unknown",
+          "BASE": "Base layer",
+          "MID": "Mid layer",
+          "OUTER": "Outer layer"
+        }
+      }
     }
   }
 }

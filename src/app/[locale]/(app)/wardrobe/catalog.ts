@@ -10,7 +10,7 @@ export async function loadCatalog(locale: Locale): Promise<Catalog> {
   const [categories, colors, options] = await Promise.all([
     getJson<Items<Catalog['categories'][number]>>(wardrobeRoutes.catalogCategories, '/catalog/categories', locale),
     getJson<Items<Catalog['colors'][number]>>(wardrobeRoutes.catalogColors, '/catalog/colors', locale),
-    getJson<{ statuses: Catalog['statuses']; seasons: Catalog['seasons']; styles: Catalog['styles'] }>(wardrobeRoutes.catalogOptions, '/catalog/options', locale),
+    getJson<Pick<Catalog, 'statuses' | 'seasons' | 'styles' | 'weather'>>(wardrobeRoutes.catalogOptions, '/catalog/options', locale),
   ]);
-  return { categories: categories.items, colors: colors.items, statuses: options.statuses, seasons: options.seasons, styles: options.styles };
+  return { categories: categories.items, colors: colors.items, statuses: options.statuses, seasons: options.seasons, styles: options.styles, weather: options.weather };
 }

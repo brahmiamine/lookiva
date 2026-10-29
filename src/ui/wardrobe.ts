@@ -13,6 +13,15 @@ export type Garment = {
   seasons: string[];
   styles: string[];
   notes: string | null;
+  purchasePrice: number | null;
+  purchaseCurrency: string | null;
+  purchasedOn: string | null;
+  purchaseStore: string | null;
+  warmth: string;
+  rain: string;
+  windproof: string;
+  breathability: string;
+  layering: string;
   status: string;
   recommendable: boolean;
   version: number;
@@ -25,6 +34,7 @@ export type Catalog = {
   statuses: (Coded & { recommendable: boolean })[];
   seasons: Coded[];
   styles: Coded[];
+  weather: Record<string, string[]>;
 };
 
 /** The label in the reader's language, French when that one is missing (same rule as the message catalogs). */

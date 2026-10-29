@@ -345,6 +345,59 @@
       "applied": "تم تحديث {count} قطعة.",
       "deleted": "تم نقل {count} قطعة إلى سلة المحذوفات.",
       "noSelection": "حدّد قطعة واحدة على الأقل."
+    },
+    "edit": {
+      "title": "تعديل البيانات",
+      "nickname": "اللقب",
+      "notes": "ملاحظات",
+      "price": "سعر الشراء",
+      "currency": "العملة (ISO، مثل EUR)",
+      "purchasedOn": "تاريخ الشراء",
+      "store": "المتجر",
+      "save": "حفظ",
+      "saved": "تم تحديث البيانات.",
+      "weather": "الطقس"
+    },
+    "weather": {
+      "field": {
+        "warmth": "الدفء",
+        "rain": "المطر",
+        "windproof": "مقاومة الرياح",
+        "breathability": "القدرة على التهوية",
+        "layering": "الطبقات"
+      },
+      "value": {
+        "warmth": {
+          "UNKNOWN": "غير معروف",
+          "LIGHT": "خفيفة",
+          "MEDIUM": "متوسطة",
+          "WARM": "دافئة",
+          "VERY_WARM": "دافئة جدًا"
+        },
+        "rain": {
+          "UNKNOWN": "غير معروف",
+          "NONE": "لا شيء",
+          "RESISTANT": "مقاومة",
+          "WATERPROOF": "مقاومة للماء"
+        },
+        "windproof": {
+          "UNKNOWN": "غير معروف",
+          "YES": "مقاوم للرياح",
+          "NO": "غير مقاوم"
+        },
+        "breathability": {
+          "UNKNOWN": "غير معروف",
+          "LOW": "منخفضة",
+          "MEDIUM": "متوسطة",
+          "HIGH": "عالية"
+        },
+        "layering": {
+          "UNKNOWN": "غير معروف",
+          "BASE": "طبقة أساس",
+          "MID": "طبقة وسطى",
+          "OUTER": "طبقة خارجية"
+        }
+      }
     }
   }
 }

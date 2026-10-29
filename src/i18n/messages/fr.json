@@ -345,6 +345,59 @@
       "applied": "{count} vêtement(s) mis à jour.",
       "deleted": "{count} vêtement(s) mis à la corbeille.",
       "noSelection": "Sélectionnez au moins un vêtement."
+    },
+    "edit": {
+      "title": "Modifier la fiche",
+      "nickname": "Surnom",
+      "notes": "Notes",
+      "price": "Prix d’achat",
+      "currency": "Devise (ISO, ex. EUR)",
+      "purchasedOn": "Date d’achat",
+      "store": "Magasin",
+      "save": "Enregistrer",
+      "saved": "Fiche mise à jour.",
+      "weather": "Météo"
+    },
+    "weather": {
+      "field": {
+        "warmth": "Chaleur",
+        "rain": "Pluie",
+        "windproof": "Coupe-vent",
+        "breathability": "Respirabilité",
+        "layering": "Superposition"
+      },
+      "value": {
+        "warmth": {
+          "UNKNOWN": "Inconnu",
+          "LIGHT": "Légère",
+          "MEDIUM": "Moyenne",
+          "WARM": "Chaude",
+          "VERY_WARM": "Très chaude"
+        },
+        "rain": {
+          "UNKNOWN": "Inconnu",
+          "NONE": "Aucune",
+          "RESISTANT": "Résistante",
+          "WATERPROOF": "Imperméable"
+        },
+        "windproof": {
+          "UNKNOWN": "Inconnu",
+          "YES": "Coupe-vent",
+          "NO": "Non"
+        },
+        "breathability": {
+          "UNKNOWN": "Inconnu",
+          "LOW": "Faible",
+          "MEDIUM": "Moyenne",
+          "HIGH": "Élevée"
+        },
+        "layering": {
+          "UNKNOWN": "Inconnu",
+          "BASE": "Couche de base",
+          "MID": "Couche intermédiaire",
+          "OUTER": "Couche extérieure"
+        }
+      }
     }
   }
 }

@@ -10,6 +10,7 @@ import { getJson, getJsonWithEtag, requireAccount } from '../../server-api';
 import { loadCatalog } from '../catalog';
 import { H1, LEAD, SECTION } from '../../styles';
 import { GarmentActions } from './GarmentActions';
+import { GarmentEditor } from './GarmentEditor';
 import { Photos } from './Photos';
 
 export const generateMetadata = titleFrom('wardrobe.title');
@@ -30,6 +31,11 @@ export default async function GarmentPage(props: { params: Promise<{ locale: str
   const list = (codes: string[], all: { code: string; labels: Record<'fr' | 'en' | 'ar', string> }[]) =>
     codes.map((code) => labelOf(all.find((x) => x.code === code)?.labels, locale)).join(', ');
   const t = (key: string) => getMessage(locale, `wardrobe.${key}`);
+  const weatherFields = ['warmth', 'rain', 'windproof', 'breathability', 'layering'] as const;
+  const weatherLabels = {
+    field: Object.fromEntries(weatherFields.map((k) => [k, t(`weather.field.${k}`)])),
+    value: Object.fromEntries(weatherFields.map((k) => [k, Object.fromEntries((catalog.weather[k] ?? []).map((code) => [code, t(`weather.value.${k}.${code}`)]))])),
+  };
   const statusLabel = labelOf(catalog.statuses.find((s) => s.code === garment.status)?.labels, locale);
 
   return (
@@ -74,6 +80,9 @@ export default async function GarmentPage(props: { params: Promise<{ locale: str
       <IntlProvider locale={locale} messages={pickMessages(locale, ['common', 'wardrobe'])}>
         <h2 className={SECTION}>{t('detail.status')}</h2>
         <GarmentActions garment={garment} etag={etag} statuses={catalog.statuses} />
+
+        <h2 className={SECTION}>{t('edit.title')}</h2>
+        <GarmentEditor garment={garment} etag={etag} weather={catalog.weather} weatherLabels={weatherLabels} />
 
         <h2 className={SECTION}>{t('detail.photos')}</h2>
         <Photos garmentId={garment.id} initial={photos.items} />
