@@ -45,8 +45,9 @@ test('axe_has_no_violations_on_dev_ui_with_dialog_closed_and_open', async ({ pag
 
 test('unprefixed_path_redirects_to_default_locale_and_unknown_page_is_localized_404', async ({ page }, info) => {
   test.skip(info.project.name !== 'fr-desktop' && info.project.name !== 'ar-mobile', 'routing is locale independent');
-  const res = await page.goto('/dressing');
-  expect(new URL(page.url()).pathname).toBe('/fr/dressing');
+  // `/dressing` exists since phase 04: an unknown path is used instead.
+  const res = await page.goto('/nowhere');
+  expect(new URL(page.url()).pathname).toBe('/fr/nowhere');
   expect(res?.status()).toBe(404);
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Page introuvable');
   await expect(page).toHaveTitle(/Page introuvable/);
