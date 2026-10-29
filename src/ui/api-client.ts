@@ -20,14 +20,14 @@ export class ApiError extends Error {
 type Options = {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: unknown;
-  /** Sends an Idempotency-Key (register, forgot, reset). `true` = a fresh key; a string = the caller's key, reused on retry. */
+  /** Sends an Idempotency-Key; string keys can be reused across retries of one intent. */
   idempotent?: boolean | string;
   ifMatch?: string;
 };
 
 export async function api<T = unknown>(path: string, { method = 'GET', body, idempotent, ifMatch }: Options = {}) {
   const headers = new Headers({ 'X-Requested-With': 'lookiva', Accept: 'application/json' });
-  // FormData (photo upload) keeps the browser's multipart Content-Type, boundary included.
+  // FormData keeps the browser's multipart Content-Type, including its boundary.
   const multipart = body instanceof FormData;
   if (body !== undefined && !multipart) headers.set('Content-Type', 'application/json');
   if (idempotent) headers.set('Idempotency-Key', typeof idempotent === 'string' ? idempotent : crypto.randomUUID());
@@ -45,15 +45,18 @@ export async function api<T = unknown>(path: string, { method = 'GET', body, ide
     throw new ApiError(0, 'NETWORK_ERROR');
   }
 
-  if (!res.ok) {
-    const retry = Number(res.headers.get('Retry-After'));
-    const p = res.headers.get('Content-Type')?.includes('json') ? await res.json().catch(() => null) : null;
-    const code = typeof p?.code === 'string' ? p.code : 'HTTP_ERROR';
-    const errors = Array.isArray(p?.errors) ? (p.errors as FieldError[]) : [];
-    throw new ApiError(res.status, code, errors, Number.isFinite(retry) && retry > 0 ? retry : undefined);
-  }
+  if (!res.ok) throw await apiErrorOf(res);
   const data = (res.status === 204 ? undefined : await res.json()) as T;
   return { data, headers: res.headers, status: res.status };
+}
+
+/** ApiError from a failed response (problem+json code and field errors when present). */
+export async function apiErrorOf(res: Response): Promise<ApiError> {
+  const retry = Number(res.headers.get('Retry-After'));
+  const p = res.headers.get('Content-Type')?.includes('json') ? await res.json().catch(() => null) : null;
+  const code = typeof p?.code === 'string' ? p.code : 'HTTP_ERROR';
+  const errors = Array.isArray(p?.errors) ? (p.errors as FieldError[]) : [];
+  return new ApiError(res.status, code, errors, Number.isFinite(retry) && retry > 0 ? retry : undefined);
 }
 
 /** Whole minutes to show for a Retry-After, at least 1. */
