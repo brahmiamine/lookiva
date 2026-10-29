@@ -956,6 +956,41 @@
       "invalidateText": "Le port est conservé dans l’historique, marqué comme corrigé. La tenue peut être confirmée à nouveau.",
       "reason": "Raison",
       "invalidatedTitle": "Port corrigé"
+    },
+    "recommendations": {
+      "title": "Suggestions de tenues",
+      "back": "Retour aux tenues",
+      "lead": "Composez des idées à partir des vêtements disponibles, puis choisissez celles que vous voulez planifier.",
+      "controls": "Paramètres des suggestions",
+      "date": "Date",
+      "from": "À partir de",
+      "to": "Jusqu’à",
+      "occasion": "Occasion",
+      "generate": "Proposer des tenues",
+      "working": "Préparation…",
+      "invalidHours": "L’heure de fin doit être après l’heure de début.",
+      "errorTitle": "Suggestions indisponibles",
+      "errorText": "Vérifiez votre connexion et réessayez.",
+      "retry": "Réessayer",
+      "manualFallback": "Les prévisions météo ne sont pas disponibles. Ces suggestions reposent sur vos vêtements et la saison, sans météo inventée.",
+      "empty": "Aucune tenue ne peut être proposée avec les vêtements disponibles.",
+      "results": "{count, plural, one {# proposition} other {# propositions}}",
+      "proposal": "Proposition {number}",
+      "choose": "Choisir",
+      "missing": "Éléments à compléter : {roles}",
+      "assumptions": "{count, plural, one {# caractéristique inconnue} other {# caractéristiques inconnues}}",
+      "exhausted": "Il n’y a pas d’autres propositions différentes pour le moment.",
+      "save": "Planifier cette tenue",
+      "saved": "Tenue planifiée.",
+      "occasions": {
+        "CASUAL": "Décontractée",
+        "WORK": "Travail",
+        "FORMAL": "Formelle",
+        "SPORT": "Sport",
+        "EVENING": "Soirée",
+        "HOME": "À la maison",
+        "TRADITIONAL": "Traditionnelle"
+      }
     }
   }
 }

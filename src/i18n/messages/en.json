@@ -956,6 +956,41 @@
       "invalidateText": "The wear stays in the history, marked as corrected. The outfit can be confirmed again.",
       "reason": "Reason",
       "invalidatedTitle": "Wear corrected"
+    },
+    "recommendations": {
+      "title": "Outfit suggestions",
+      "back": "Back to outfits",
+      "lead": "Get ideas from the clothes you have available, then choose which ones to plan.",
+      "controls": "Suggestion settings",
+      "date": "Date",
+      "from": "From",
+      "to": "To",
+      "occasion": "Occasion",
+      "generate": "Suggest outfits",
+      "working": "Preparing…",
+      "invalidHours": "The end time must be after the start time.",
+      "errorTitle": "Suggestions are unavailable",
+      "errorText": "Check your connection and try again.",
+      "retry": "Try again",
+      "manualFallback": "Weather forecasts are unavailable. These suggestions use your wardrobe and the season without inventing weather.",
+      "empty": "No outfit can be suggested from the clothes currently available.",
+      "results": "{count, plural, one {# suggestion} other {# suggestions}}",
+      "proposal": "Suggestion {number}",
+      "choose": "Choose",
+      "missing": "Could add: {roles}",
+      "assumptions": "{count, plural, one {# unknown garment detail} other {# unknown garment details}}",
+      "exhausted": "There are no more distinct suggestions right now.",
+      "save": "Plan this outfit",
+      "saved": "Outfit planned.",
+      "occasions": {
+        "CASUAL": "Casual",
+        "WORK": "Work",
+        "FORMAL": "Formal",
+        "SPORT": "Sport",
+        "EVENING": "Evening",
+        "HOME": "At home",
+        "TRADITIONAL": "Traditional"
+      }
     }
   }
 }

@@ -82,10 +82,16 @@ export function Outfits({ timezone, initialView, initialDate }: { timezone: stri
     <>
       <header className="flex flex-wrap items-center justify-between gap-3 pt-5 pb-3">
         <h1 className={PAGE_TITLE}>{t('title')}</h1>
-        <Link href={`/${locale}/tenues/modeles`} className={CHIP}>
-          <Icon name="star" />
-          {t('templates.short')}
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link href={`/${locale}/tenues/recommendations`} className={CHIP}>
+            <Icon name="star" />
+            {t('recommendations.title')}
+          </Link>
+          <Link href={`/${locale}/tenues/modeles`} className={CHIP}>
+            <Icon name="star" />
+            {t('templates.short')}
+          </Link>
+        </div>
       </header>
 
       <div role="group" aria-label={t('views.label')} className="flex gap-2">
