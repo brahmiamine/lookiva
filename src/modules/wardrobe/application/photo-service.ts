@@ -18,6 +18,17 @@ export const toPhotoView = (r: PhotoRow): PhotoView => ({
   mime: r.mime, bytes: r.bytes, width: r.width, height: r.height, sha256: r.sha256, createdAt: r.createdAt.toISOString(),
 });
 
+/** Storage deletes happen only AFTER the database commit, and only for keys no row references. Failures are logged as purge candidates. */
+export async function releaseKeys(photos: PhotoStore, storage: ObjectStorage, log: Logger, keys: (string | null)[]): Promise<void> {
+  const dead = await photos.unreferenced(keys.filter((k): k is string => k !== null)).catch((err) => {
+    log.error({ err, keys }, 'photo.storage.purge_candidate (reference check failed)');
+    return [] as string[];
+  });
+  for (const key of dead) {
+    await storage.delete(key).catch((err) => log.error({ err, key }, 'photo.storage.purge_candidate'));
+  }
+}
+
 export type PhotoDeps = {
   photos: PhotoStore;
   garments: GarmentStore;
@@ -41,16 +52,7 @@ export function createPhotoService(d: PhotoDeps) {
     return r;
   };
 
-  /** Storage deletes happen only AFTER the database commit, and only for keys no row references. Failures are logged as purge candidates. */
-  async function release(keys: (string | null)[]): Promise<void> {
-    const dead = await photos.unreferenced(keys.filter((k): k is string => k !== null)).catch((err) => {
-      d.log.error({ err, keys }, 'photo.storage.purge_candidate (reference check failed)');
-      return [] as string[];
-    });
-    for (const key of dead) {
-      await storage.delete(key).catch((err) => d.log.error({ err, key }, 'photo.storage.purge_candidate'));
-    }
-  }
+  const release = (keys: (string | null)[]) => releaseKeys(photos, storage, d.log, keys);
 
   return {
     async list(owner: OwnerId, garmentId: string): Promise<PhotoView[]> {
@@ -143,9 +145,10 @@ export function createPhotoService(d: PhotoDeps) {
     },
 
     /**
-     * For duplication (next slice): `target` (empty) gets one row per photo of `source`, SHARING the storage objects.
-     * Deleting a photo then only removes objects no row references. Known ceiling: a delete racing a copy of the same
-     * photo could drop an object just before the copy commits; duplicate-by-copy would remove it, sharing keeps it cheap.
+     * For duplication: `target` (empty) gets one row per photo of `source`, SHARING the storage objects.
+     * Deleting a photo then only removes objects no row references. The copy locks the source garment row (like photo
+     * delete and purge do), so a delete either commits before the copy reads (photo not copied) or after it commits
+     * (the copy's rows keep the objects referenced): no object is dropped under a committed copy.
      */
     async copyPhotosToGarment(owner: OwnerId, sourceGarmentId: string, targetGarmentId: string): Promise<number> {
       await ownGarment(owner, sourceGarmentId);

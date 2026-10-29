@@ -150,6 +150,17 @@ Photos (tranche 4b, [runbook §13](docs/foundation/runbook-local.md#13-dressing-
 | `GET /api/v1/garments/{id}/photos/{photoId}/file?variant=thumb\|optimized\|original\|cutout` | Diffuse les octets au propriétaire seul (`no-store`, `nosniff`) | 400, 404 |
 | `POST /api/v1/garments/{id}/photos/{photoId}/cutout` | Détourage local opt-in ; échec : `cutoutStatus: FAILED`, photo conservée | 404 |
 
+Tranche 4c : duplication, actions groupées, corbeille, étiquettes/collections/ensembles (détail et schémas : `openapi.json`).
+
+| Route | Rôle | Erreurs |
+|---|---|---|
+| `POST /api/v1/garments/{id}/duplicate` | `Idempotency-Key` requis ; nouveau vêtement (AVAILABLE, v1, sans historique), corps = surcharges optionnelles + `copyPhotos` (objets partagés, comptés par référence) | 400, 404, 409, 422 |
+| `POST /api/v1/garments/bulk-actions` | `SET_STATUS \| SET_CATEGORY \| DELETE` sur 100 ids max, tout ou rien ; ids inconnus/étrangers/en corbeille = 404 par id ; `expectedVersions` optionnel (409 par id) ; `Idempotency-Key` requis | 400, 404, 409 |
+| `GET /api/v1/garments/trash` · `POST /api/v1/garments/{id}/restore` | Corbeille (`purgeAfter`), restauration tant que `purgeAfter` > maintenant | 404, 409 `CUSTOM_SUBCATEGORY_MISSING`, 410 `TRASH_EXPIRED` |
+| `/api/v1/tags`, `/collections`, `/garment-sets` (+ `/{id}/garments`, `/{id}/garments/{garmentId}`) | CRUD (`name` unique par utilisateur, `If-Match`), rattacher/détacher des vêtements (ordre conservé, vêtements en corbeille signalés `trashed`) | 404, 409 `NAME_ALREADY_USED` |
+
+La purge quotidienne (`wardrobe-purge`, tâche répétée BullMQ du worker) supprime les vêtements dont `purgeAfter` est passé, puis les objets photo non référencés. Le worker doit partager `STORAGE_LOCAL_DIR` avec le web. `GarmentUsageChecker` (par défaut : aucun avertissement) alimente `warnings` à la suppression ; les tenues arrivent en phase 05. Contrat d'archive `lookiva-archive` v1 : `prevalidateArchive(json)` (sans écriture).
+
 Cycle de vie du compte : la ré-authentification (mot de passe) est limitée à 5 essais/15 min par utilisateur ; tout échec est un 401 générique. Un compte `DISABLED` ou `DELETION_REQUESTED` ne peut pas se connecter (même 401 générique qu'un mot de passe faux). Il n'existe pas encore de réactivation d'un compte `DISABLED`.
 
 Toute requête POST/PUT/PATCH/DELETE vers ces routes exige `X-Requested-With: lookiva` (et un `Origin` égal à l'origine de l'application s'il est présent), sinon 403 `CSRF_REJECTED`.

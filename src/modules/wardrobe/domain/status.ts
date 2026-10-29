@@ -2,10 +2,10 @@
 export const GARMENT_STATUSES = ['AVAILABLE', 'TO_WASH', 'WASHING', 'DRYING', 'IN_REPAIR', 'LENT'] as const;
 export type GarmentStatus = (typeof GARMENT_STATUSES)[number];
 export const DEFAULT_STATUS: GarmentStatus = 'AVAILABLE';
-const RECOMMENDABLE: readonly GarmentStatus[] = ['AVAILABLE'];
+export const RECOMMENDABLE_STATUSES: readonly GarmentStatus[] = ['AVAILABLE'];
 
 export const isGarmentStatus = (v: string): v is GarmentStatus => (GARMENT_STATUSES as readonly string[]).includes(v);
-export const isRecommendable = (s: GarmentStatus): boolean => RECOMMENDABLE.includes(s);
+export const isRecommendable = (s: GarmentStatus): boolean => RECOMMENDABLE_STATUSES.includes(s);
 
 /** Manual transitions are any-to-any; the only refusal is "no change". Nothing ever changes a status automatically. */
 export const canTransition = (from: GarmentStatus, to: GarmentStatus): boolean => from !== to;

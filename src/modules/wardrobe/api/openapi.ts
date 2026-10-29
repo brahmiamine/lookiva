@@ -75,8 +75,8 @@ route({
 });
 route({
   method: 'delete', path: '/api/v1/garments/{id}', tags: gar, security: session,
-  summary: 'Move to the trash (soft delete: deletedAt, purgeAfter = +30 days). Trash listing and restore come later',
-  request: { headers: csrf, params: id }, responses: { 204: { description: 'Trashed' }, ...authed, 404: NOT_FOUND },
+  summary: 'Move to the trash (soft delete: deletedAt, purgeAfter = +30 days). Photos and links are kept until the purge. 200 with `warnings` when active outfits use it (none until phase 05), else 204',
+  request: { headers: csrf, params: id }, responses: { 200: json('Trashed, with advisory warnings', s.warningsResponse), 204: { description: 'Trashed' }, ...authed, 404: NOT_FOUND },
 });
 route({
   method: 'post', path: '/api/v1/garments/{id}/status', tags: gar, security: session,
@@ -166,3 +166,70 @@ route({
     400: BAD, ...authed, 404: NOT_FOUND,
   },
 });
+
+route({
+  method: 'post', path: '/api/v1/garments/{id}/duplicate', tags: gar, security: session,
+  summary: 'Duplicate: a NEW garment (new id, version 1, AVAILABLE, fresh dates) prefilled from the source; any field of the body overrides the copied value. No status history, no favorite. `copyPhotos` shares the stored objects (they survive until every owner row is gone). Idempotent on the key',
+  request: { headers: idempotency, params: id, body: body(s.garmentDuplicateBody) },
+  responses: {
+    201: json('Created (ETag W/"v1")', s.garmentView, true), 400: BAD, ...authed, 404: NOT_FOUND,
+    409: problem('IDEMPOTENCY_IN_PROGRESS'), 422: problem('IDEMPOTENCY_KEY_REUSED'),
+  },
+});
+route({
+  method: 'post', path: '/api/v1/garments/bulk-actions', tags: gar, security: session,
+  summary: 'SET_STATUS | SET_CATEGORY | DELETE on up to 100 ids, atomic (all or nothing). Only the listed ids are touched. Unknown, trashed and foreign ids are indistinguishable (404 with one error per id). `expectedVersions` makes a stale id a 409 with one error per id. SET_STATUS skips garments already in that status (unchangedIds) and writes one history event per changed garment. Idempotent on the key',
+  request: { headers: idempotency, body: body(s.bulkBody) },
+  responses: {
+    200: json('Applied', s.bulkResponse), 400: BAD, ...authed,
+    404: problem('NOT_FOUND (errors[] names each missing id; also an unknown customSubcategoryId)'),
+    409: problem('VERSION_CONFLICT (errors[] names each stale id) or IDEMPOTENCY_IN_PROGRESS'),
+    422: problem('IDEMPOTENCY_KEY_REUSED'),
+  },
+});
+route({
+  method: 'get', path: '/api/v1/garments/trash', tags: gar, security: session,
+  summary: 'Own trashed garments, newest first (cursor), each with deletedAt and purgeAfter', request: { query: page },
+  responses: { 200: json('Trash', s.trashPage), 400: BAD, ...authed },
+});
+route({
+  method: 'post', path: '/api/v1/garments/{id}/restore', tags: gar, security: session,
+  summary: 'Restore from the trash (status and photos as they were). Refused once purgeAfter has passed',
+  request: { headers: csrf, params: id },
+  responses: {
+    200: json('Restored (new ETag)', s.garmentView, true), ...authed,
+    404: problem('NOT_FOUND (not trashed, unknown, purged or another user\'s)'),
+    409: problem('CUSTOM_SUBCATEGORY_MISSING'),
+    410: problem('TRASH_EXPIRED (retention passed, purge pending)'),
+  },
+});
+
+const grp = z.object({ id: z.uuid() });
+const member = z.object({ id: z.uuid(), garmentId: z.uuid() });
+for (const [path, label, max] of [['tags', 'tag', 40], ['collections', 'collection', 60], ['garment-sets', 'garment set (ordered)', 60]] as const) {
+  const t = ['organization'];
+  const base = `/api/v1/${path}`;
+  route({
+    method: 'post', path: base, tags: t, security: session, summary: `Create a ${label} (name unique per user, case insensitive, at most ${max} characters)`,
+    request: { headers: csrf, body: body(s.organizerCreateBody(max)) },
+    responses: { 201: json('Created', s.organizerView, true), 400: BAD, ...authed, 409: problem('NAME_ALREADY_USED') },
+  });
+  route({ method: 'get', path: base, tags: t, security: session, summary: `Own ${path}, newest first, with their garments (trashed ones flagged)`, request: { query: page }, responses: { 200: json('Page', s.organizerPage), 400: BAD, ...authed } });
+  route({ method: 'get', path: `${base}/{id}`, tags: t, security: session, summary: `One ${label}`, request: { params: grp }, responses: { 200: json('Found', s.organizerView, true), ...authed, 404: NOT_FOUND } });
+  route({
+    method: 'patch', path: `${base}/{id}`, tags: t, security: session, summary: 'Rename, guarded by If-Match',
+    request: { headers: ifMatch, params: grp, body: body(s.organizerCreateBody(max)) },
+    responses: { 200: json('Renamed', s.organizerView, true), 400: BAD, ...authed, 404: NOT_FOUND, 409: problem('VERSION_CONFLICT or NAME_ALREADY_USED'), 428: problem('IF_MATCH_REQUIRED') },
+  });
+  route({ method: 'delete', path: `${base}/{id}`, tags: t, security: session, summary: 'Delete the list only (garments are untouched)', request: { headers: csrf, params: grp }, responses: { 204: { description: 'Deleted' }, ...authed, 404: NOT_FOUND } });
+  route({
+    method: 'post', path: `${base}/{id}/garments`, tags: t, security: session,
+    summary: 'Attach up to 100 own, non-trashed garments (appended in order; already attached ones are ignored). All or nothing: any unknown, trashed or foreign id is a 404 naming it',
+    request: { headers: csrf, params: grp, body: body(s.organizerAttachBody) },
+    responses: { 200: json('Updated', s.organizerView, true), 400: BAD, ...authed, 404: NOT_FOUND, 409: problem('GROUP_FULL (500 garments)') },
+  });
+  route({
+    method: 'delete', path: `${base}/{id}/garments/{garmentId}`, tags: t, security: session, summary: 'Detach one garment (no-op when absent)',
+    request: { headers: csrf, params: member }, responses: { 200: json('Updated', s.organizerView, true), ...authed, 404: NOT_FOUND },
+  });
+}

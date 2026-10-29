@@ -7,6 +7,7 @@ import { WhiteKeyRemover } from '@/platform/background-remover/local';
 import { LocalObjectStorage } from '@/platform/storage/local';
 import { createLogger } from '@/platform/logger';
 import { createWardrobeHttp, type WardrobeHttp } from './http';
+import type { OrganizerHttp } from './organizer-http';
 
 const g = globalThis as typeof globalThis & { __lookivaWardrobe?: WardrobeHttp };
 
@@ -27,6 +28,16 @@ type Id2Route = (req: Request, id: string, photoId: string) => Promise<Response>
 const lazyId2 = (pick: (w: WardrobeHttp) => Id2Route): Id2Route => (req, id, photoId) => pick(wardrobe())(req, id, photoId);
 const lazyId = (pick: (w: WardrobeHttp) => IdRoute): IdRoute => (req, id) => pick(wardrobe())(req, id);
 
+const organizerRoutes = (pick: (w: WardrobeHttp) => OrganizerHttp) => ({
+  create: lazy((w) => pick(w).create),
+  list: lazy((w) => pick(w).list),
+  get: lazyId((w) => pick(w).get),
+  rename: lazyId((w) => pick(w).rename),
+  remove: lazyId((w) => pick(w).remove),
+  attach: lazyId((w) => pick(w).attach),
+  detach: lazyId2((w) => pick(w).detach),
+});
+
 /** Handlers for the thin route files under src/app/api/v1. */
 export const wardrobeRoutes = {
   catalogCategories: lazy((w) => w.catalogCategories),
@@ -45,6 +56,13 @@ export const wardrobeRoutes = {
   deletePhoto: lazyId2((w) => w.deletePhoto),
   cutoutPhoto: lazyId2((w) => w.cutoutPhoto),
   photoFile: lazyId2((w) => w.photoFile),
+  duplicateGarment: lazyId((w) => w.duplicateGarment),
+  bulkActions: lazy((w) => w.bulkActions),
+  listTrash: lazy((w) => w.listTrash),
+  restoreGarment: lazyId((w) => w.restoreGarment),
+  tags: organizerRoutes((w) => w.tags),
+  collections: organizerRoutes((w) => w.collections),
+  garmentSets: organizerRoutes((w) => w.garmentSets),
   createCustomSubcategory: lazy((w) => w.createCustomSubcategory),
   listCustomSubcategories: lazy((w) => w.listCustomSubcategories),
   updateCustomSubcategory: lazyId((w) => w.updateCustomSubcategory),

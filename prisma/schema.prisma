@@ -65,6 +65,9 @@ model User {
   exportRequests      ExportRequest[]
   garments            Garment[]
   customSubcategories CustomSubcategory[]
+  tags                Tag[]
+  collections         Collection[]
+  garmentSets         GarmentSet[]
 
   @@map("users")
 }
@@ -244,6 +247,9 @@ model Garment {
   styles              GarmentStyle[]
   statusEvents        GarmentStatusEvent[]
   photos              GarmentPhoto[]
+  tagLinks            GarmentTag[]
+  collectionLinks     CollectionGarment[]
+  setItems            GarmentSetItem[]
 
   @@index([ownerId, deletedAt, id])
   @@index([ownerId, status])
@@ -303,25 +309,25 @@ model GarmentStatusEvent {
 /// Photo of a garment. The three storage keys are private object keys; rows of the same owner MAY share keys after a
 /// duplication, so an object is deleted only when no row references its key any more.
 model GarmentPhoto {
-  id            String   @id @db.Char(36)
-  garmentId     String   @db.Char(36)
-  ownerId       String   @db.Char(36)
-  position      Int
+  id           String   @id @db.Char(36)
+  garmentId    String   @db.Char(36)
+  ownerId      String   @db.Char(36)
+  position     Int
   /// 1 for the primary photo, NULL otherwise: the unique index makes "exactly one primary" a database guarantee.
-  primarySlot   Int?
-  originalKey   String   @db.VarChar(255)
-  optimizedKey  String   @db.VarChar(255)
-  thumbKey      String   @db.VarChar(255)
-  cutoutKey     String?  @db.VarChar(255)
+  primarySlot  Int?
+  originalKey  String   @db.VarChar(255)
+  optimizedKey String   @db.VarChar(255)
+  thumbKey     String   @db.VarChar(255)
+  cutoutKey    String?  @db.VarChar(255)
   /// READY | FAILED | NULL (never requested).
-  cutoutStatus  String?  @db.VarChar(8)
-  mime          String   @db.VarChar(32)
-  bytes         Int
-  width         Int
-  height        Int
-  sha256        String   @db.Char(64)
-  createdAt     DateTime @db.DateTime(3)
-  garment       Garment  @relation(fields: [garmentId], references: [id], onDelete: Cascade)
+  cutoutStatus String?  @db.VarChar(8)
+  mime         String   @db.VarChar(32)
+  bytes        Int
+  width        Int
+  height       Int
+  sha256       String   @db.Char(64)
+  createdAt    DateTime @db.DateTime(3)
+  garment      Garment  @relation(fields: [garmentId], references: [id], onDelete: Cascade)
 
   @@unique([garmentId, position])
   @@unique([garmentId, primarySlot])
@@ -331,4 +337,90 @@ model GarmentPhoto {
   @@index([thumbKey])
   @@index([cutoutKey])
   @@map("garment_photos")
+}
+
+/// Phase 04 slice 4c: tags, collections and garment sets. Owner scoped, independent from outfits.
+
+model Tag {
+  id              String       @id @db.Char(36)
+  ownerId         String       @db.Char(36)
+  label           String       @db.VarChar(40)
+  labelNormalized String       @db.VarChar(40)
+  version         Int          @default(1)
+  createdAt       DateTime     @db.DateTime(3)
+  updatedAt       DateTime     @db.DateTime(3)
+  owner           User         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  items           GarmentTag[]
+
+  @@unique([ownerId, labelNormalized])
+  @@map("tags")
+}
+
+/// Ordered membership; links vanish with the group or when the garment is purged (a trashed garment stays linked).
+model GarmentTag {
+  tagId     String  @db.Char(36)
+  garmentId String  @db.Char(36)
+  position  Int
+  tag       Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  garment   Garment @relation(fields: [garmentId], references: [id], onDelete: Cascade)
+
+  @@id([tagId, garmentId])
+  @@index([garmentId])
+  @@map("garment_tags")
+}
+
+model Collection {
+  id             String              @id @db.Char(36)
+  ownerId        String              @db.Char(36)
+  name           String              @db.VarChar(60)
+  nameNormalized String              @db.VarChar(60)
+  version        Int                 @default(1)
+  createdAt      DateTime            @db.DateTime(3)
+  updatedAt      DateTime            @db.DateTime(3)
+  owner          User                @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  items          CollectionGarment[]
+
+  @@unique([ownerId, nameNormalized])
+  @@map("collections")
+}
+
+/// Ordered membership; links vanish with the group or when the garment is purged (a trashed garment stays linked).
+model CollectionGarment {
+  collectionId String     @db.Char(36)
+  garmentId    String     @db.Char(36)
+  position     Int
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  garment      Garment    @relation(fields: [garmentId], references: [id], onDelete: Cascade)
+
+  @@id([collectionId, garmentId])
+  @@index([garmentId])
+  @@map("collection_garments")
+}
+
+model GarmentSet {
+  id             String           @id @db.Char(36)
+  ownerId        String           @db.Char(36)
+  name           String           @db.VarChar(60)
+  nameNormalized String           @db.VarChar(60)
+  version        Int              @default(1)
+  createdAt      DateTime         @db.DateTime(3)
+  updatedAt      DateTime         @db.DateTime(3)
+  owner          User             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  items          GarmentSetItem[]
+
+  @@unique([ownerId, nameNormalized])
+  @@map("garment_sets")
+}
+
+/// Ordered membership; links vanish with the group or when the garment is purged (a trashed garment stays linked).
+model GarmentSetItem {
+  setId     String     @db.Char(36)
+  garmentId String     @db.Char(36)
+  position  Int
+  set       GarmentSet @relation(fields: [setId], references: [id], onDelete: Cascade)
+  garment   Garment    @relation(fields: [garmentId], references: [id], onDelete: Cascade)
+
+  @@id([setId, garmentId])
+  @@index([garmentId])
+  @@map("garment_set_items")
 }

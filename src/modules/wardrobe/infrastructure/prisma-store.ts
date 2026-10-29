@@ -4,8 +4,8 @@ import { encodeCursor } from '@/platform/http/pagination';
 import type { OwnerId, Page } from '@/platform/kernel';
 import { categoryOfSubtype } from '../domain/catalog';
 import { normalizeLabel, purgeAfter } from '../domain/garment';
-import { DEFAULT_STATUS, isRecommendable, type GarmentStatus } from '../domain/status';
-import type { CustomSubcategoryStore, CustomSubcategoryView, GarmentData, GarmentFilter, GarmentStore, GarmentView, StatusEventView } from '../application/ports';
+import { DEFAULT_STATUS, RECOMMENDABLE_STATUSES, isRecommendable, type GarmentStatus } from '../domain/status';
+import type { BulkFailure, CustomSubcategoryStore, CustomSubcategoryView, GarmentData, GarmentFilter, GarmentStore, GarmentView, StatusEventView, TrashedGarmentView } from '../application/ports';
 
 // READ COMMITTED like identity: every guard is an UPDATE ... WHERE version = n, which re-reads the latest committed row after a lock wait.
 const TX = { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted };
@@ -165,6 +165,90 @@ export function createPrismaGarmentStore(db: PrismaClient): GarmentStore {
         data: { deletedAt: now, purgeAfter: purgeAfter(now), version: { increment: 1 }, updatedAt: now },
       });
       return count === 1;
+    },
+
+    async listTrash(ownerId, p) {
+      const rows = await db.garment.findMany({
+        where: { ownerId, deletedAt: { not: null }, ...(p.cursor ? { id: { lt: p.cursor.id } } : {}) },
+        include: INCLUDE,
+        orderBy: { id: 'desc' },
+        take: p.limit + 1,
+      });
+      return page(rows.map((r): TrashedGarmentView => ({ ...toView(r), deletedAt: (r.deletedAt as Date).toISOString(), purgeAfter: (r.purgeAfter as Date).toISOString() })), p.limit);
+    },
+
+    async restore(ownerId, id, now) {
+      const res = await db.$transaction(async (tx) => {
+        const cur = await tx.garment.findFirst({ where: { id, ownerId, deletedAt: { not: null } }, select: { customSubcategoryId: true, purgeAfter: true } });
+        if (!cur) return 'missing' as const;
+        if (!cur.purgeAfter || cur.purgeAfter.getTime() <= now.getTime()) return 'expired' as const;
+        if (cur.customSubcategoryId && !(await tx.customSubcategory.findFirst({ where: { id: cur.customSubcategoryId, ownerId }, select: { id: true } }))) return 'custom_missing' as const;
+        // CAS: a racing purge deleted the row (count 0) or the retention ended meanwhile.
+        const { count } = await tx.garment.updateMany({
+          where: { id, ownerId, deletedAt: { not: null }, purgeAfter: { gt: now } },
+          data: { deletedAt: null, purgeAfter: null, version: { increment: 1 }, updatedAt: now },
+        });
+        return count === 1 ? ('ok' as const) : ('missing' as const);
+      }, TX);
+      return res === 'ok' ? ((await read(ownerId, id)) as GarmentView) : res;
+    },
+
+    async bulk(ownerId, ids, op, expected, now) {
+      return db.$transaction(async (tx) => {
+        // Row locks in id order (no deadlock between two bulks); a concurrent single change waits, then fails its version check.
+        const rows = await tx.$queryRaw<{ id: string; version: number; status: string }[]>`
+          SELECT id, version, status FROM garments WHERE ownerId = ${ownerId} AND deletedAt IS NULL AND id IN (${Prisma.join(ids)}) ORDER BY id FOR UPDATE`;
+        const byId = new Map(rows.map((r) => [r.id, r]));
+        const failures: BulkFailure[] = [];
+        for (const id of ids) {
+          const r = byId.get(id);
+          if (!r) failures.push({ id, code: 'NOT_FOUND' });
+          else if (expected[id] !== undefined && expected[id] !== Number(r.version)) failures.push({ id, code: 'VERSION_CONFLICT', currentVersion: Number(r.version) });
+        }
+        if (failures.length) return { ok: false as const, failures };
+
+        const touched = op.action === 'SET_STATUS' ? ids.filter((id) => (byId.get(id) as { status: string }).status !== op.status) : ids;
+        const unchanged = ids.filter((id) => !touched.includes(id));
+        if (touched.length) {
+          const base = { version: { increment: 1 }, updatedAt: now };
+          const w = { id: { in: touched }, ownerId };
+          if (op.action === 'SET_STATUS') {
+            await tx.garment.updateMany({ where: w, data: { ...base, status: op.status } });
+            await tx.garmentStatusEvent.createMany({
+              data: touched.map((id) => ({ id: newId(), garmentId: id, ownerId, fromStatus: (byId.get(id) as { status: string }).status, toStatus: op.status, note: op.note, at: now })),
+            });
+          } else if (op.action === 'SET_CATEGORY') {
+            await tx.garment.updateMany({ where: w, data: { ...base, categoryCode: op.categoryCode, subtypeCode: op.subtypeCode, customSubcategoryId: op.customSubcategoryId } });
+          } else {
+            await tx.garment.updateMany({ where: w, data: { ...base, deletedAt: now, purgeAfter: purgeAfter(now) } });
+          }
+        }
+        return { ok: true as const, changed: touched, unchanged };
+      }, TX);
+    },
+
+    async hardDelete(ownerId, id) {
+      await db.garment.deleteMany({ where: { id, ownerId } });
+    },
+
+    async purgeExpired(now, limit) {
+      const due = await db.garment.findMany({ where: { deletedAt: { not: null }, purgeAfter: { lte: now } }, select: { id: true }, orderBy: { id: 'asc' }, take: limit });
+      if (!due.length) return { ids: [], keys: [] };
+      return db.$transaction(async (tx) => {
+        // Lock, then re-check: a restore that won the race has cleared deletedAt and is skipped.
+        const locked = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM garments WHERE id IN (${Prisma.join(due.map((d) => d.id))}) AND deletedAt IS NOT NULL ORDER BY id FOR UPDATE`;
+        const ids = locked.map((l) => l.id);
+        if (!ids.length) return { ids: [], keys: [] };
+        const photos = await tx.garmentPhoto.findMany({ where: { garmentId: { in: ids } }, select: { originalKey: true, optimizedKey: true, thumbKey: true, cutoutKey: true } });
+        const keys = photos.flatMap((p) => [p.originalKey, p.optimizedKey, p.thumbKey, p.cutoutKey]).filter((k): k is string => k !== null);
+        await tx.garment.deleteMany({ where: { id: { in: ids } } }); // status events, colors, photos rows, links cascade
+        return { ids, keys };
+      }, TX);
+    },
+
+    async recommendableIds(ownerId) {
+      const rows = await db.garment.findMany({ where: { ownerId, deletedAt: null, status: { in: [...RECOMMENDABLE_STATUSES] } }, select: { id: true }, orderBy: { id: 'asc' } });
+      return rows.map((r) => r.id);
     },
 
     async listStatusEvents(ownerId, garmentId, p) {

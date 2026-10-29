@@ -57,14 +57,38 @@ export const garmentCreateBody = z.strictObject({
   layering: weather.layering.default('UNKNOWN'),
 });
 
+const optionalFields = {
+  ...Object.fromEntries(Object.entries(fields).map(([k, v]) => [k, v.optional()])),
+} as { [K in keyof typeof fields]: z.ZodOptional<(typeof fields)[K]> };
+
 /** Status is deliberately absent (strict): it only changes through POST /garments/{id}/status. */
-export const garmentPatchBody = z
-  .strictObject({
-    ...Object.fromEntries(Object.entries(fields).map(([k, v]) => [k, v.optional()])),
-    categoryCode: fields.categoryCode.optional(),
-    primaryColor: fields.primaryColor.optional(),
-  } as { [K in keyof typeof fields]: z.ZodOptional<(typeof fields)[K]> })
-  .refine((b) => Object.keys(b).length > 0, 'at least one field is required');
+export const garmentPatchBody = z.strictObject(optionalFields).refine((b) => Object.keys(b).length > 0, 'at least one field is required');
+
+/** Duplication: every field optional (an override of the source's value), plus the photo switch. */
+export const garmentDuplicateBody = z.strictObject({ ...optionalFields, copyPhotos: z.boolean().default(false) });
+
+// ---- bulk actions
+const bulkCommon = {
+  ids: z.array(z.uuid()).min(1).max(100).refine((a) => new Set(a).size === a.length, 'ids must be unique'),
+  expectedVersions: z.record(z.uuid(), z.number().int().min(1)).default({}),
+};
+export const bulkBody = z.discriminatedUnion('action', [
+  z.strictObject({ ...bulkCommon, action: z.literal('SET_STATUS'), params: z.strictObject({ status: z.enum(GARMENT_STATUSES), note: text(500).nullish().transform((v) => v ?? null) }) }),
+  z.strictObject({
+    ...bulkCommon,
+    action: z.literal('SET_CATEGORY'),
+    params: z.strictObject({
+      categoryCode: fields.categoryCode,
+      subtypeCode: fields.subtypeCode.nullish().transform((v) => v ?? null),
+      customSubcategoryId: fields.customSubcategoryId.nullish().transform((v) => v ?? null),
+    }),
+  }),
+  z.strictObject({ ...bulkCommon, action: z.literal('DELETE') }),
+]);
+
+// ---- tags, collections, garment sets
+export const organizerCreateBody = (max: number) => z.strictObject({ name: text(max) });
+export const organizerAttachBody = z.strictObject({ garmentIds: z.array(z.uuid()).min(1).max(100) });
 
 export const statusBody = z.strictObject({ status: z.enum(GARMENT_STATUSES), note: text(500).nullish().transform((v) => v ?? null) });
 
@@ -144,3 +168,20 @@ export const photoUploadBody = z.object({
   crop: z.string().optional().describe('JSON {"left","top","width","height"} in pixels of the oriented + rotated image'),
 });
 export const photoFileQuery = z.object({ variant: z.enum(['thumb', 'optimized', 'original', 'cutout']).optional() });
+
+export const usageWarning = z.object({ garmentId: z.uuid(), kind: z.string(), count: z.number().int() });
+export const warningsResponse = z.object({ warnings: z.array(usageWarning) });
+export const trashedView = garmentView.extend({ deletedAt: iso, purgeAfter: iso });
+export const trashPage = z.object({ items: z.array(trashedView), nextCursor: z.string().optional() });
+export const bulkResponse = z.object({
+  action: z.enum(['SET_STATUS', 'SET_CATEGORY', 'DELETE']),
+  affected: z.number().int(),
+  changedIds: z.array(z.uuid()),
+  unchangedIds: z.array(z.uuid()),
+  warnings: z.array(usageWarning),
+});
+export const organizerView = z.object({
+  id: z.uuid(), name: z.string(), garments: z.array(z.object({ id: z.uuid(), trashed: z.boolean() })),
+  version: z.number().int(), createdAt: iso, updatedAt: iso,
+});
+export const organizerPage = z.object({ items: z.array(organizerView), nextCursor: z.string().optional() });

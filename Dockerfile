@@ -12,9 +12,11 @@ WORKDIR /app
 FROM base AS build
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
-COPY tsconfig.json ./
+COPY tsconfig.json prisma.config.ts ./
+COPY prisma ./prisma
 COPY src ./src
-RUN pnpm run build:worker
+# The worker bundle imports the generated Prisma client (src/generated is not in a clean clone).
+RUN pnpm run db:generate && pnpm run build:worker
 
 # Runtime deps only; packages stay external in the bundle (--packages=external).
 FROM base AS prod-deps
@@ -27,6 +29,8 @@ WORKDIR /app
 COPY --from=prod-deps --chown=node:node /app/node_modules ./node_modules
 COPY --from=prod-deps --chown=node:node /app/package.json ./package.json
 COPY --from=build --chown=node:node /app/dist/worker.js ./dist/worker.js
+# The trash purge deletes photo objects: same private storage volume as the web service.
+RUN mkdir -p /var/lib/lookiva/storage && chown node:node /var/lib/lookiva/storage
 USER node
 CMD ["node", "dist/worker.js"]
 

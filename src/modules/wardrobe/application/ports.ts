@@ -31,6 +31,23 @@ export type GarmentView = Omit<GarmentData, 'customSubcategoryId'> & {
   updatedAt: string;
 };
 
+export type TrashedGarmentView = GarmentView & { deletedAt: string; purgeAfter: string };
+
+export type BulkOp =
+  | { action: 'SET_STATUS'; status: GarmentStatus; note: string | null }
+  | { action: 'SET_CATEGORY'; categoryCode: string; subtypeCode: string | null; customSubcategoryId: string | null }
+  | { action: 'DELETE' };
+export type BulkFailure = { id: string; code: 'NOT_FOUND' | 'VERSION_CONFLICT'; currentVersion?: number };
+/** `changed` were written; `unchanged` already had the requested status (SET_STATUS only: no event, no version bump). */
+export type BulkResult = { ok: true; changed: string[]; unchanged: string[] } | { ok: false; failures: BulkFailure[] };
+
+/** Outfits do not exist yet (phase 05): the default checker reports nothing. Warnings are advisory, never blocking. */
+export type UsageWarning = { garmentId: string; kind: string; count: number };
+export interface GarmentUsageChecker {
+  check(ownerId: OwnerId, garmentIds: string[]): Promise<UsageWarning[]>;
+}
+export const noUsage: GarmentUsageChecker = { check: async () => [] };
+
 export type GarmentFilter = { category?: string; subtype?: string; color?: string; season?: string; style?: string; status?: string; q?: string };
 export type PageArg = { limit: number; cursor?: { id: string } };
 
@@ -46,6 +63,17 @@ export interface GarmentStore extends OwnerScopedRepository<GarmentView> {
   changeStatus(ownerId: OwnerId, id: string, expectedVersion: number, to: GarmentStatus, note: string | null, now: Date): Promise<GarmentView | null>;
   softDelete(ownerId: OwnerId, id: string, now: Date): Promise<boolean>;
   listStatusEvents(ownerId: OwnerId, garmentId: string, page: PageArg): Promise<Page<StatusEventView>>;
+  listTrash(ownerId: OwnerId, page: PageArg): Promise<Page<TrashedGarmentView>>;
+  /** 'missing' = not trashed / unknown / purged, 'expired' = purgeAfter passed (not purged yet), 'custom_missing' = its custom subcategory is gone. */
+  restore(ownerId: OwnerId, id: string, now: Date): Promise<GarmentView | 'missing' | 'expired' | 'custom_missing'>;
+  /** All-or-nothing in ONE transaction on the locked rows (ordered by id). Only `ids` are touched. */
+  bulk(ownerId: OwnerId, ids: string[], op: BulkOp, expectedVersions: Record<string, number>, now: Date): Promise<BulkResult>;
+  /** Compensation for a half-finished duplication: removes the row for good (no trash). */
+  hardDelete(ownerId: OwnerId, id: string): Promise<void>;
+  /** Deletes up to `limit` garments whose purgeAfter <= now (children cascade) and returns their photo storage keys. */
+  purgeExpired(now: Date, limit: number): Promise<{ ids: string[]; keys: string[] }>;
+  /** Ids a recommendation may use: AVAILABLE and not trashed. */
+  recommendableIds(ownerId: OwnerId): Promise<string[]>;
 }
 
 export type CustomSubcategoryView = {

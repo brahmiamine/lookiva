@@ -70,7 +70,8 @@ export function createPrismaPhotoStore(db: PrismaClient): PhotoStore {
 
     async copyAll(ownerId, sourceGarmentId, targetGarmentId, newId, now) {
       return db.$transaction(async (tx) => {
-        if (!(await lockGarment(tx, ownerId, targetGarmentId))) return 'gone';
+        // Source first (same lock as delete / purge), then the brand-new target: nobody else ever waits on the target.
+        if (!(await lockGarment(tx, ownerId, sourceGarmentId)) || !(await lockGarment(tx, ownerId, targetGarmentId))) return 'gone';
         if ((await tx.garmentPhoto.count({ where: { garmentId: targetGarmentId } })) > 0) return 'not_empty';
         const src = await tx.garmentPhoto.findMany({ where: { garmentId: sourceGarmentId, ownerId }, orderBy: { position: 'asc' } });
         if (src.length) await tx.garmentPhoto.createMany({ data: src.map((r) => ({ ...r, id: newId(), garmentId: targetGarmentId, createdAt: now })) });
