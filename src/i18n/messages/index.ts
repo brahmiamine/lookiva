@@ -37,3 +37,11 @@ export type Messages = typeof fr;
 /** Messages handed to next-intl: the locale's JSON laid over fr, so missing keys fall back to French. */
 export const messagesFor = (locale: Locale): Messages =>
   merge(CATALOG[DEFAULT_LOCALE], CATALOG[locale]) as Messages;
+
+export type Namespace = keyof Messages;
+
+/** Only the namespaces a client subtree needs (with the fr fallback): keeps the other catalogs out of the browser. */
+export const pickMessages = <K extends Namespace>(locale: Locale, namespaces: readonly K[]): Pick<Messages, K> => {
+  const all = messagesFor(locale);
+  return Object.fromEntries(namespaces.map((n) => [n, all[n]])) as Pick<Messages, K>;
+};

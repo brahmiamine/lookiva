@@ -1,0 +1,40 @@
+// Stroke icons of the direction B mockups (docs/design/mockups). Always decorative: the text next to them carries
+// the meaning, so they are aria-hidden.
+//
+// RTL convention: an icon that points along the reading direction (back, forward, "send" arrows) is `directional`
+// and is mirrored in RTL with `rtl:-scale-x-100`. Icons with no inline direction (eye, mail, clock, check...) are not.
+const PATHS = {
+  back: ['M10 3L5 8l5 5'],
+  check: ['M3 8.5l3.2 3.2L13 5'],
+  warn: ['M8 2.2l6.2 11H1.8z', 'M8 6.6v3M8 11.7h.01'],
+  info: ['M8 2.2a5.8 5.8 0 100 11.6A5.8 5.8 0 008 2.2z', 'M8 7.4v3.4M8 5.2h.01'],
+  clock: ['M8 2a6 6 0 100 12A6 6 0 008 2z', 'M8 4.7v3.3l2 1.3'],
+  mail: ['M2 3.3h12v9.4H2z', 'M2.3 4.7L8 8.7l5.7-4'],
+  eye: ['M1.3 8S3.7 3.7 8 3.7 14.7 8 14.7 8 12.3 12.3 8 12.3 1.3 8 1.3 8z', 'M8 6a2 2 0 100 4 2 2 0 000-4z'],
+  eyeOff: ['M2 2l12 12', 'M7.1 3.7A6.7 6.7 0 018 3.7C12.3 3.7 14.7 8 14.7 8a11 11 0 01-2 2.5M4.3 4.6A11 11 0 001.3 8s2.4 4.3 6.7 4.3c1.1 0 2-.3 2.8-.7', 'M6.6 6.6a2 2 0 002.8 2.8'],
+  pin: ['M8 14s4.7-4 4.7-7.7a4.7 4.7 0 00-9.4 0C3.3 10 8 14 8 14z', 'M8 4.7a1.7 1.7 0 100 3.4 1.7 1.7 0 000-3.4z'],
+  phone: ['M4.7 1.7h6.6v12.6H4.7z', 'M7.3 12.3h1.4'],
+  laptop: ['M2.7 3.3h10.6v7.4H2.7z', 'M1.3 12.7h13.4'],
+  logout: ['M6.7 2.7H3.3v10.6h3.4', 'M10 5.3L12.7 8 10 10.7M12.7 8H6'],
+  download: ['M8 2.7v7.3M4.7 7.3L8 10.7l3.3-3.4M3.3 13.3h9.4'],
+  trash: ['M2.5 4.5h11M6 4.5V3h4v1.5M4 4.5l.6 8.5h6.8l.6-8.5M6.8 7v3.8M9.2 7v3.8'],
+} as const;
+
+export type IconName = keyof typeof PATHS;
+
+export function Icon({ name, directional = false, className = '' }: { name: IconName; directional?: boolean; className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      aria-hidden="true"
+      focusable="false"
+      className={`size-[1.25em] flex-none fill-none stroke-current stroke-2 ${directional ? 'rtl:-scale-x-100' : ''} ${className}`}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      {PATHS[name].map((d) => (
+        <path key={d} d={d} />
+      ))}
+    </svg>
+  );
+}

@@ -1,22 +1,20 @@
 'use client';
-import { useParams } from 'next/navigation';
-import { DEFAULT_LOCALE, isLocale } from '@/i18n/config';
-import { getMessage } from '@/i18n/messages';
+import { useTranslations } from 'next-intl';
 import { Button } from '@/ui/components/Button';
 import { ErrorState } from '@/ui/components/ErrorState';
 
-// Route error boundary. The error itself is deliberately never shown to the user.
+// Route error boundary. The error itself is deliberately never shown to the user. Messages come from the layout's
+// client provider (only the `error` namespace), not from an import of every catalog.
 export default function RouteError({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
-  const raw = useParams<{ locale?: string }>().locale;
-  const locale = typeof raw === 'string' && isLocale(raw) ? raw : DEFAULT_LOCALE;
+  const t = useTranslations('error');
   return (
     <main className="p-4">
       <ErrorState
-        title={getMessage(locale, 'error.title')}
-        description={getMessage(locale, 'error.description')}
+        title={t('title')}
+        description={t('description')}
         action={
           <Button variant="primary" onClick={reset}>
-            {getMessage(locale, 'error.retry')}
+            {t('retry')}
           </Button>
         }
       />

@@ -20,7 +20,7 @@ export function Dialog({
   return (
     <D.Root open={open} onOpenChange={onOpenChange}>
       <D.Portal>
-        <D.Overlay className="fixed inset-0 bg-text/50" />
+        <D.Overlay className="fixed inset-0 z-40 bg-text/50" />
         <D.Content
           aria-describedby={undefined}
           onOpenAutoFocus={() => {
@@ -30,7 +30,7 @@ export function Dialog({
             e.preventDefault();
             opener.current?.focus();
           }}
-          className="fixed inset-x-0 top-1/2 mx-auto flex w-[min(90vw,28rem)] -translate-y-1/2 flex-col gap-4 rounded-card bg-surface p-6 font-sans text-text"
+          className="fixed inset-x-0 top-1/2 z-50 mx-auto flex max-h-[90dvh] w-[min(90vw,28rem)] -translate-y-1/2 flex-col gap-4 overflow-y-auto rounded-card bg-surface p-6 font-sans text-text"
         >
           <D.Title className="text-lg font-semibold">{title}</D.Title>
           {children}
