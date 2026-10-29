@@ -25,3 +25,10 @@ describe('etag', () => {
     );
   });
 });
+
+describe('If-Match: * (decision)', () => {
+  it('if_match_star_is_rejected_by_design_with_409', () => {
+    // `*` would mean "any version": it bypasses the lost-update guard, so clients must send a concrete ETag.
+    expect(() => assertIfMatch('*', 1)).toThrowError(expect.objectContaining({ code: 'VERSION_CONFLICT', status: 409 }));
+  });
+});

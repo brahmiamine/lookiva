@@ -7,12 +7,15 @@ export function Dialog({
   onOpenChange,
   title,
   closeLabel,
+  description,
   children,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
   closeLabel: string;
+  /** Short explanation read with the title (aria-describedby). */
+  description?: string;
   children: ReactNode;
 }) {
   // Controlled dialog without <D.Trigger>: Radix has no trigger to return focus to, so remember the opener ourselves.
@@ -20,9 +23,9 @@ export function Dialog({
   return (
     <D.Root open={open} onOpenChange={onOpenChange}>
       <D.Portal>
-        <D.Overlay className="fixed inset-0 bg-text/50" />
+        <D.Overlay className="fixed inset-0 z-40 bg-text/50" />
         <D.Content
-          aria-describedby={undefined}
+          {...(description ? {} : { 'aria-describedby': undefined })}
           onOpenAutoFocus={() => {
             opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
           }}
@@ -30,9 +33,10 @@ export function Dialog({
             e.preventDefault();
             opener.current?.focus();
           }}
-          className="fixed inset-x-0 top-1/2 mx-auto flex w-[min(90vw,28rem)] -translate-y-1/2 flex-col gap-4 rounded-card bg-surface p-6 font-sans text-text"
+          className="fixed inset-x-0 top-1/2 z-50 mx-auto flex max-h-[90dvh] w-[min(90vw,28rem)] -translate-y-1/2 flex-col gap-4 overflow-y-auto rounded-card bg-surface p-6 font-sans text-text"
         >
-          <D.Title className="text-lg font-semibold">{title}</D.Title>
+          <D.Title className="pe-10 text-lg font-semibold">{title}</D.Title>
+          {description && <D.Description className="text-sm text-muted">{description}</D.Description>}
           {children}
           <D.Close
             aria-label={closeLabel}

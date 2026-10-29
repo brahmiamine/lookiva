@@ -107,6 +107,27 @@ describe('withApi', () => {
     }
   });
 
+  it('multiple_set_cookie_headers_survive_the_rewrap', async () => {
+    const { logger } = memory();
+    const res = await withApi(async () => {
+      const r = new Response(null, { status: 204 });
+      r.headers.append('Set-Cookie', 'a=1; Path=/; HttpOnly');
+      r.headers.append('Set-Cookie', 'b=2; Path=/');
+      return r;
+    }, { logger })(req());
+    expect(res.headers.getSetCookie()).toEqual(['a=1; Path=/; HttpOnly', 'b=2; Path=/']);
+  });
+
+  it('app_error_headers_are_sent_with_the_problem', async () => {
+    const { logger } = memory();
+    const res = await withApi(async () => {
+      throw new AppError('RATE_LIMITED', 429, 'Too many requests', undefined, { 'Retry-After': '42' });
+    }, { logger })(req());
+    expect(res.status).toBe(429);
+    expect(res.headers.get('retry-after')).toBe('42');
+    expect(res.headers.get('content-type')).toContain('application/problem+json');
+  });
+
   it('valid_inbound_request_id_is_echoed', async () => {
     const { logger } = memory();
     const res = await withApi(async () => new Response('ok'), { logger })(req({ 'x-request-id': 'abc-12345678' }));

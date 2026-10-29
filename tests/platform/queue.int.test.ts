@@ -12,9 +12,11 @@ describe('bullmq queue (real redis)', () => {
   it('same_jobId_enqueued_twice_is_processed_once', async () => {
     const name = `test-${randomUUID()}`;
     const calls: unknown[] = [];
+    const errors: unknown[] = [];
     const sentinelDone = Promise.withResolvers<void>();
     const worker = await startWorker({
       redisUrl,
+      onError: (e) => void errors.push(e),
       handlers: {
         [name]: async (payload) => {
           if ((payload as { sentinel?: boolean }).sentinel) sentinelDone.resolve();
@@ -29,6 +31,7 @@ describe('bullmq queue (real redis)', () => {
       await queue.enqueue(name, { sentinel: true }, { jobId: 'sentinel' });
       await sentinelDone.promise;
       expect(calls).toEqual([{ n: 1 }]);
+      expect(errors).toEqual([]);
     } finally {
       await worker.close();
     }

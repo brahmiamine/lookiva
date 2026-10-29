@@ -9,5 +9,8 @@ export function proxy(request: NextRequest) {
   return NextResponse.redirect(url, 307);
 }
 
-// Skip /api, /_next and any path with a file extension (static assets).
-export const config = { matcher: ['/((?!api|_next|.*\\..*).*)'] };
+// Skip /api (segment boundary: `/apiary` is still localized), /_next, any path with a file extension (static and PWA
+// assets: manifest.webmanifest, sw.js, favicon.ico, robots.txt...) and the extension-less metadata image routes.
+export const config = {
+  matcher: ['/((?!(?:api|icon|apple-icon|opengraph-image|twitter-image)(?:/|$)|_next/|.*\\..*).*)'],
+};

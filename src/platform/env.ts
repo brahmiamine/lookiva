@@ -1,12 +1,62 @@
 import { z } from 'zod';
 
-const schema = z.object({
-  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-  DATABASE_URL: z.url(),
-  REDIS_URL: z.url(),
-  READY_TOKEN: z.string().min(1),
-  LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
-});
+const urlWithScheme = (...schemes: string[]) =>
+  z.url().refine((v) => URL.canParse(v) && schemes.includes(new URL(v).protocol.slice(0, -1)), {
+    message: `scheme must be ${schemes.join(' or ')}`,
+  });
+
+// A bare http(s) origin (no path, query or fragment), normalised to URL.origin.
+const origin = z
+  .url()
+  .refine((v) => {
+    if (!URL.canParse(v)) return false;
+    const u = new URL(v);
+    return (u.protocol === 'http:' || u.protocol === 'https:') && v.replace(/\/$/, '') === u.origin;
+  }, { message: 'must be a bare http(s) origin' })
+  .transform((v) => new URL(v).origin);
+
+// An empty value (`APP_ORIGIN=` in a .env file) means "unset" for the optional variables.
+const unsetIfEmpty = <T extends z.ZodType>(t: T) => z.preprocess((v) => (v === '' ? undefined : v), t);
+const bool = (dflt: 'true' | 'false') =>
+  unsetIfEmpty(z.enum(['true', 'false']).default(dflt).transform((v) => v === 'true'));
+
+const schema = z
+  .object({
+    NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+    DATABASE_URL: urlWithScheme('mysql', 'mariadb'),
+    REDIS_URL: urlWithScheme('redis', 'rediss'),
+    READY_TOKEN: z.string().min(1),
+    LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
+    // Only set to true behind exactly one reverse proxy that appends the peer address to X-Forwarded-For.
+    TRUST_PROXY: bool('false'),
+    // Production escape hatch: run without a trusted proxy, accepting that every client shares ONE rate-limit bucket.
+    TRUST_PROXY_ACK_SINGLE_BUCKET: bool('false'),
+    // outbox = dev/test adapter storing mails in the database; none = no transport (identity answers 503).
+    EMAIL_TRANSPORT: unsetIfEmpty(z.enum(['outbox', 'none']).optional()),
+    // The only base of links sent by email (never Host/X-Forwarded-*) and the expected Origin of the CSRF check.
+    APP_ORIGIN: unsetIfEmpty(origin.optional()),
+  })
+  .superRefine((env, ctx) => {
+    const emailsPossible = (env.EMAIL_TRANSPORT ?? 'outbox') !== 'none';
+    if (env.APP_ORIGIN === undefined && (emailsPossible || env.NODE_ENV === 'production')) {
+      ctx.addIssue({ code: 'custom', path: ['APP_ORIGIN'], message: 'required in production and whenever emails can be sent' });
+    }
+    if (env.NODE_ENV !== 'production') return;
+    if (!env.TRUST_PROXY && !env.TRUST_PROXY_ACK_SINGLE_BUCKET) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['TRUST_PROXY'],
+        message: 'production needs TRUST_PROXY=true (or TRUST_PROXY_ACK_SINGLE_BUCKET=true to accept global rate limits)',
+      });
+    }
+    if (env.READY_TOKEN.length < 32 || env.READY_TOKEN.toLowerCase().startsWith('change-me')) {
+      ctx.addIssue({ code: 'custom', path: ['READY_TOKEN'], message: 'production needs a real token of 32+ characters' });
+    }
+    if (env.EMAIL_TRANSPORT === undefined || env.EMAIL_TRANSPORT === 'outbox') {
+      ctx.addIssue({ code: 'custom', path: ['EMAIL_TRANSPORT'], message: 'production needs an explicit transport (outbox is dev-only)' });
+    }
+  })
+  .transform((env) => ({ ...env, EMAIL_TRANSPORT: env.EMAIL_TRANSPORT ?? 'outbox' }));
 
 export type Env = z.infer<typeof schema>;
 

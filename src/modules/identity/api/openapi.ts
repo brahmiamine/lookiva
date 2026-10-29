@@ -1,0 +1,191 @@
+import { z } from 'zod';
+import { problemSchema } from '@/platform/http/errors';
+import { registry, registerRoute, type RouteDoc } from '@/platform/openapi/registry';
+import { SESSION_COOKIE } from './cookie';
+import { CONSENT_KINDS } from '../domain/consents';
+import * as s from './schemas';
+
+registry.registerComponent('securitySchemes', 'sessionCookie', { type: 'apiKey', in: 'cookie', name: SESSION_COOKIE });
+
+const problem = (description: string) => ({ description, content: { 'application/problem+json': { schema: problemSchema } } });
+const json = (description: string, schema: z.ZodType) => ({ description, content: { 'application/json': { schema } } });
+const body = (schema: z.ZodType) => ({ content: { 'application/json': { schema } } });
+
+const csrf = z.object({ 'X-Requested-With': z.literal('lookiva') });
+const idempotency = csrf.extend({ 'Idempotency-Key': z.string().regex(/^[A-Za-z0-9_-]{8,128}$/) });
+const session = [{ sessionCookie: [] }];
+const tags = ['identity'];
+
+const common = {
+  400: problem('VALIDATION_ERROR or INVALID_JSON'),
+  403: problem('CSRF_REJECTED (missing X-Requested-With: lookiva or foreign Origin)'),
+  429: problem('RATE_LIMITED (Retry-After header)'),
+};
+/** Adds what every identity route can answer: 503, 413 when it has a body, idempotency conflicts when keyed. */
+const route = ({ idempotent, ...r }: RouteDoc & { idempotent?: boolean }) =>
+  registerRoute({
+    ...r,
+    responses: {
+      ...r.responses,
+      ...((r.request as { body?: unknown } | undefined)?.body ? { 413: problem('PAYLOAD_TOO_LARGE (body over 16 KiB)') } : {}),
+      ...(idempotent
+        ? {
+            409: problem('IDEMPOTENCY_IN_PROGRESS (same Idempotency-Key still running)'),
+            422: problem('IDEMPOTENCY_KEY_REUSED (same Idempotency-Key, different request)'),
+          }
+        : {}),
+      503: problem('EMAIL_TRANSPORT_UNAVAILABLE (no email transport configured) or RATE_LIMITER_UNAVAILABLE'),
+    },
+  });
+
+const RATE = 'RATE_LIMITED (Retry-After header; per user)';
+const authed = {
+  401: problem('UNAUTHENTICATED (no, unknown, revoked or expired session)'),
+  403: problem('CSRF_REJECTED on unsafe methods'),
+};
+
+route({
+  method: 'post', path: '/api/v1/auth/register', tags, idempotent: true,
+  summary: 'Create an account (same answer whether or not the email exists); mails a verification link',
+  request: { headers: idempotency, body: body(s.registerBody) },
+  responses: { 202: json('Accepted', s.acceptedResponse), ...common },
+});
+route({
+  method: 'post', path: '/api/v1/auth/email/verify', tags,
+  summary: 'Consume a one-time email verification token',
+  request: { headers: csrf, body: body(s.tokenBody) },
+  responses: { 200: json('Email verified', s.verifiedResponse), ...common, 400: problem('INVALID_TOKEN (unknown, used or expired) or VALIDATION_ERROR') },
+});
+route({
+  method: 'post', path: '/api/v1/auth/email/resend', tags,
+  summary: 'Resend the verification link (60 s cooldown; same answer for unknown emails)',
+  request: { headers: csrf, body: body(s.emailBody) },
+  responses: { 202: json('Accepted', s.acceptedResponse), ...common },
+});
+route({
+  method: 'post', path: '/api/v1/auth/login', tags,
+  summary: 'Open a session (sets the lookiva_session cookie)',
+  request: { headers: csrf, body: body(s.loginBody) },
+  responses: {
+    200: { ...json('Signed in; Set-Cookie: lookiva_session (HttpOnly, SameSite=Lax, Secure in production)', s.loginResponse) },
+    ...common,
+    401: problem('INVALID_CREDENTIALS (unknown email, wrong password or inactive account)'),
+    403: problem('EMAIL_NOT_VERIFIED (only after a correct password) or CSRF_REJECTED'),
+  },
+});
+route({
+  method: 'post', path: '/api/v1/auth/logout', tags, security: session,
+  summary: 'Revoke the current session',
+  request: { headers: csrf },
+  responses: { 204: { description: 'Signed out; cookie cleared' }, ...authed },
+});
+route({
+  method: 'post', path: '/api/v1/auth/logout-all', tags, security: session,
+  summary: 'Revoke every session of the user',
+  request: { headers: csrf },
+  responses: { 204: { description: 'All sessions revoked; cookie cleared' }, ...authed },
+});
+route({
+  method: 'post', path: '/api/v1/auth/password/forgot', tags, idempotent: true,
+  summary: 'Mail a password reset link (same answer for unknown emails)',
+  request: { headers: idempotency, body: body(s.emailBody) },
+  responses: { 202: json('Accepted', s.acceptedResponse), ...common },
+});
+route({
+  method: 'post', path: '/api/v1/auth/password/reset', tags, idempotent: true,
+  summary: 'Set a new password with a reset token; revokes every session',
+  request: { headers: idempotency, body: body(s.resetBody) },
+  responses: { 200: json('Password changed', s.passwordResetResponse), ...common, 400: problem('INVALID_TOKEN or VALIDATION_ERROR') },
+});
+route({
+  method: 'get', path: '/api/v1/me', tags, security: session,
+  summary: 'Current account',
+  responses: { 200: json('Account', s.meResponse), ...authed },
+});
+route({
+  method: 'get', path: '/api/v1/me/sessions', tags, security: session,
+  summary: 'Active sessions of the user (cursor pagination)',
+  request: { query: z.object({ limit: z.number().int().min(1).max(100).optional(), cursor: z.string().optional() }) },
+  responses: { 200: json('Sessions, newest first', s.sessionsResponse), 400: problem('VALIDATION_ERROR or INVALID_CURSOR'), ...authed },
+});
+route({
+  method: 'delete', path: '/api/v1/me/sessions/{id}', tags, security: session,
+  summary: 'Revoke one of the user\'s sessions',
+  request: { headers: csrf, params: z.object({ id: z.uuid() }) },
+  responses: { 204: { description: 'Revoked' }, ...authed, 404: problem('NOT_FOUND (unknown, revoked or another user\'s session)') },
+});
+route({
+  method: 'get', path: '/api/v1/me/preferences', tags, security: session,
+  summary: 'Preferences (ETag W/"v<version>")',
+  responses: { 200: json('Preferences', s.preferencesResponse), ...authed },
+});
+route({
+  method: 'patch', path: '/api/v1/me/preferences', tags, security: session,
+  summary: 'Partial update guarded by If-Match',
+  request: { headers: csrf.extend({ 'If-Match': z.string() }), body: body(s.preferencesPatchBody) },
+  responses: {
+    200: json('Updated preferences (new ETag)', s.preferencesResponse),
+    400: problem('VALIDATION_ERROR'),
+    ...authed,
+    409: problem('VERSION_CONFLICT (stale ETag; `*` is refused too)'),
+    428: problem('IF_MATCH_REQUIRED'),
+  },
+});
+route({
+  method: 'post', path: '/api/v1/me/onboarding', tags, security: session,
+  summary: 'Onboarding: locale and city required; GPS and timezone optional (IANA, default UTC)',
+  request: { headers: csrf, body: body(s.onboardingBody) },
+  responses: { 200: json('Preferences after onboarding', s.preferencesResponse), 400: problem('VALIDATION_ERROR'), ...authed, 409: problem('VERSION_CONFLICT') },
+});
+route({
+  method: 'get', path: '/api/v1/geo/cities', tags, security: session,
+  summary: 'City candidates for onboarding (max 5, names in the user\'s locale; 30 requests/min/user; q is never logged)',
+  request: { query: s.citiesQuery },
+  responses: { 200: json('Candidates, best first (timezone, latitude, longitude pre-filled)', s.citiesResponse), 429: problem(RATE),  400: problem('VALIDATION_ERROR (q is 2..80 characters)'), ...authed },
+});
+route({
+  method: 'post', path: '/api/v1/me/deactivate', tags, security: session,
+  summary: 'Deactivate the account (status DISABLED, every session revoked). Re-authentication: current password',
+  request: { headers: csrf, body: body(s.reauthBody) },
+  responses: { 204: { description: 'Deactivated; cookie cleared' }, 429: problem(RATE), 400: problem('VALIDATION_ERROR'), ...authed, 401: problem('UNAUTHENTICATED or INVALID_CREDENTIALS (wrong password; rate limited per user)') },
+});
+route({
+  method: 'post', path: '/api/v1/me/deletion-request', tags, security: session,
+  summary: 'Request account deletion (DELETION_REQUESTED, every session revoked, idempotent). Backups are NOT purged immediately',
+  request: { headers: csrf, body: body(s.reauthBody) },
+  responses: { 202: json('Pending request (same one when repeated)', s.deletionRequestResponse), 429: problem(RATE), 400: problem('VALIDATION_ERROR'), ...authed, 401: problem('UNAUTHENTICATED or INVALID_CREDENTIALS (wrong password; rate limited per user)') },
+});
+route({
+  method: 'delete', path: '/api/v1/me/deletion-request', tags,
+  summary: 'Cancel a PENDING deletion request. No session exists any more, so the body carries email + password (login limits apply)',
+  request: { headers: csrf, body: body(s.loginBody) },
+  responses: {
+    200: json('Cancelled; the account is back to its previous status (ACTIVE, or DISABLED if it was disabled before: then it still cannot sign in)', s.deletionCancelledResponse),
+    ...common,
+    401: problem('INVALID_CREDENTIALS (unknown email, wrong password, or an account not awaiting deletion)'),
+    404: problem('NOT_FOUND (DELETION_REQUESTED account without a pending request)'),
+  },
+});
+route({
+  method: 'post', path: '/api/v1/me/export-requests', tags, security: session,
+  summary: 'Record a data export request (3/day/user). Nothing is generated yet',
+  request: { headers: csrf },
+  responses: { 202: json('Request recorded, status PENDING', s.exportRequestView), 429: problem(RATE), ...authed },
+});
+route({
+  method: 'get', path: '/api/v1/me/export-requests', tags, security: session,
+  summary: 'Own export requests, newest first (cursor pagination)',
+  request: { query: z.object({ limit: z.number().int().min(1).max(100).optional(), cursor: z.string().optional() }) },
+  responses: { 200: json('Export requests', s.exportRequestsResponse), 400: problem('VALIDATION_ERROR or INVALID_CURSOR'), ...authed },
+});
+route({
+  method: 'get', path: '/api/v1/me/consents', tags, security: session,
+  summary: 'Latest consent per kind (AI_RECOMMENDATIONS, LEARNING, CLOUD_BACKGROUND_REMOVAL); never answered = granted false',
+  responses: { 200: json('One entry per kind', s.consentsResponse), ...authed },
+});
+route({
+  method: 'put', path: '/api/v1/me/consents/{kind}', tags, security: session,
+  summary: 'Grant or withdraw a consent (30/min/user): appends a record and keeps aiEnabled/learningEnabled equal in the same transaction. No kind covers photo recognition: photos never go to an AI',
+  request: { headers: csrf, params: z.object({ kind: z.enum(CONSENT_KINDS) }), body: body(s.consentBody) },
+  responses: { 200: json('Recorded consent', s.consentView), 429: problem(RATE), 400: problem('VALIDATION_ERROR'), ...authed, 404: problem('NOT_FOUND (unknown kind)') },
+});

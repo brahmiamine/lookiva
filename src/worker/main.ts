@@ -11,7 +11,11 @@ const env = getEnv();
 const log = createLogger({ level: env.LOG_LEVEL });
 
 // No business jobs yet: later phases register their handlers here.
-const worker = await startWorker({ redisUrl: env.REDIS_URL, handlers: {} });
+const worker = await startWorker({
+  redisUrl: env.REDIS_URL,
+  handlers: {},
+  onError: (err) => log.error({ err }, 'worker error'),
+});
 
 // Compose healthcheck reads the mtime of this file.
 const beat = () => writeFileSync(HEARTBEAT_FILE, String(Date.now()));

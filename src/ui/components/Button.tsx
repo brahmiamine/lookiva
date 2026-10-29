@@ -6,7 +6,12 @@ const BASE =
 const VARIANTS = {
   primary: 'bg-primary text-on-primary',
   secondary: 'border border-border bg-surface text-text',
+  outline: 'border-[1.5px] border-primary bg-surface text-primary',
+  danger: 'border-[1.5px] border-danger bg-surface text-danger',
 };
+
+/** Full-width form action of the mockups (48px high). */
+export const BLOCK = 'w-full min-h-12 text-base font-bold aria-disabled:cursor-not-allowed aria-disabled:border-border aria-disabled:bg-neutral-soft aria-disabled:text-neutral';
 
 export function Button({
   variant,
