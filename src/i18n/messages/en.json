@@ -259,7 +259,64 @@
       "wrongPassword": "Incorrect password.",
       "deletedTitle": "Deletion request recorded",
       "deletedText": "You have been signed out of all your devices. Backups are not purged immediately.",
-      "toLogin": "Go to sign in"
+      "toLogin": "Go to sign in",
+      "wardrobeLink": "My wardrobe"
+    }
+  },
+  "wardrobe": {
+    "title": "My wardrobe",
+    "lead": "One record per physical piece.",
+    "add": "Add a garment",
+    "allCategories": "All categories",
+    "allStatuses": "All statuses",
+    "search": "Search",
+    "category": "Category",
+    "status": "Status",
+    "filter": "Filter",
+    "resetFilters": "Clear filters",
+    "empty": "No garments yet",
+    "emptyText": "Add your first piece to get started.",
+    "emptyFiltered": "No garment matches these filters.",
+    "back": "Back to my wardrobe",
+    "new": {
+      "title": "New garment",
+      "lead": "Category, subtype and main colour are required.",
+      "category": "Category",
+      "subtype": "Subtype",
+      "pickCategoryFirst": "Choose a category first",
+      "color": "Main colour",
+      "nickname": "Nickname (optional)",
+      "seasons": "Seasons",
+      "styles": "Styles",
+      "notes": "Notes (optional)",
+      "submit": "Save garment",
+      "saving": "Saving…",
+      "choose": "Choose…"
+    },
+    "detail": {
+      "status": "Status",
+      "recommendable": "Offered in recommendations",
+      "notRecommendable": "Not offered in recommendations",
+      "changeStatus": "Change status",
+      "statusSaved": "Status updated.",
+      "trash": "Move to trash",
+      "trashTitle": "Move this garment to the trash?",
+      "trashText": "It stays in the trash for 30 days before permanent deletion.",
+      "photos": "Photos",
+      "photosHint": "Up to 5 photos of 10 MB each (JPEG, PNG or WebP).",
+      "addPhoto": "Add a photo",
+      "uploading": "Uploading photo…",
+      "noPhotos": "No photos for this garment.",
+      "primary": "Primary",
+      "setPrimary": "Set as primary",
+      "deletePhoto": "Delete photo",
+      "photoN": "Photo {n}"
+    },
+    "errors": {
+      "conflict": "This garment changed elsewhere. Reload the page before trying again.",
+      "photoLimit": "This garment already has 5 photos.",
+      "photoTooLarge": "Photo too large (10 MB maximum).",
+      "photoUnsupported": "Unsupported format: JPEG, PNG or WebP only."
     }
   }
 }

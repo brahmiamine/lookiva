@@ -20,15 +20,17 @@ export class ApiError extends Error {
 type Options = {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: unknown;
-  /** Sends a fresh Idempotency-Key (register, forgot, reset). One call = one user intent. */
-  idempotent?: boolean;
+  /** Sends an Idempotency-Key (register, forgot, reset). `true` = a fresh key; a string = the caller's key, reused on retry. */
+  idempotent?: boolean | string;
   ifMatch?: string;
 };
 
 export async function api<T = unknown>(path: string, { method = 'GET', body, idempotent, ifMatch }: Options = {}) {
   const headers = new Headers({ 'X-Requested-With': 'lookiva', Accept: 'application/json' });
-  if (body !== undefined) headers.set('Content-Type', 'application/json');
-  if (idempotent) headers.set('Idempotency-Key', crypto.randomUUID());
+  // FormData (photo upload) keeps the browser's multipart Content-Type, boundary included.
+  const multipart = body instanceof FormData;
+  if (body !== undefined && !multipart) headers.set('Content-Type', 'application/json');
+  if (idempotent) headers.set('Idempotency-Key', typeof idempotent === 'string' ? idempotent : crypto.randomUUID());
   if (ifMatch) headers.set('If-Match', ifMatch);
 
   let res: Response;
@@ -37,7 +39,7 @@ export async function api<T = unknown>(path: string, { method = 'GET', body, ide
       method,
       headers,
       credentials: 'same-origin',
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: body === undefined || multipart ? (body as FormData | undefined) : JSON.stringify(body),
     });
   } catch {
     throw new ApiError(0, 'NETWORK_ERROR');

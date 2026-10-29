@@ -259,7 +259,64 @@
       "wrongPassword": "Mot de passe incorrect.",
       "deletedTitle": "Demande de suppression enregistrée",
       "deletedText": "Vous avez été déconnecté de tous vos appareils. Les sauvegardes ne sont pas purgées immédiatement.",
-      "toLogin": "Aller à la connexion"
+      "toLogin": "Aller à la connexion",
+      "wardrobeLink": "Mon dressing"
+    }
+  },
+  "wardrobe": {
+    "title": "Mon dressing",
+    "lead": "Une fiche par pièce physique.",
+    "add": "Ajouter un vêtement",
+    "allCategories": "Toutes les catégories",
+    "allStatuses": "Tous les statuts",
+    "search": "Rechercher",
+    "category": "Catégorie",
+    "status": "Statut",
+    "filter": "Filtrer",
+    "resetFilters": "Effacer les filtres",
+    "empty": "Aucun vêtement pour l’instant",
+    "emptyText": "Ajoutez votre première pièce pour commencer.",
+    "emptyFiltered": "Aucun vêtement ne correspond à ces filtres.",
+    "back": "Retour à mon dressing",
+    "new": {
+      "title": "Nouveau vêtement",
+      "lead": "La catégorie, le sous-type et la couleur principale sont obligatoires.",
+      "category": "Catégorie",
+      "subtype": "Sous-type",
+      "pickCategoryFirst": "Choisissez d’abord une catégorie",
+      "color": "Couleur principale",
+      "nickname": "Surnom (facultatif)",
+      "seasons": "Saisons",
+      "styles": "Styles",
+      "notes": "Notes (facultatif)",
+      "submit": "Enregistrer le vêtement",
+      "saving": "Enregistrement…",
+      "choose": "Choisir…"
+    },
+    "detail": {
+      "status": "Statut",
+      "recommendable": "Proposé aux recommandations",
+      "notRecommendable": "Non proposé aux recommandations",
+      "changeStatus": "Changer le statut",
+      "statusSaved": "Statut mis à jour.",
+      "trash": "Mettre à la corbeille",
+      "trashTitle": "Mettre ce vêtement à la corbeille ?",
+      "trashText": "Il reste dans la corbeille 30 jours avant suppression définitive.",
+      "photos": "Photos",
+      "photosHint": "Jusqu’à 5 photos de 10 Mo (JPEG, PNG ou WebP).",
+      "addPhoto": "Ajouter une photo",
+      "uploading": "Envoi de la photo…",
+      "noPhotos": "Aucune photo pour ce vêtement.",
+      "primary": "Principale",
+      "setPrimary": "Définir comme principale",
+      "deletePhoto": "Supprimer la photo",
+      "photoN": "Photo {n}"
+    },
+    "errors": {
+      "conflict": "Ce vêtement a changé ailleurs. Rechargez la page avant de réessayer.",
+      "photoLimit": "Ce vêtement a déjà 5 photos.",
+      "photoTooLarge": "Photo trop lourde (10 Mo maximum).",
+      "photoUnsupported": "Format non accepté : JPEG, PNG ou WebP uniquement."
     }
   }
 }

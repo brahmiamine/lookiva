@@ -194,6 +194,9 @@ export function Profile({ initial, etag: initialEtag, timeZones, pendingExportAt
   return (
     <>
       <h1 className={`${H1} mt-2`}>{t('title')}</h1>
+      <Link href={`/${locale}/wardrobe`} className={LINK}>
+        {t('wardrobeLink')}
+      </Link>
       {notice && (
         <div className="mb-3.5">
           <Notice ref={noticeRef} role="alert" {...notice}>

@@ -1,5 +1,5 @@
 import { headers } from 'next/headers';
-import { redirect } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { identityRoutes } from '@/modules/identity';
 import type { Locale } from '@/i18n/config';
 
@@ -53,6 +53,15 @@ export async function getJson<T>(route: Route, path: string, locale: Locale): Pr
   if (res.status === 401) redirect(`/${locale}/login`);
   if (!res.ok) throw new Error(`${path} unavailable (${res.status})`);
   return (await res.json()) as T;
+}
+
+/** Same as getJson, plus the ETag to send back in If-Match. A missing resource shows the 404 page. */
+export async function getJsonWithEtag<T>(route: Route, path: string, locale: Locale): Promise<{ data: T; etag: string }> {
+  const res = await get(route, path);
+  if (res.status === 401) redirect(`/${locale}/login`);
+  if (res.status === 404) notFound();
+  if (!res.ok) throw new Error(`${path} unavailable (${res.status})`);
+  return { data: (await res.json()) as T, etag: res.headers.get('ETag') ?? '' };
 }
 
 /** Canonical IANA zones of the server runtime, passed to the client so both render the same options. */
