@@ -421,6 +421,21 @@
     "wears": {
       "title": "Last worn",
       "none": "Not worn yet."
+    },
+    "outfits": {
+      "title": "Outfits this week",
+      "prev": "Previous week",
+      "next": "Next week",
+      "thisWeek": "This week",
+      "empty": "Nothing planned that day.",
+      "untitled": "Untitled outfit",
+      "planned": "Planned",
+      "draft": "Draft",
+      "worn": "Worn",
+      "cancelled": "Cancelled",
+      "none": "No outfit planned this week.",
+      "link": "Outfits",
+      "weekOf": "Week of {date}"
     }
   }
 }

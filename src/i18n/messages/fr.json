@@ -421,6 +421,21 @@
     "wears": {
       "title": "Dernières utilisations",
       "none": "Jamais porté pour l’instant."
+    },
+    "outfits": {
+      "title": "Tenues de la semaine",
+      "prev": "Semaine précédente",
+      "next": "Semaine suivante",
+      "thisWeek": "Cette semaine",
+      "empty": "Rien de prévu ce jour-là.",
+      "untitled": "Tenue sans titre",
+      "planned": "Prévue",
+      "draft": "Brouillon",
+      "worn": "Portée",
+      "cancelled": "Annulée",
+      "none": "Aucune tenue planifiée cette semaine.",
+      "link": "Tenues",
+      "weekOf": "Semaine du {date}"
     }
   }
 }
