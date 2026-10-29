@@ -27,7 +27,7 @@ export type Garment = {
   version: number;
 };
 /** Tag, collection or garment set. `garments` lists every member, trashed ones included. */
-export type Organizer = { id: string; name: string; garments: { id: string; trashed: boolean }[] };
+export type Organizer = { id: string; name: string; version: number; garments: { id: string; trashed: boolean }[] };
 export type GroupKind = 'tags' | 'collections' | 'garment-sets';
 export type GroupSet = { kind: GroupKind; items: { id: string; name: string; member: boolean }[] };
 export type CustomSubcategory ={ id: string; label: string; parentSubtypeCode: string };

@@ -408,7 +408,15 @@
       "create": "Créer",
       "member": "Dans ce groupe",
       "none": "Aucun groupe pour l’instant.",
-      "updated": "Groupes mis à jour."
+      "updated": "Groupes mis à jour.",
+      "manage": "Gérer les groupes",
+      "rename": "Renommer",
+      "save": "Enregistrer",
+      "remove": "Supprimer",
+      "confirmRemove": "Confirmer la suppression",
+      "removed": "Groupe supprimé. Les vêtements ne sont pas touchés.",
+      "renamed": "Groupe renommé.",
+      "count": "{count} vêtement(s)"
     }
   }
 }

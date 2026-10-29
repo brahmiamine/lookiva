@@ -408,7 +408,15 @@
       "create": "Create",
       "member": "In this group",
       "none": "No group yet.",
-      "updated": "Groups updated."
+      "updated": "Groups updated.",
+      "manage": "Manage groups",
+      "rename": "Rename",
+      "save": "Save",
+      "remove": "Delete",
+      "confirmRemove": "Confirm deletion",
+      "removed": "Group deleted. Garments are untouched.",
+      "renamed": "Group renamed.",
+      "count": "{count} garment(s)"
     }
   }
 }

@@ -12,7 +12,7 @@ import { H1, LEAD, SECTION } from '../../styles';
 import { GarmentActions } from './GarmentActions';
 import { GarmentEditor } from './GarmentEditor';
 import { Organizers } from './Organizers';
-import { loadGroups } from './groups';
+import { loadGroups } from '../groups';
 import { Photos } from './Photos';
 
 export const generateMetadata = titleFrom('wardrobe.title');
