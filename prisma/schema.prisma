@@ -71,6 +71,9 @@ model User {
   outfits             Outfit[]
   outfitTemplates     OutfitTemplate[]
   wearRecords         WearRecord[]
+  recoSessions        RecommendationSession[]
+  recoFeedback        RecommendationFeedback[]
+  weatherBaselines    OutfitWeatherBaseline[]
 
   @@map("users")
 }
@@ -127,6 +130,8 @@ model UserPreferences {
   aiEnabled             Boolean            @default(false)
   learningEnabled       Boolean            @default(false)
   thermalSensitivity    ThermalSensitivity @default(NEUTRAL)
+  /// Opt-in: recommendation feedback may influence ranking (phase 06).
+  personalization       Boolean            @default(false)
   onboardingCompletedAt DateTime?          @db.DateTime(3)
   version               Int                @default(1)
   user                  User               @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -435,23 +440,24 @@ model GarmentSetItem {
 
 /// startsAt/endsAt are UTC; localDate/localTime/timezone (IANA) are the user's wall clock at the start (derived by the server). A DRAFT may lack all of them.
 model Outfit {
-  id           String         @id @db.Char(36)
-  ownerId      String         @db.Char(36)
-  title        String?        @db.VarChar(120)
+  id              String                 @id @db.Char(36)
+  ownerId         String                 @db.Char(36)
+  title           String?                @db.VarChar(120)
   /// DRAFT | PLANNED | WORN | CANCELLED
-  status       String         @default("DRAFT") @db.VarChar(12)
-  occasion     String?        @db.VarChar(80)
-  startsAt     DateTime?      @db.DateTime(3)
-  endsAt       DateTime?      @db.DateTime(3)
-  localDate    DateTime?      @db.Date
-  localTime    String?        @db.VarChar(5)
-  timezone     String?        @db.VarChar(64)
-  version      Int            @default(1)
-  createdAt    DateTime       @db.DateTime(3)
-  updatedAt    DateTime       @db.DateTime(3)
-  owner        User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  items        OutfitItem[]
-  wearRecords  WearRecord[]
+  status          String                 @default("DRAFT") @db.VarChar(12)
+  occasion        String?                @db.VarChar(80)
+  startsAt        DateTime?              @db.DateTime(3)
+  endsAt          DateTime?              @db.DateTime(3)
+  localDate       DateTime?              @db.Date
+  localTime       String?                @db.VarChar(5)
+  timezone        String?                @db.VarChar(64)
+  version         Int                    @default(1)
+  createdAt       DateTime               @db.DateTime(3)
+  updatedAt       DateTime               @db.DateTime(3)
+  owner           User                   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  items           OutfitItem[]
+  wearRecords     WearRecord[]
+  weatherBaseline OutfitWeatherBaseline?
 
   @@index([ownerId, localDate, startsAt])
   @@index([ownerId, status])
@@ -547,4 +553,71 @@ model WearRecordItem {
   @@index([wearRecordId])
   @@index([garmentId])
   @@map("wear_record_items")
+}
+
+/// Phase 06. Cached normalized forecast of one place and local day (location key = rounded lat,lon). Append-only, purged after 7 days.
+model WeatherSnapshot {
+  id          String   @id @db.Char(36)
+  locationKey String   @db.VarChar(24)
+  localDate   String   @db.Char(10)
+  provider    String   @db.VarChar(32)
+  /// When the provider issued the forecast.
+  issuedAt    DateTime @db.DateTime(3)
+  fetchedAt   DateTime @db.DateTime(3)
+  timezone    String   @db.VarChar(64)
+  /// Normalized hourly periods: { hour, tempC, feelsLikeC, precipProbability, windKph, reliability }[]
+  payload     Json
+
+  @@index([locationKey, localDate, fetchedAt])
+  @@index([fetchedAt])
+  @@map("weather_snapshots")
+}
+
+/// Phase 06. Only fingerprints (hashes of sorted garment ids) already shown: powers "another proposal". Proposals themselves are never stored.
+model RecommendationSession {
+  id           String   @id @db.Char(36)
+  ownerId      String   @db.Char(36)
+  fingerprints Json
+  createdAt    DateTime @db.DateTime(3)
+  expiresAt    DateTime @db.DateTime(3)
+  owner        User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId, expiresAt])
+  @@map("recommendation_sessions")
+}
+
+/// Phase 06. ACCEPT | REJECT | MODIFY. garmentIds is an id snapshot (no FK: history survives garment purge). Deletable on its own.
+model RecommendationFeedback {
+  id          String   @id @db.Char(36)
+  ownerId     String   @db.Char(36)
+  sessionId   String?  @db.Char(36)
+  fingerprint String   @db.Char(64)
+  action      String   @db.VarChar(8)
+  garmentIds  Json
+  createdAt   DateTime @db.DateTime(3)
+  owner       User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId, createdAt])
+  @@map("recommendation_feedback")
+}
+
+/// Phase 06. The forecast an outfit was planned against (copied payload), compared later with a fresh one. Never changes the outfit.
+model OutfitWeatherBaseline {
+  outfitId  String   @id @db.Char(36)
+  ownerId   String   @db.Char(36)
+  latitude  Float
+  longitude Float
+  timezone  String   @db.VarChar(64)
+  localDate String   @db.Char(10)
+  fromHour  Int
+  toHour    Int
+  provider  String   @db.VarChar(32)
+  issuedAt  DateTime @db.DateTime(3)
+  payload   Json
+  createdAt DateTime @db.DateTime(3)
+  outfit    Outfit   @relation(fields: [outfitId], references: [id], onDelete: Cascade)
+  owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId])
+  @@map("outfit_weather_baselines")
 }

@@ -22,6 +22,7 @@ export type PreferencesView = {
   aiEnabled: boolean;
   learningEnabled: boolean;
   thermalSensitivity: 'COLD' | 'NEUTRAL' | 'WARM';
+  personalization: boolean;
   onboardingCompletedAt: string | null;
   version: number;
 };

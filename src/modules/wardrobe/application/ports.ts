@@ -115,6 +115,11 @@ export type GarmentRef = {
   trashed: boolean;
 };
 export type SetStatusResult = { ok: true; ref: GarmentRef } | { ok: false; code: 'NOT_FOUND' | 'VERSION_CONFLICT' | 'NOT_ELIGIBLE'; status?: GarmentStatus; currentVersion?: number };
+/** Categorical attributes of an own, non-trashed, AVAILABLE garment: what the recommendation engine (and only that) may read. No photo, name, notes or price. */
+export type RecommendableGarment = {
+  id: string; categoryCode: string; subtypeCode: string | null; primaryColorCode: string; extraColorCodes: string[];
+  warmth: string; rain: string; windproof: string; breathability: string; layering: string; seasons: string[]; styles: string[];
+};
 /** Public port for other modules: owner scoped, goes through the same compare-and-set and status-event path as the API. */
 export interface GarmentGateway {
   /** Own garments among `ids`, trashed ones included (flagged); unknown and foreign ids are simply absent. */
@@ -123,4 +128,6 @@ export interface GarmentGateway {
   setStatus(ownerId: OwnerId, id: string, to: GarmentStatus, o: { source: string; note: string | null; expectedVersion?: number; onlyFrom?: GarmentStatus[] }): Promise<SetStatusResult>;
   /** Ids of own, non-trashed AVAILABLE garments of a category (replacement suggestions). */
   availableInCategory(ownerId: OwnerId, categoryCode: string, excludeIds: string[], limit: number): Promise<string[]>;
+  /** Own, non-trashed, AVAILABLE garments (newest ids first, at most `limit`) with weather-relevant attributes only. */
+  listRecommendable(ownerId: OwnerId, limit: number): Promise<RecommendableGarment[]>;
 }

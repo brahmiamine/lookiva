@@ -260,3 +260,10 @@ Toutes les durées sont dans `src/modules/identity/domain/policy.ts`.
 - **Corrections** (`invalidate`) : le champ `invalidatedAt`/`invalidationReason` sur la ligne est la trace d'audit ; pas d'entrée dans le journal d'audit de plateforme. Décisions à valider (ADR-11 et fuseaux) : voir le rapport de phase.
 - Tests : `pnpm test` (domaine) et `pnpm test:int` (`tests/outfits`).
 - Limites connues : les valises/voyages ne sont pas couverts par les conflits (reportés à la phase 08) ; `invalidate` ne remet pas à AVAILABLE les vêtements déjà passés en TO_WASH (aucune déduction implicite) ; la date de port est celle de la confirmation (pas d'antidatage) ; la purge d'un vêtement retire ses lignes des tenues/modèles sans changer leur version (ADR-11) ; liste par plage : 62 jours max (422), 200 lignes max (`truncated`) ; 12 vêtements max par tenue.
+
+## Phase 06 : météo, recommandations, IA facultative (backend)
+- Aucun fournisseur réel n'est branché (ADR-10 = décision propriétaire). `WEATHER_PROVIDER=none|fake` (défaut `none` : `weatherAvailable:false`, jamais de prévision inventée) ; `RECOMMENDATION_AI=none|fake`. Les adaptateurs `fake` sont déterministes, sans réseau.
+- Plafonds (ADR-08 en attente) : `WEATHER_CACHE_TTL_MIN` (30), `WEATHER_DAILY_CALL_CAP` (1000 appels fournisseur/jour UTC), `AI_RECOMMENDATION_DAILY_CAP` (10/utilisateur/jour UTC). La réponse de `POST /recommendations/outfits` expose `ai.status/used/dailyCap`.
+- L'IA ne reçoit que des ids opaques et des attributs catégoriels (jamais photo, surnom, notes, prix) ; elle ne fait que réordonner les candidats des règles ; consentement `AI_RECOMMENDATIONS` (préférence `aiEnabled`) + quota requis, sinon règles.
+- `preferences.personalization` (défaut false) : le feedback n'influence le classement que s'il est activé. Seuils d'impact météo fixes : 5 °C, 30 pts de probabilité de pluie, 20 km/h.
+- Migration `20261104090000_recommendations` : rollback dans l'en-tête du fichier.

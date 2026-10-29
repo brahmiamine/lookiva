@@ -29,6 +29,7 @@ const toPreferences = (r: PrefRow): Preferences => ({
   aiEnabled: r.aiEnabled,
   learningEnabled: r.learningEnabled,
   thermalSensitivity: r.thermalSensitivity,
+  personalization: r.personalization,
   onboardingCompletedAt: r.onboardingCompletedAt,
   version: r.version,
 });

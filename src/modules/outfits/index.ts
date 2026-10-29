@@ -9,3 +9,5 @@ export { OUTFIT_STATUSES, type OutfitStatus } from './domain/outfit';
 
 /** Implements wardrobe's GarmentUsageChecker: garments in DRAFT/PLANNED outfits produce warnings on trash / bulk delete. */
 export const createOutfitUsageChecker = (db: PrismaClient) => createPrismaUsageChecker(db);
+
+export { createPrismaOutfitReader as createOutfitReader, type OutfitReader, type OutfitSchedule } from './infrastructure/prisma-reader';

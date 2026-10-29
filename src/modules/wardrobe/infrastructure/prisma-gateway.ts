@@ -54,5 +54,19 @@ export function createPrismaGarmentGateway(db: PrismaClient, clock: Clock): Garm
       });
       return rows.map((r) => r.id);
     },
+
+    async listRecommendable(ownerId, limit) {
+      const rows = await db.garment.findMany({
+        where: { ownerId, deletedAt: null, status: 'AVAILABLE' },
+        include: { colors: { orderBy: { position: 'asc' } }, seasons: true, styles: true },
+        orderBy: { id: 'desc' },
+        take: limit,
+      });
+      return rows.map((r) => ({
+        id: r.id, categoryCode: r.categoryCode, subtypeCode: r.subtypeCode, primaryColorCode: r.primaryColorCode,
+        extraColorCodes: r.colors.map((c) => c.colorCode), warmth: r.warmth, rain: r.rain, windproof: r.windproof,
+        breathability: r.breathability, layering: r.layering, seasons: r.seasons.map((s) => s.code), styles: r.styles.map((s) => s.code),
+      }));
+    },
   };
 }
